@@ -6,7 +6,7 @@ const { initDb } = require('./db');
 
 const app = express();
 
-// Stripe webhook needs raw body
+// Stripe webhook needs raw body - must come BEFORE express.json()
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
