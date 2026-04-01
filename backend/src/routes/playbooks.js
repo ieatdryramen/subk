@@ -114,6 +114,32 @@ router.post('/generate-list/:listId', auth, async (req, res) => {
   }
 });
 
+// Cancel generation for a lead
+router.post('/cancel/:leadId', auth, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE leads SET status='pending' WHERE id=$1 AND user_id=$2 AND status='generating'",
+      [req.params.leadId, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel all generating leads in a list
+router.post('/cancel-list/:listId', auth, async (req, res) => {
+  try {
+    await pool.query(
+      "UPDATE leads SET status='pending' WHERE list_id=$1 AND user_id=$2 AND status='generating'",
+      [req.params.listId, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get playbook for a lead
 router.get('/:leadId', auth, async (req, res) => {
   try {
