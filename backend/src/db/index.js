@@ -150,6 +150,8 @@ const initDb = async () => {
       created_at TIMESTAMP DEFAULT NOW()
     );
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS sequence_stage VARCHAR(50) DEFAULT 'not_started';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
   `);
   console.log('Database initialized');
 };
