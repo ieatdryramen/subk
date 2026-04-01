@@ -1,8 +1,7 @@
 [build]
 builder = "nixpacks"
-buildCommand = "npm run build"
 
 [deploy]
-startCommand = "npm start"
+startCommand = "npm start --prefix backend"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
