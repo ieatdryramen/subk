@@ -5,6 +5,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', icon: '▦' },
   { to: '/profile', label: 'Company Profile', icon: '◈' },
   { to: '/lists', label: 'Lead Lists', icon: '◉' },
+  { to: '/team', label: 'Team & Integrations', icon: '◎' },
 ];
 
 const s = {
@@ -24,7 +25,6 @@ const s = {
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-
   const handleLogout = () => { logout(); navigate('/login'); };
 
   return (
@@ -36,13 +36,14 @@ export default function Layout({ children }) {
         </div>
         <nav style={s.nav}>
           {navItems.map(item => (
-            <NavLink key={item.to} to={item.to} end={item.to==='/'} style={({ isActive }) => ({ ...s.navLink, ...(isActive ? s.navLinkActive : {}) })}>
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} style={({ isActive }) => ({ ...s.navLink, ...(isActive ? s.navLinkActive : {}) })}>
               <span style={{ fontSize: 16 }}>{item.icon}</span>
               {item.label}
             </NavLink>
           ))}
         </nav>
         <div style={s.footer}>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{user?.role || 'member'}</div>
           <div style={s.userLine}>{user?.email}</div>
           <button style={s.logoutBtn} onClick={handleLogout}>Sign out</button>
         </div>
