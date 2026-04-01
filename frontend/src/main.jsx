@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import ProfilePage from './pages/ProfilePage';
 import LeadListsPage from './pages/LeadListsPage';
 import LeadListDetailPage from './pages/LeadListDetailPage';
+import TeamPage from './pages/TeamPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ const App = () => (
         <Route path="/profile" element={<Protected><ProfilePage /></Protected>} />
         <Route path="/lists" element={<Protected><LeadListsPage /></Protected>} />
         <Route path="/lists/:id" element={<Protected><LeadListDetailPage /></Protected>} />
+        <Route path="/team" element={<Protected><TeamPage /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
