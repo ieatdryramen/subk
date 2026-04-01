@@ -26,6 +26,7 @@ const initDb = async () => {
       tone VARCHAR(255),
       objections TEXT,
       sender_name VARCHAR(255),
+      sender_role VARCHAR(50) DEFAULT 'AE',
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
@@ -60,12 +61,18 @@ const initDb = async () => {
       email1 TEXT,
       email2 TEXT,
       email3 TEXT,
+      email4 TEXT,
       linkedin TEXT,
       call_opener TEXT,
       objection_handling TEXT,
       callbacks TEXT,
       generated_at TIMESTAMP DEFAULT NOW()
     );
+
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS sender_role VARCHAR(50) DEFAULT 'AE';
+    ALTER TABLE playbooks ADD COLUMN IF NOT EXISTS email4 TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS custom_tone TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS website_url VARCHAR(500);
   `);
   console.log('Database initialized');
 };
