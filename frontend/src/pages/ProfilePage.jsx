@@ -82,37 +82,8 @@ export default function ProfilePage() {
     if (!form.website_url) return;
     setAutoFilling(true);
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1500,
-          messages: [{
-            role: 'user',
-            content: `Visit this website and extract company information to fill out a sales profile: ${form.website_url}
-
-Return a JSON object with these exact keys:
-{
-  "name": "company name",
-  "product": "one sentence description of what they sell",
-  "value_props": "3-5 key value propositions, one per line",
-  "icp": "description of their ideal customer profile based on their website",
-  "target_titles": "likely buyer titles they sell to, one per line"
-}
-
-Return ONLY the JSON, no markdown.`,
-          }],
-          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        }),
-      });
-      const data = await res.json();
-      const text = data.content?.filter(b => b.type === 'text').map(b => b.text).join('').trim().replace(/^```json|^```|```$/gm, '').trim();
-      const parsed = JSON.parse(text);
-      setForm(f => ({ ...f, ...parsed }));
+      const res = await api.post('/autofill', { url: form.website_url });
+      setForm(f => ({ ...f, ...res.data }));
       setStatus('autofilled');
     } catch (err) {
       setStatus('autofill-error');
