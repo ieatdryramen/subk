@@ -3,166 +3,151 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const roleContext = {
   SDR: {
-    goal: 'Book a discovery call or meeting. You are NOT trying to close — you are trying to earn 20 minutes.',
-    focus: 'Pattern interrupt, create curiosity, low friction ask. Every touchpoint is about getting a reply, not explaining the product.',
-    emailStyle: 'Ultra short. 3-5 sentences max per email. No features. No buzzwords. One question or one insight. Make it feel like a human typed it on their phone.',
-    callStyle: 'Cold call opener designed to get past "I\'m busy." Permission-based, curiosity-driven. 30 seconds max before asking for time.',
-    linkedinStyle: 'Connection request feels like a peer reaching out, not a sales pitch. DMs are conversational, not templated.',
+    goal: 'Book a discovery call. Earn 20 minutes.',
+    focus: 'Pattern interrupt, curiosity, one low-friction ask.',
+    emailStyle: '3-5 sentences max. No features. One question. Feels like a human on their phone.',
+    callStyle: 'Permission-based, curiosity-driven. 30 seconds before asking for time.',
+    linkedinStyle: 'Peer outreach, not a pitch. Conversational DMs.',
   },
   AE: {
-    goal: 'Advance the deal — get to a demo, a proposal conversation, or a business case discussion.',
-    focus: 'Business outcomes, ROI, risk of inaction. Connect their company situation to the value you deliver.',
-    emailStyle: 'Confident and peer-level. Reference their business specifically. Lead with an insight about their situation. 100-150 words.',
-    callStyle: 'Executive-level opener. Quickly establish credibility. Discovery focused on business impact and decision process.',
-    linkedinStyle: 'Thoughtful, business-focused. Reference something from their profile or company news.',
+    goal: 'Get to a demo or business case conversation.',
+    focus: 'Business outcomes, ROI, risk of inaction.',
+    emailStyle: 'Peer-level, insight-led, 80-120 words. Reference their business specifically.',
+    callStyle: 'Executive opener. Credibility fast. Discovery on business impact.',
+    linkedinStyle: 'Thoughtful, business-focused. Reference their profile or company news.',
   },
   AM: {
-    goal: 'Expand the relationship — identify upsell, cross-sell, or renewal opportunities.',
-    focus: 'Relationship continuity, proven value, expansion. Low pressure, high trust.',
-    emailStyle: 'Warm and consultative. Reference their industry or role context. Focus on growth.',
-    callStyle: 'Check-in style opener. Lead with their success or industry context before transitioning to opportunity.',
-    linkedinStyle: 'Relationship-building focused. Engage with their content. Feel like a trusted advisor.',
+    goal: 'Expand the relationship. Upsell or renewal.',
+    focus: 'Proven value, expansion, low pressure high trust.',
+    emailStyle: 'Warm, consultative. Growth-focused.',
+    callStyle: 'Check-in style. Lead with their success before transitioning.',
+    linkedinStyle: 'Trusted advisor tone. Engage with their content.',
   },
   CSM: {
-    goal: 'Drive adoption, retention, and customer health. Focus on onboarding success and long-term partnership.',
-    focus: 'Outcomes achieved, risk mitigation, success planning. Time-to-value.',
-    emailStyle: 'Helpful and outcome-oriented. Focus on what success looks like for their specific role.',
-    callStyle: 'Success-focused opener. Lead with outcomes and what you help customers achieve.',
-    linkedinStyle: 'Community and expertise focused. Position as a thought partner.',
+    goal: 'Drive adoption, retention, long-term partnership.',
+    focus: 'Outcomes, risk mitigation, time-to-value.',
+    emailStyle: 'Helpful, outcome-oriented. What success looks like for their role.',
+    callStyle: 'Lead with outcomes and what you help customers achieve.',
+    linkedinStyle: 'Thought partner, not vendor.',
   },
   SE: {
-    goal: 'Establish technical credibility. Drive POC conversations, integration discussions, or technical discovery.',
-    focus: 'Technical pain points, integration complexity, security, scalability.',
-    emailStyle: 'Technically credible but not overwhelming. Reference a specific technical challenge relevant to their stack.',
-    callStyle: 'Technical peer opener. Establish you understand their environment before pitching.',
-    linkedinStyle: 'Technical and substantive. Reference their tech stack or a technical challenge in their space.',
+    goal: 'Technical credibility. Drive POC or integration discussion.',
+    focus: 'Technical pain, integration complexity, security, scalability.',
+    emailStyle: 'Technically credible. Reference a specific challenge for their stack.',
+    callStyle: 'Technical peer. Understand their environment before pitching.',
+    linkedinStyle: 'Reference their tech stack or a technical challenge in their space.',
   },
 };
 
+const withTimeout = (promise, ms, label) => {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout: ${label} took over ${ms/1000}s`)), ms)
+  );
+  return Promise.race([promise, timeout]);
+};
+
 const researchLead = async (lead) => {
-  const searchPrompt = `You are a B2B sales intelligence researcher. Research this prospect and their company and provide actionable intel for a sales rep about to reach out.
+  const prompt = `You are a B2B sales researcher. In 3 concise paragraphs, provide intel on this prospect for a sales rep about to reach out.
 
-PROSPECT:
-- Name: ${lead.full_name}
-- Company: ${lead.company}
-- Title: ${lead.title}
-- Notes: ${lead.notes || 'none'}
+Prospect: ${lead.full_name || 'Unknown'}, ${lead.title || 'Unknown'} at ${lead.company || 'Unknown'}
 
-Provide a research brief covering:
-1. What this company does, their size/stage, and their likely business priorities right now
-2. What someone in this person's role (${lead.title}) typically cares about and is measured on
-3. Likely operational challenges or technology gaps relevant to their industry
-4. Recent trends or pressures in their space that would make them open to a conversation
-5. What a cold outreach should reference or avoid
+Paragraph 1: What this company does, their size/stage, and what likely matters to them right now.
+Paragraph 2: What someone in this exact role cares about, is measured on, and worries about.
+Paragraph 3: The best angle of attack — what to lead with, what to avoid, why they'd care.
 
-Be specific and actionable. No fluff.`;
+Be specific. No fluff. Max 200 words total.`;
 
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: searchPrompt }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-    });
-    return message.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-  } catch (err) {
-    console.log('Web research failed, using base knowledge:', err.message);
-    const fallback = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
-      messages: [{ role: 'user', content: searchPrompt }],
-    });
-    return fallback.content[0].text.trim();
-  }
+  const message = await client.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 400,
+    messages: [{ role: 'user', content: prompt }],
+  });
+  return message.content[0].text.trim();
 };
 
 const generatePlaybook = async (lead, profile) => {
   const role = profile.sender_role || 'AE';
   const ctx = roleContext[role] || roleContext.AE;
 
-  const researchBrief = await researchLead(lead);
+  // Research with timeout - use fast Haiku model, 10s timeout
+  let researchBrief = '';
+  try {
+    researchBrief = await withTimeout(researchLead(lead), 10000, 'research');
+  } catch (err) {
+    console.log('Research skipped:', err.message);
+    researchBrief = `${lead.full_name || 'This person'} is a ${lead.title || 'professional'} at ${lead.company || 'their company'}. Use your general knowledge about their role and industry.`;
+  }
 
-  const prompt = `You are an elite B2B sales strategist writing for a ${role} at ${profile.name}.
+  const prompt = `You are writing a sales playbook for ${profile.sender_name || 'a rep'} (${role}) at ${profile.name}.
 
-SELLER CONTEXT:
-- Company: ${profile.name}
+SELLER:
 - Product: ${profile.product}
-- Value props: ${profile.value_props}
+- Key value props: ${profile.value_props}
 - ICP: ${profile.icp}
 - Tone: ${profile.tone}
-- Sender: ${profile.sender_name}, ${role}
 - Objections: ${profile.objections}
-
-YOUR ROLE AS ${role}:
-- Goal: ${ctx.goal}
-- Focus: ${ctx.focus}
-- Email style: ${ctx.emailStyle}
-- Call style: ${ctx.callStyle}
 
 PROSPECT:
 - Name: ${lead.full_name}
 - Company: ${lead.company}
 - Title: ${lead.title}
-- Email: ${lead.email}
-- LinkedIn: ${lead.linkedin || 'Not provided'}
-- Notes: ${lead.notes || 'None'}
+- Email: ${lead.email || 'unknown'}
+- Notes: ${lead.notes || 'none'}
 
-RESEARCH ON THIS PROSPECT:
+INTEL:
 ${researchBrief}
 
-CRITICAL RULES:
-- NEVER mention specific competitor or legacy software products by name. Use "your current solution", "existing tools", or "legacy systems".
-- Every email must sound like a real human wrote it. No "I hope this finds you well." No "I wanted to reach out." No buzzwords.
-- Each of the 4 emails takes a completely different angle. They are not variations of the same message.
-- Everything must be grounded in the research above. Generic = failure.
+ROLE CONTEXT (${role}):
+Goal: ${ctx.goal}
+Email style: ${ctx.emailStyle}
+Call style: ${ctx.callStyle}
 
-Generate a JSON object with exactly these keys:
+RULES:
+- Never name specific competitor products. Say "your current solution" or "existing tools".
+- Emails must sound human. No "I hope this finds you well." No buzzwords.
+- Each email takes a completely different angle.
+- Ground everything in the intel above.
 
+Return ONLY a JSON object:
 {
-  "research": "3 paragraphs: (1) Company situation and what matters to them right now based on research. (2) What this specific person in their role cares about, is measured on, and worries about. (3) Your angle — what to lead with, what to avoid, and why they should care about ${profile.name} specifically.",
+  "research": "The intel brief above, formatted as 3 clean paragraphs",
+  "email1": "SUBJECT: [subject]\\n\\n[Day 1 - ${ctx.emailStyle} Sign: ${profile.sender_name || 'your name'}]",
+  "email2": "SUBJECT: [subject]\\n\\n[Day 3 - different angle entirely. Sign: ${profile.sender_name || 'your name'}]",
+  "email3": "SUBJECT: [subject]\\n\\n[Day 7 - useful insight or perspective. Under 100 words. Sign: ${profile.sender_name || 'your name'}]",
+  "email4": "SUBJECT: [subject]\\n\\n[Day 14 - breakup. Under 60 words. Sign: ${profile.sender_name || 'your name'}]",
+  "linkedin": "CONNECTION REQUEST:\\n[under 300 chars, peer tone]\\n\\nDM 1 (after connecting):\\n[conversational]\\n\\nDM 2 (4 days later):\\n[value-add]",
+  "call_opener": "OPENING (20 sec):\\n[${ctx.callStyle}]\\n\\nIF THEY HAVE 2 MIN:\\n[tight pitch]\\n\\nDISCOVERY QUESTIONS:\\n1. [situation]\\n2. [pain]\\n3. [impact]\\n4. [qualify]\\n\\nBRUSH-OFF RESPONSES:\\n[3 common ones with natural responses]",
+  "objection_handling": "OBJECTION: [their words] | RESPONSE: [natural confident rebound]\\n\\n[Cover each of: ${profile.objections}\\nPlus 2 specific to this prospect]",
+  "callbacks": "1. [company-specific talking point]\\n2. [role-specific pain]\\n3. [industry trend]\\n4. [value prop connection]\\n5. [provocative question]\\n6. [cost of inaction]\\n7. [success story angle]\\n8. [conversation recovery]"
+}`;
 
-  "email1": "SUBJECT: [subject]\\n\\nDay 1 cold email. ${ctx.emailStyle} Do NOT start with your name or company. Start with something about THEM from the research. One soft CTA. Sign: ${profile.sender_name}",
-
-  "email2": "SUBJECT: [subject]\\n\\nDay 3. Completely different angle. Lead with a specific insight or industry observation. Connect to ${profile.name} without being salesy. Different CTA. Sign: ${profile.sender_name}",
-
-  "email3": "SUBJECT: [subject]\\n\\nDay 7. Share something genuinely useful — a perspective, a question they should be asking, or a framework. Soft ask. Under 120 words. Sign: ${profile.sender_name}",
-
-  "email4": "SUBJECT: [subject]\\n\\nDay 14 breakup. Short, human, zero pressure. Make THEM feel like they are closing the door. Under 80 words. Sign: ${profile.sender_name}",
-
-  "linkedin": "CONNECTION REQUEST (under 300 chars, peer-to-peer, no pitch):\\n[message]\\n\\nFOLLOW-UP DM 1 (day after connecting):\\n[message]\\n\\nFOLLOW-UP DM 2 (4 days later, provide value):\\n[message]",
-
-  "call_opener": "OPENING (first 20 seconds):\\n[script — ${ctx.callStyle}]\\n\\nIF THEY HAVE 2 MINUTES:\\n[30-second pitch specific to their role and company]\\n\\nDISCOVERY QUESTIONS:\\n1. [business situation question]\\n2. [current state and pain question]\\n3. [impact or priority question]\\n4. [qualify or advance question]\\n\\nBRUSH-OFFS AND RESPONSES:\\n[3 common brush-offs a ${role} gets and natural confident responses]",
-
-  "objection_handling": "Handle each objection the way a confident ${role} would — natural, not scripted:\\n\\n${profile.objections}\\n\\nPLUS 3 objections specific to this prospect's company, industry, or title.\\n\\nFormat: OBJECTION: [their exact words] | RESPONSE: [natural confident rebound]",
-
-  "callbacks": "8 specific callbacks grounded in the research — things to weave into any touchpoint to show you did your homework:\\n\\n1. [specific to their company situation]\\n2. [specific to their role and what they are measured on]\\n3. [industry trend or pressure they are feeling]\\n4. [connects their situation to your value prop]\\n5. [a question that makes them think]\\n6. [risk or cost of inaction specific to their situation]\\n7. [success story angle relevant to their profile]\\n8. [something to reference if conversation goes cold]"
-}
-
-Return ONLY the JSON. No markdown, no preamble.`;
-
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 3500,
-    messages: [{ role: 'user', content: prompt }],
-  });
+  const message = await withTimeout(
+    client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2500,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+    45000,
+    'playbook generation'
+  );
 
   const text = message.content[0].text.trim().replace(/^```json|^```|```$/gm, '').trim();
   return JSON.parse(text);
 };
 
 const chatWithPlaybook = async (messages, lead, profile, playbook) => {
-  const systemPrompt = `You are a sales coach helping ${profile.sender_name}, a ${profile.sender_role || 'AE'} at ${profile.name}, refine their outreach to ${lead.full_name} at ${lead.company}.
+  const systemPrompt = `You are a sales coach helping ${profile.sender_name || 'a rep'} (${profile.sender_role || 'AE'}) at ${profile.name} refine outreach to ${lead.full_name} at ${lead.company}. Be direct, specific, actionable. No fluff.`;
 
-You can rewrite any section of the playbook, suggest new angles, answer questions about the prospect or strategy, or help prep for a specific scenario. Be direct, specific, and actionable. No fluff.
-
-Current playbook context is available if needed.`;
-
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1500,
-    system: systemPrompt,
-    messages: messages,
-  });
+  const response = await withTimeout(
+    client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages,
+    }),
+    30000,
+    'chat'
+  );
 
   return response.content[0].text;
 };
