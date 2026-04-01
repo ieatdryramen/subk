@@ -68,6 +68,8 @@ export default function LeadListDetailPage() {
   const [scoring, setScoring] = useState(false);
   const [progress, setProgress] = useState(0);
   const [zohoStatus, setZohoStatus] = useState({});
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const fileRef = useRef();
   const pollRef = useRef();
 
@@ -121,9 +123,10 @@ export default function LeadListDetailPage() {
     catch (err) { alert(err.response?.data?.error || 'Scoring failed.'); setScoring(false); }
   };
 
-  const exportList = () => {
+  const exportList = (format) => {
     const token = localStorage.getItem('pf_token');
-    window.open(`/api/export/list/${id}?token=${token}`, '_blank');
+    window.open(`/api/export/list/${id}/${format}?token=${token}`, '_blank');
+    setShowExportMenu(false);
   };
 
   const generateOne = async (e, leadId) => {
@@ -133,7 +136,12 @@ export default function LeadListDetailPage() {
       const r = await api.post(`/playbooks/generate/${leadId}`);
       setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'done', ...r.data } : l));
     } catch (err) {
-      setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'error' } : l));
+      if (err.response?.data?.upgrade) {
+        setShowUpgradeModal(true);
+        setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'pending' } : l));
+      } else {
+        setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'error' } : l));
+      }
     }
   };
 
@@ -214,7 +222,25 @@ export default function LeadListDetailPage() {
             </button>
           )}
           {doneCount > 0 && (
-            <button style={s.btn('info')} onClick={exportList}>↓ Export Playbooks</button>
+            <div style={{ position: 'relative' }}>
+              <button style={s.btn('info')} onClick={() => setShowExportMenu(m => !m)}>↓ Export Playbooks ▾</button>
+              {showExportMenu && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', zIndex: 50, minWidth: 180 }}>
+                  <div style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: 'var(--text)' }}
+                    onMouseEnter={e => e.target.style.background='var(--bg3)'}
+                    onMouseLeave={e => e.target.style.background=''}
+                    onClick={() => exportList('html')}>
+                    📄 HTML (Print to PDF)
+                  </div>
+                  <div style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: 'var(--text)', borderTop: '1px solid var(--border)' }}
+                    onMouseEnter={e => e.target.style.background='var(--bg3)'}
+                    onMouseLeave={e => e.target.style.background=''}
+                    onClick={() => exportList('csv')}>
+                    📊 CSV spreadsheet
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
@@ -326,6 +352,36 @@ export default function LeadListDetailPage() {
               <button style={s.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={s.saveBtn} onClick={addLead} disabled={!addForm.full_name && !addForm.company}>Add lead</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showUpgradeModal && (
+        <div style={s.modal} onClick={() => setShowUpgradeModal(false)}>
+          <div style={{ ...s.modalCard, maxWidth: 460, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, fontFamily: 'Syne, sans-serif' }}>Playbook limit reached</div>
+            <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+              You've used all your free playbooks. Upgrade to keep generating personalized outreach for your leads.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: '1.5rem' }}>
+              {[
+                { name: 'Starter', price: '$49/mo', detail: '100 playbooks' },
+                { name: 'Team', price: '$149/mo', detail: '500 playbooks', featured: true },
+                { name: 'Pro', price: '$299/mo', detail: 'Unlimited' },
+              ].map(p => (
+                <div key={p.name} style={{ padding: '12px', background: p.featured ? 'var(--accent-bg)' : 'var(--bg3)', border: p.featured ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+                  onClick={() => { setShowUpgradeModal(false); window.location.href = '/billing'; }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{p.name}</div>
+                  <div style={{ fontSize: 13, color: p.featured ? 'var(--accent2)' : 'var(--text2)' }}>{p.price}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{p.detail}</div>
+                </div>
+              ))}
+            </div>
+            <button style={{ ...s.saveBtn, width: '100%' }} onClick={() => { setShowUpgradeModal(false); window.location.href = '/billing'; }}>
+              View plans & upgrade →
+            </button>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 10, cursor: 'pointer' }} onClick={() => setShowUpgradeModal(false)}>Maybe later</div>
           </div>
         </div>
       )}
