@@ -3,10 +3,11 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: '▦' },
+  { to: '/dashboard', label: 'Dashboard', icon: '▦' },
   { to: '/profile', label: 'Company Profile', icon: '◈' },
   { to: '/lists', label: 'Lead Lists', icon: '◉' },
   { to: '/team', label: 'Team & Integrations', icon: '◎' },
+  { to: '/billing', label: 'Billing', icon: '◇' },
 ];
 
 export default function Layout({ children }) {
