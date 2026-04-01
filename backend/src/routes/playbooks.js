@@ -19,6 +19,21 @@ router.post('/generate/:leadId', auth, async (req, res) => {
     if (!profileResult.rows.length) return res.status(400).json({ error: 'No company profile found. Set up your profile first.' });
     const profile = profileResult.rows[0];
 
+    // Check usage limit
+    const user = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = user.rows[0]?.org_id;
+    if (orgId) {
+      const org = await pool.query('SELECT playbooks_used, playbooks_limit, plan FROM organizations WHERE id=$1', [orgId]);
+      const o = org.rows[0];
+      if (o && (o.playbooks_used || 0) >= (o.playbooks_limit || 10)) {
+        return res.status(403).json({ 
+          error: `Playbook limit reached (${o.playbooks_used}/${o.playbooks_limit}). Upgrade your plan to continue.`,
+          upgrade: true
+        });
+      }
+      if (orgId) await pool.query('UPDATE organizations SET playbooks_used = playbooks_used + 1 WHERE id=$1', [orgId]);
+    }
+
     await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['generating', lead.id]);
 
     let playbook;
