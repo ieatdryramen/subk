@@ -18,10 +18,19 @@ const PLANS = {
   pro:     { name: 'Pro',     price: 29900, playbooks: 999999, users: 999 },
 };
 
+const WHITELISTED_DOMAINS = ['sumxai.com', 'sumx.ai'];
+
 router.get('/status', auth, async (req, res) => {
   try {
     const user = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
     const u = user.rows[0];
+    const emailDomain = u.email?.split('@')[1]?.toLowerCase();
+    
+    // Whitelisted orgs get unlimited pro
+    if (WHITELISTED_DOMAINS.includes(emailDomain)) {
+      return res.json({ plan: 'pro', playbooks_used: 0, playbooks_limit: 999999, whitelisted: true });
+    }
+
     if (!u.org_id) return res.json({ plan: 'trial', playbooks_used: 0, playbooks_limit: 10 });
     const org = await pool.query('SELECT * FROM organizations WHERE id=$1', [u.org_id]);
     const o = org.rows[0] || {};
