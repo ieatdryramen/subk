@@ -2,7 +2,6 @@ const router = require('express').Router();
 const { pool } = require('../db');
 const jwt = require('jsonwebtoken');
 
-// Export uses token in query param since browser window.open can't set headers
 const authFromQuery = async (req, res, next) => {
   const token = req.query.token || req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
@@ -15,33 +14,34 @@ const authFromQuery = async (req, res, next) => {
   }
 };
 
-router.get('/list/:listId', authFromQuery, async (req, res) => {
+const getLeads = async (listId, userId) => {
+  const result = await pool.query(`
+    SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4,
+           p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
+    FROM leads l
+    LEFT JOIN playbooks p ON p.lead_id = l.id
+    JOIN users u ON u.id = $2
+    WHERE l.list_id = $1
+      AND l.status = 'done'
+      AND (
+        l.user_id = $2 OR
+        EXISTS (SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL)
+      )
+    ORDER BY l.icp_score DESC NULLS LAST, l.created_at ASC
+  `, [listId, userId]);
+  return result.rows;
+};
+
+const escHtml = (str) => String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escCsv = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+
+// HTML export
+router.get('/list/:listId/html', authFromQuery, async (req, res) => {
   try {
-    // Support org-level access
-    const leadsResult = await pool.query(`
-      SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4, 
-             p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
-      FROM leads l 
-      LEFT JOIN playbooks p ON p.lead_id = l.id
-      JOIN users u ON u.id = $2
-      WHERE l.list_id = $1 
-        AND l.status = 'done'
-        AND (
-          l.user_id = $2 OR
-          EXISTS (
-            SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL
-          )
-        )
-      ORDER BY l.icp_score DESC NULLS LAST, l.created_at ASC
-    `, [req.params.listId, req.userId]);
-
-    const leads = leadsResult.rows;
-    if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export in this list' });
-
+    const leads = await getLeads(req.params.listId, req.userId);
+    if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
-
-    const escHtml = (str) => String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     const html = `<!DOCTYPE html>
 <html>
@@ -67,10 +67,12 @@ router.get('/list/:listId', authFromQuery, async (req, res) => {
   .section-content { white-space: pre-wrap; font-family: Georgia, serif; font-size: 13px; line-height: 1.75; }
   .email-block { border-left: 3px solid #6c63ff; padding: 12px 16px; margin-bottom: 14px; background: #fafafa; }
   .email-day { font-size: 10px; font-weight: 700; color: #6c63ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-  @media print { .lead { page-break-before: always; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+  .print-btn { position: fixed; bottom: 24px; right: 24px; padding: 12px 24px; background: #6c63ff; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; font-family: sans-serif; }
+  @media print { .print-btn { display: none; } .lead { page-break-before: always; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
 </style>
 </head>
 <body>
+<button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
 <div class="cover">
   <h1>${escHtml(listName)}</h1>
   <p>ProspectForge Sales Playbooks</p>
@@ -104,12 +106,42 @@ ${leads.map(lead => {
 </html>`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${listName.replace(/[^a-z0-9]/gi, '_')}_playbooks.html"`);
+    res.setHeader('Content-Disposition', `inline; filename="${listName.replace(/[^a-z0-9]/gi, '_')}_playbooks.html"`);
     res.send(html);
   } catch (err) {
     console.error('Export error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// CSV export
+router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
+  try {
+    const leads = await getLeads(req.params.listId, req.userId);
+    if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
+    const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
+    const listName = listResult.rows[0]?.name || 'Export';
+
+    const headers = ['Name','Company','Title','Email','LinkedIn','ICP Score','ICP Reason','Research','Email 1 (Day 1)','Email 2 (Day 3)','Email 3 (Day 7)','Email 4 (Day 14)','LinkedIn Messages','Call Opener','Objection Handling','Callbacks'];
+    const rows = leads.map(l => [
+      l.full_name, l.company, l.title, l.email, l.linkedin,
+      l.icp_score, l.icp_reason,
+      l.research, l.email1, l.email2, l.email3, l.email4,
+      l.linkedin_msg, l.call_opener, l.objection_handling, l.callbacks
+    ].map(escCsv));
+
+    const csv = [headers.map(escCsv).join(','), ...rows.map(r => r.join(','))].join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${listName.replace(/[^a-z0-9]/gi, '_')}_playbooks.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Keep old route for backward compat
+router.get('/list/:listId', authFromQuery, async (req, res) => {
+  res.redirect(`/api/export/list/${req.params.listId}/html?token=${req.query.token}`);
 });
 
 module.exports = router;
