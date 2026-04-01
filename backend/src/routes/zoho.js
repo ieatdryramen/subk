@@ -8,7 +8,14 @@ const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET || '2edd338a68ae0fb399
 const REDIRECT_URI = 'https://prospectforge-production-1f99.up.railway.app/api/zoho/callback';
 
 const getZohoToken = async (userId) => {
-  const result = await pool.query('SELECT zoho_refresh_token FROM company_profiles WHERE user_id=$1', [userId]);
+  // Get refresh token from user's org profile or their own profile
+  const result = await pool.query(`
+    SELECT cp.zoho_refresh_token FROM company_profiles cp
+    JOIN users u ON (cp.user_id = u.id OR cp.org_id = u.org_id)
+    WHERE u.id = $1 AND cp.zoho_refresh_token IS NOT NULL
+    LIMIT 1
+  `, [userId]);
+  
   const refreshToken = result.rows[0]?.zoho_refresh_token;
   if (!refreshToken) throw new Error('Zoho not connected. Go to Team & Integrations to connect.');
 
@@ -20,17 +27,25 @@ const getZohoToken = async (userId) => {
       grant_type: 'refresh_token',
     }
   });
-  if (!res.data.access_token) throw new Error('Failed to refresh Zoho token');
+  if (!res.data.access_token) throw new Error('Failed to refresh Zoho token. Reconnect in Team & Integrations.');
   return res.data.access_token;
 };
 
-// Push a lead + playbook to Zoho CRM
 router.post('/push/:leadId', auth, async (req, res) => {
   try {
-    const leadResult = await pool.query(
-      'SELECT * FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]
-    );
-    if (!leadResult.rows.length) return res.status(404).json({ error: 'Lead not found' });
+    // Find lead - check user's own leads OR leads in their org
+    const leadResult = await pool.query(`
+      SELECT l.* FROM leads l
+      JOIN users u ON u.id = $2
+      WHERE l.id = $1 AND (
+        l.user_id = $2 OR
+        EXISTS (
+          SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL
+        )
+      )
+    `, [req.params.leadId, req.userId]);
+
+    if (!leadResult.rows.length) return res.status(404).json({ error: 'Lead not found or access denied' });
     const lead = leadResult.rows[0];
 
     const playbookResult = await pool.query('SELECT * FROM playbooks WHERE lead_id=$1', [lead.id]);
@@ -120,10 +135,7 @@ ${playbook.callbacks || ''}`.trim();
   }
 });
 
-// OAuth callback — NO auth middleware, Zoho redirects here directly
-// We use a state param to identify the user
 router.get('/connect', auth, async (req, res) => {
-  // Store user ID in state param so callback can identify them
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
   const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
@@ -131,41 +143,22 @@ router.get('/connect', auth, async (req, res) => {
 
 router.get('/callback', async (req, res) => {
   const { code, state } = req.query;
-
-  if (!code) return res.redirect('/?zoho=error&reason=no_code');
-
+  if (!code) return res.redirect('/team?zoho=error&reason=no_code');
   try {
     let userId;
     if (state) {
-      try {
-        const decoded = JSON.parse(Buffer.from(state, 'base64').toString());
-        userId = decoded.userId;
-      } catch (e) {}
+      try { userId = JSON.parse(Buffer.from(state, 'base64').toString()).userId; } catch (e) {}
     }
-
     const tokenRes = await axios.post('https://accounts.zoho.com/oauth/v2/token', null, {
-      params: {
-        code,
-        client_id: ZOHO_CLIENT_ID,
-        client_secret: ZOHO_CLIENT_SECRET,
-        redirect_uri: REDIRECT_URI,
-        grant_type: 'authorization_code',
-      }
+      params: { code, client_id: ZOHO_CLIENT_ID, client_secret: ZOHO_CLIENT_SECRET, redirect_uri: REDIRECT_URI, grant_type: 'authorization_code' }
     });
-
     const { refresh_token } = tokenRes.data;
-    if (!refresh_token) {
-      console.error('No refresh token in response:', tokenRes.data);
-      return res.redirect('/?zoho=error&reason=no_refresh_token');
-    }
-
+    if (!refresh_token) return res.redirect('/team?zoho=error&reason=no_refresh_token');
     if (userId) {
       await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1 WHERE user_id=$2', [refresh_token, userId]);
     } else {
-      // Fallback: update all profiles (single-user scenario)
       await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
     }
-
     res.redirect('/team?zoho=connected');
   } catch (err) {
     console.error('Zoho callback error:', err.response?.data || err.message);
@@ -175,7 +168,12 @@ router.get('/callback', async (req, res) => {
 
 router.get('/status', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT zoho_refresh_token FROM company_profiles WHERE user_id=$1', [req.userId]);
+    const result = await pool.query(`
+      SELECT cp.zoho_refresh_token FROM company_profiles cp
+      JOIN users u ON (cp.user_id = u.id OR cp.org_id = u.org_id)
+      WHERE u.id = $1 AND cp.zoho_refresh_token IS NOT NULL
+      LIMIT 1
+    `, [req.userId]);
     res.json({ connected: !!result.rows[0]?.zoho_refresh_token });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
