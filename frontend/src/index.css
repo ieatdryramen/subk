@@ -66,3 +66,39 @@ a:hover { text-decoration: underline; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .shell { flex-direction: column !important; }
+}
+
+@media (max-width: 768px) {
+  /* Page padding */
+  .pf-page { padding: 1rem !important; }
+  
+  /* Tables scroll horizontally */
+  table { font-size: 12px !important; }
+  th, td { padding: 8px 10px !important; }
+  
+  /* Grid collapses to single column */
+  [style*="grid-template-columns: 1fr 1fr"] { 
+    grid-template-columns: 1fr !important; 
+  }
+  [style*="grid-template-columns: repeat(5"] { 
+    grid-template-columns: repeat(3, 1fr) !important; 
+  }
+  [style*="grid-template-columns: repeat(2"] { 
+    grid-template-columns: 1fr !important; 
+  }
+  [style*="grid-template-columns: repeat(3"] { 
+    grid-template-columns: 1fr 1fr !important; 
+  }
+
+  /* Action buttons wrap */
+  [style*="display: flex"][style*="gap"] { flex-wrap: wrap !important; }
+
+  /* Stats cards */
+  [style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
