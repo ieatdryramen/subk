@@ -139,6 +139,17 @@ const initDb = async () => {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS playbooks_used INTEGER DEFAULT 0;
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS playbooks_limit INTEGER DEFAULT 10;
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP DEFAULT (NOW() + INTERVAL '14 days');
+    CREATE TABLE IF NOT EXISTS sequence_events (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      touchpoint VARCHAR(50) NOT NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      notes TEXT,
+      completed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS sequence_stage VARCHAR(50) DEFAULT 'not_started';
   `);
   console.log('Database initialized');
 };
