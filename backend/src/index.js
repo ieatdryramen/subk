@@ -17,11 +17,11 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/zoho', require('./routes/zoho'));
 app.use('/api/scoring', require('./routes/scoring'));
 app.use('/api/export', require('./routes/export'));
+app.use('/api/autofill', require('./routes/autofill'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.0.0' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.1.0' }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
-console.log('Serving frontend from:', frontendDist);
 app.use(express.static(frontendDist));
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
@@ -32,7 +32,7 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 initDb().then(() => {
-  app.listen(PORT, () => console.log(`ProspectForge v2 running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`ProspectForge v2.1 running on port ${PORT}`));
 }).catch(err => {
   console.error('DB init failed:', err);
   process.exit(1);
