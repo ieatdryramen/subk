@@ -20,9 +20,16 @@ router.post('/generate/:leadId', auth, async (req, res) => {
     const profile = profileResult.rows[0];
 
     // Check usage limit
-    const user = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
-    const orgId = user.rows[0]?.org_id;
-    if (orgId) {
+    const userResult = await pool.query('SELECT org_id, email FROM users WHERE id=$1', [req.userId]);
+    const orgId = userResult.rows[0]?.org_id;
+    const userEmail = userResult.rows[0]?.email || '';
+    
+    // Whitelist internal domains - unlimited access
+    const whitelistedDomains = ['sumxai.com', 'sumx.ai'];
+    const emailDomain = userEmail.split('@')[1]?.toLowerCase();
+    const isWhitelisted = whitelistedDomains.includes(emailDomain);
+
+    if (orgId && !isWhitelisted) {
       const org = await pool.query('SELECT playbooks_used, playbooks_limit, plan FROM organizations WHERE id=$1', [orgId]);
       const o = org.rows[0];
       if (o && (o.playbooks_used || 0) >= (o.playbooks_limit || 10)) {
