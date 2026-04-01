@@ -235,7 +235,7 @@ export default function LeadListDetailPage() {
                       <td colSpan={6} style={s.rowExpand}>
                         <div style={s.expandInner}>
                           {lead.status === 'done' && (lead.research || lead.email1) ? (
-                            <PlaybookViewer playbook={lead} />
+                            <PlaybookViewer playbook={lead} leadId={lead.id} />
                           ) : lead.status === 'generating' ? (
                             <div style={{ color: 'var(--text2)', fontSize: 13, padding: '1rem 0' }}>Building playbook — this takes about 15 seconds...</div>
                           ) : lead.status === 'error' ? (
