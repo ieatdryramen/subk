@@ -23,6 +23,7 @@ app.use('/api/export', require('./routes/export'));
 app.use('/api/autofill', require('./routes/autofill'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/sequence', require('./routes/sequence'));
+app.use('/api/admin', require('./routes/admin'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.2.0' }));
 
