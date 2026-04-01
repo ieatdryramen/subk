@@ -7,7 +7,7 @@ const s = {
   heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
   sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '2rem' },
   card: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem' },
-  cardTitle: { fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px', fontSize: 12 },
+  cardTitle: { fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' },
   row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 },
   rowSingle: { marginBottom: 16 },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
