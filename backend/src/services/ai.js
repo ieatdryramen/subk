@@ -136,12 +136,57 @@ Return ONLY a JSON object:
 };
 
 const chatWithPlaybook = async (messages, lead, profile, playbook) => {
-  const systemPrompt = `You are a sales coach helping ${profile.sender_name || 'a rep'} (${profile.sender_role || 'AE'}) at ${profile.name} refine outreach to ${lead.full_name} at ${lead.company}. Be direct, specific, actionable. No fluff.`;
+  const playbookContext = playbook ? `
+FULL PLAYBOOK FOR THIS LEAD:
+
+RESEARCH BRIEF:
+${playbook.research || 'Not generated'}
+
+EMAIL 1 (Day 1):
+${playbook.email1 || 'Not generated'}
+
+EMAIL 2 (Day 3):
+${playbook.email2 || 'Not generated'}
+
+EMAIL 3 (Day 7):
+${playbook.email3 || 'Not generated'}
+
+EMAIL 4 (Day 14):
+${playbook.email4 || 'Not generated'}
+
+LINKEDIN MESSAGES:
+${playbook.linkedin || 'Not generated'}
+
+CALL OPENER:
+${playbook.call_opener || 'Not generated'}
+
+OBJECTION HANDLING:
+${playbook.objection_handling || 'Not generated'}
+
+CALLBACKS:
+${playbook.callbacks || 'Not generated'}` : 'No playbook generated yet for this lead.';
+
+  const systemPrompt = `You are an expert sales coach helping ${profile.sender_name || 'a rep'} (${profile.sender_role || 'AE'}) at ${profile.name} with their outreach to ${lead.full_name || 'this prospect'} (${lead.title || 'unknown title'}) at ${lead.company || 'their company'}.
+
+SELLER CONTEXT:
+- Company: ${profile.name}
+- Product: ${profile.product}
+- Sender: ${profile.sender_name}, ${profile.sender_role || 'AE'}
+
+PROSPECT:
+- Name: ${lead.full_name}
+- Title: ${lead.title}
+- Company: ${lead.company}
+- Email: ${lead.email || 'unknown'}
+
+${playbookContext}
+
+You have the FULL playbook above. When asked to rewrite something, rewrite it directly — do not ask the rep to paste it in, you already have it. Be direct, specific, and immediately useful. When rewriting emails, produce the complete rewritten version ready to copy and send.`;
 
   const response = await withTimeout(
     client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
+      max_tokens: 1500,
       system: systemPrompt,
       messages,
     }),
