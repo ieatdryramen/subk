@@ -21,6 +21,9 @@ const initDb = async () => {
       full_name VARCHAR(255),
       org_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL,
       role VARCHAR(50) DEFAULT 'member',
+      outlook_refresh_token TEXT,
+      outlook_access_token TEXT,
+      outlook_email VARCHAR(255),
       created_at TIMESTAMP DEFAULT NOW()
     );
 
@@ -88,8 +91,36 @@ const initDb = async () => {
       generated_at TIMESTAMP DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS lead_sequences (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      stage VARCHAR(50) DEFAULT 'not_started',
+      email1_sent BOOLEAN DEFAULT false,
+      email1_sent_at TIMESTAMP,
+      email2_sent BOOLEAN DEFAULT false,
+      email2_sent_at TIMESTAMP,
+      email3_sent BOOLEAN DEFAULT false,
+      email3_sent_at TIMESTAMP,
+      email4_sent BOOLEAN DEFAULT false,
+      email4_sent_at TIMESTAMP,
+      linkedin_sent BOOLEAN DEFAULT false,
+      linkedin_sent_at TIMESTAMP,
+      call_made BOOLEAN DEFAULT false,
+      call_made_at TIMESTAMP,
+      reply_received BOOLEAN DEFAULT false,
+      reply_received_at TIMESTAMP,
+      meeting_booked BOOLEAN DEFAULT false,
+      meeting_booked_at TIMESTAMP,
+      notes TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
     ALTER TABLE users ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id) ON DELETE SET NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'member';
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_access_token TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE;
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS sender_role VARCHAR(50) DEFAULT 'AE';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS custom_tone TEXT;
@@ -102,6 +133,12 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS icp_reason TEXT;
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS zoho_contact_id VARCHAR(255);
     ALTER TABLE playbooks ADD COLUMN IF NOT EXISTS email4 TEXT;
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'trial';
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS playbooks_used INTEGER DEFAULT 0;
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS playbooks_limit INTEGER DEFAULT 10;
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP DEFAULT (NOW() + INTERVAL '14 days');
   `);
   console.log('Database initialized');
 };
