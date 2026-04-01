@@ -74,9 +74,22 @@ router.post('/login', async (req, res) => {
 
 router.get('/org', require('../middleware/auth'), async (req, res) => {
   try {
-    const user = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
-    const u = user.rows[0];
-    if (!u.org_id) return res.json({ members: [], invite_code: null });
+    const userRes = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
+    const u = userRes.rows[0];
+
+    // Auto-create org if user doesn't have one (legacy accounts)
+    if (!u.org_id) {
+      const inviteCode = require('crypto').randomBytes(6).toString('hex');
+      const newOrg = await pool.query(
+        'INSERT INTO organizations (name, invite_code) VALUES ($1, $2) RETURNING id',
+        [(u.full_name ? u.full_name + "'s Team" : 'My Team'), inviteCode]
+      );
+      const orgId = newOrg.rows[0].id;
+      await pool.query('UPDATE users SET org_id=$1, role=$2 WHERE id=$3', [orgId, 'admin', req.userId]);
+      const org = await pool.query('SELECT * FROM organizations WHERE id=$1', [orgId]);
+      return res.json({ members: [{ ...u, org_id: orgId, role: 'admin' }], org: org.rows[0] });
+    }
+
     const members = await pool.query(
       'SELECT id, email, full_name, role, created_at FROM users WHERE org_id=$1 ORDER BY created_at ASC',
       [u.org_id]
@@ -84,6 +97,7 @@ router.get('/org', require('../middleware/auth'), async (req, res) => {
     const org = await pool.query('SELECT * FROM organizations WHERE id=$1', [u.org_id]);
     res.json({ members: members.rows, org: org.rows[0] });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
