@@ -40,6 +40,12 @@ export default function TeamPage() {
       setMembers(r.data.members || []);
     }).catch(console.error);
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
+    // Check if just connected
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('zoho') === 'connected') {
+      setZohoConnected(true);
+      window.history.replaceState({}, '', '/team');
+    }
   }, []);
 
   const inviteUrl = org ? `${window.location.origin}/login?invite=${org.invite_code}` : '';
@@ -51,16 +57,12 @@ export default function TeamPage() {
   };
 
   const connectZoho = async () => {
-    if (!zohoClientId) { alert('Enter your Zoho Client ID first'); return; }
     setSavingZoho(true);
     try {
-      await api.post('/profile', { zoho_client_id: zohoClientId, zoho_client_secret: zohoClientSecret });
-      const redirectUri = `${window.location.origin}/api/zoho/callback`;
-      const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL&client_id=${zohoClientId}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(redirectUri)}`;
-      window.location.href = authUrl;
+      const r = await api.get('/zoho/connect');
+      window.location.href = r.data.url;
     } catch (err) {
-      alert('Failed to save Zoho credentials');
-    } finally {
+      alert('Failed to initiate Zoho connection: ' + (err.response?.data?.error || err.message));
       setSavingZoho(false);
     }
   };
@@ -107,20 +109,10 @@ export default function TeamPage() {
           ) : (
             <div>
               <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
-                Connect your Zoho CRM to push contacts and playbook notes directly. You'll need a Zoho API client — create one at <a href="https://api-console.zoho.com" target="_blank">api-console.zoho.com</a>.
+                Connect your Zoho CRM to push contacts and full playbook notes with one click.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Client ID</label>
-                  <input value={zohoClientId} onChange={e => setZohoClientId(e.target.value)} placeholder="1000.XXXX..." />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text2)', display: 'block', marginBottom: 4 }}>Client Secret</label>
-                  <input type="password" value={zohoClientSecret} onChange={e => setZohoClientSecret(e.target.value)} placeholder="••••••••" />
-                </div>
-              </div>
               <button style={s.connectBtn} onClick={connectZoho} disabled={savingZoho}>
-                {savingZoho ? 'Connecting...' : 'Connect Zoho CRM'}
+                {savingZoho ? 'Redirecting to Zoho...' : 'Connect Zoho CRM'}
               </button>
             </div>
           )}
