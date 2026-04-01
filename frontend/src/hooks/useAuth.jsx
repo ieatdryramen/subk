@@ -18,8 +18,8 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
-  const register = async (email, password, full_name) => {
-    const res = await api.post('/auth/register', { email, password, full_name });
+  const register = async (email, password, full_name, invite_code) => {
+        const res = await api.post("/auth/register", { email, password, full_name, invite_code });
     localStorage.setItem('pf_token', res.data.token);
     localStorage.setItem('pf_user', JSON.stringify(res.data.user));
     setUser(res.data.user);
