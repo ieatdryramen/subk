@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import api from '../lib/api';
-import SequenceTracker from './SequenceTracker';
 
 const tabs = [
   { key: 'sequence', label: '📋 Sequence' },
@@ -156,7 +155,6 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
 
       {activeTab === 'sequence' ? (
         <div style={s.content}>
-          <SequenceTracker lead={lead} />
         </div>
       ) : activeTab === 'chat' ? (
         <div style={s.content}>
