@@ -7,6 +7,14 @@ const { pool } = require('../db');
 router.post('/register', async (req, res) => {
   const { email, password, full_name, invite_code } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  
+  // Enforce work email
+  const personalDomains = ['gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com','icloud.com','live.com','msn.com','protonmail.com','me.com'];
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (!emailDomain || personalDomains.includes(emailDomain)) {
+    return res.status(400).json({ error: 'Please use your work email address to sign up.' });
+  }
+
   try {
     const exists = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
     if (exists.rows.length) return res.status(400).json({ error: 'Email already registered' });
