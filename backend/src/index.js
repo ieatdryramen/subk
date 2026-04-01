@@ -16,7 +16,7 @@ app.use('/api/playbooks', require('./routes/playbooks'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }));
 
-const frontendDist = path.join(__dirname, '..', '..', '..', 'frontend', 'dist');
+const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 console.log('Serving frontend from:', frontendDist);
 app.use(express.static(frontendDist));
 app.get('*', (req, res) => {
