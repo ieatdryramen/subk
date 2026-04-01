@@ -1,8 +1,21 @@
 const router = require('express').Router();
-const auth = require('../middleware/auth');
 const { pool } = require('../db');
+const jwt = require('jsonwebtoken');
 
-router.get('/list/:listId', auth, async (req, res) => {
+// Export uses token in query param since browser window.open can't set headers
+const authFromQuery = async (req, res, next) => {
+  const token = req.query.token || req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+router.get('/list/:listId', authFromQuery, async (req, res) => {
   try {
     // Support org-level access
     const leadsResult = await pool.query(`
