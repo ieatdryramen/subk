@@ -27,9 +27,9 @@ const s = {
   actions: { display: 'flex', gap: 10, marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center' },
   btn: (variant) => ({
     padding: '9px 18px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)',
-    background: variant === 'primary' ? 'var(--accent)' : variant === 'success' ? 'var(--success-bg)' : variant === 'warning' ? 'var(--warning-bg)' : variant === 'info' ? 'var(--bg3)' : 'var(--bg2)',
-    color: variant === 'primary' ? '#fff' : variant === 'success' ? 'var(--success)' : variant === 'warning' ? 'var(--warning)' : variant === 'info' ? 'var(--text)' : 'var(--text2)',
-    border: variant === 'primary' ? 'none' : variant === 'success' ? '1px solid var(--success)' : variant === 'warning' ? '1px solid var(--warning)' : '1px solid var(--border)',
+    background: variant === 'primary' ? 'var(--accent)' : variant === 'success' ? 'var(--success-bg)' : variant === 'warning' ? 'var(--warning-bg)' : variant === 'info' ? 'var(--bg3)' : variant === 'danger' ? 'var(--danger-bg)' : 'var(--bg2)',
+    color: variant === 'primary' ? '#fff' : variant === 'success' ? 'var(--success)' : variant === 'warning' ? 'var(--warning)' : variant === 'info' ? 'var(--text)' : variant === 'danger' ? 'var(--danger)' : 'var(--text2)',
+    border: variant === 'primary' ? 'none' : variant === 'success' ? '1px solid var(--success)' : variant === 'warning' ? '1px solid var(--warning)' : variant === 'danger' ? '1px solid var(--danger)' : '1px solid var(--border)',
     cursor: 'pointer',
   }),
   progress: { height: 3, background: 'var(--bg3)', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' },
@@ -115,6 +115,22 @@ export default function LeadListDetailPage() {
     setGenerating(true); setProgress(0);
     try { await api.post(`/playbooks/generate-list/${id}`); }
     catch (err) { alert(err.response?.data?.error || 'Generation failed. Check your company profile.'); setGenerating(false); }
+  };
+
+  const cancelAll = async () => {
+    try {
+      await api.post(`/playbooks/cancel-list/${id}`);
+      setGenerating(false);
+      setProgress(0);
+      clearInterval(pollRef.current);
+      await loadLeads();
+    } catch (err) { console.error(err); }
+  };
+
+  const cancelOne = async (e, leadId) => {
+    e.stopPropagation();
+    await api.post(`/playbooks/cancel/${leadId}`);
+    setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'pending' } : l));
   };
 
   const scoreList = async () => {
@@ -212,9 +228,14 @@ export default function LeadListDetailPage() {
           <button style={s.btn('primary')} onClick={() => setModal('add')}>+ Add Lead</button>
           <button style={s.btn('default')} onClick={() => setModal('csv')}>↑ Import CSV</button>
           {leads.length > 0 && (
-            <button style={s.btn('success')} onClick={generateAll} disabled={generating || scoring}>
-              {generating ? `Generating... ${progress}%` : `⚡ Generate All (${leads.length})`}
-            </button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button style={s.btn('success')} onClick={generateAll} disabled={generating || scoring}>
+                {generating ? `Generating... ${progress}%` : `⚡ Generate All (${leads.length})`}
+              </button>
+              {generating && (
+                <button style={s.btn('danger')} onClick={cancelAll}>✕ Cancel</button>
+              )}
+            </div>
           )}
           {leads.length > 0 && (
             <button style={s.btn('warning')} onClick={scoreList} disabled={scoring || generating}>
