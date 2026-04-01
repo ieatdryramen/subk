@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import api from '../lib/api';
+import SequenceTracker from './SequenceTracker';
 
 const tabs = [
   { key: 'sequence', label: '📋 Sequence' },
