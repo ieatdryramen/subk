@@ -122,7 +122,8 @@ export default function LeadListDetailPage() {
   };
 
   const exportList = () => {
-    window.open(`/api/export/list/${id}`, '_blank');
+    const token = localStorage.getItem('pf_token');
+    window.open(`/api/export/list/${id}?token=${token}`, '_blank');
   };
 
   const generateOne = async (e, leadId) => {
