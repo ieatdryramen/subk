@@ -68,6 +68,13 @@ const parseEmailParts = (emailText) => {
 export default function PlaybookViewer({ playbook, leadId, lead, outlookConnected }) {
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState({});
+  const [outlookConnected, setOutlookConnected] = useState(false);
+
+  useEffect(() => {
+    api.get('/outlook/status').then(r => setOutlookConnected(r.data.connected)).catch(() => {});
+  }, []);
   const [sending, setSending] = useState({});
   const [sent, setSent] = useState({});
   const [chatMessages, setChatMessages] = useState([]);
@@ -112,6 +119,28 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
       alert(err.response?.data?.error || 'Failed to send. Check Outlook connection in Team & Integrations.');
     } finally {
       setSending(s => ({ ...s, [emailKey]: false }));
+    }
+  };
+
+  const sendEmail = async (tabKey) => {
+    const emailContent = playbook[tabKey];
+    if (!emailContent || !playbook) return;
+    const lines = emailContent.split('\n');
+    const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
+    const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
+    const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
+    const to = prompt(`Send to email address:`);
+    if (!to) return;
+    setSending(true);
+    try {
+      const touchpointMap = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
+      await api.post('/outlook/send', { to, subject, body, leadId, touchpoint: touchpointMap[tabKey] });
+      setSent(s => ({ ...s, [tabKey]: true }));
+      setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to send. Check Outlook connection in Team & Integrations.');
+    } finally {
+      setSending(false);
     }
   };
 
