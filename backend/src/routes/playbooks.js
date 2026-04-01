@@ -26,10 +26,10 @@ router.post('/generate/:leadId', auth, async (req, res) => {
 
     await pool.query('DELETE FROM playbooks WHERE lead_id=$1', [lead.id]);
     const result = await pool.query(
-      `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, linkedin, call_opener, objection_handling, callbacks)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, email4, linkedin, call_opener, objection_handling, callbacks)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [lead.id, req.userId, playbook.research, playbook.email1, playbook.email2, playbook.email3,
-       playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
+       playbook.email4, playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
     );
 
     await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['done', lead.id]);
@@ -66,10 +66,10 @@ router.post('/generate-list/:listId', auth, async (req, res) => {
         const playbook = await generatePlaybook(lead, profile);
         await pool.query('DELETE FROM playbooks WHERE lead_id=$1', [lead.id]);
         await pool.query(
-          `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, linkedin, call_opener, objection_handling, callbacks)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+          `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, email4, linkedin, call_opener, objection_handling, callbacks)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
           [lead.id, req.userId, playbook.research, playbook.email1, playbook.email2, playbook.email3,
-           playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
+           playbook.email4, playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
         );
         await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['done', lead.id]);
       } catch (err) {
