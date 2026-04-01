@@ -6,6 +6,9 @@ const { initDb } = require('./db');
 
 const app = express();
 
+// Stripe webhook needs raw body
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
+
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
 app.use(express.json());
 
@@ -18,8 +21,9 @@ app.use('/api/zoho', require('./routes/zoho'));
 app.use('/api/scoring', require('./routes/scoring'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/autofill', require('./routes/autofill'));
+app.use('/api/billing', require('./routes/billing'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.1.0' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.2.0' }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
@@ -32,7 +36,7 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 initDb().then(() => {
-  app.listen(PORT, () => console.log(`ProspectForge v2.1 running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`ProspectForge v2.2 running on port ${PORT}`));
 }).catch(err => {
   console.error('DB init failed:', err);
   process.exit(1);
