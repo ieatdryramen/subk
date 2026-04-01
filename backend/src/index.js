@@ -16,10 +16,14 @@ app.use('/api/playbooks', require('./routes/playbooks'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '1.0.0' }));
 
-// Serve built frontend
-const frontendDist = path.join(__dirname, '../../..', 'frontend', 'dist');
+const frontendDist = path.join(__dirname, '..', '..', '..', 'frontend', 'dist');
+console.log('Serving frontend from:', frontendDist);
 app.use(express.static(frontendDist));
-app.get('*', (req, res) => res.sendFile(path.join(frontendDist, 'index.html')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
+    if (err) res.status(200).send('API running. Path: ' + frontendDist);
+  });
+});
 
 const PORT = process.env.PORT || 3001;
 
