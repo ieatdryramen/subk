@@ -87,6 +87,11 @@ export default function BillingPage() {
             ⚠ You're on the free trial ({status.playbooks_used}/10 playbooks used). Upgrade to keep generating playbooks.
           </div>
         )}
+        {status?.whitelisted && (
+          <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.5rem', fontSize: 13, color: 'var(--success)' }}>
+            ✓ Your account has unlimited access — no usage limits apply.
+          </div>
+        )}
 
         <div style={s.grid}>
           {PLANS.map(plan => (
@@ -98,8 +103,9 @@ export default function BillingPage() {
               {[plan.playbooks, plan.users, 'PDF exports', 'Zoho CRM sync', 'AI sales coach'].map(f => (
                 <div key={f} style={s.feature}><span style={s.featureDot}>✓</span> {f}</div>
               ))}
-              <button style={s.btn(plan.featured)} onClick={() => upgrade(plan.key)} disabled={loading || status?.plan === plan.key}>
-                {status?.plan === plan.key ? 'Current plan' : loading ? 'Loading...' : 'Upgrade'}
+              <button style={s.btn(plan.featured)} onClick={() => upgrade(plan.key)} 
+                disabled={loading || status?.plan === plan.key || (status?.whitelisted && plan.key === 'pro')}>
+                {(status?.plan === plan.key || (status?.whitelisted && plan.key === 'pro')) ? 'Current plan' : loading ? 'Loading...' : 'Upgrade'}
               </button>
             </div>
           ))}
