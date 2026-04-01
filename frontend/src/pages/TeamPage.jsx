@@ -30,6 +30,7 @@ export default function TeamPage() {
   const [members, setMembers] = useState([]);
   const [copied, setCopied] = useState(false);
   const [zohoConnected, setZohoConnected] = useState(false);
+  const [outlookStatus, setOutlookStatus] = useState({ connected: false, email: null });
   const [zohoClientId, setZohoClientId] = useState('');
   const [zohoClientSecret, setZohoClientSecret] = useState('');
   const [savingZoho, setSavingZoho] = useState(false);
@@ -40,10 +41,15 @@ export default function TeamPage() {
       setMembers(r.data.members || []);
     }).catch(console.error);
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
+    api.get('/outlook/status').then(r => setOutlookStatus(r.data)).catch(() => {});
     // Check if just connected
     const params = new URLSearchParams(window.location.search);
     if (params.get('zoho') === 'connected') {
       setZohoConnected(true);
+      window.history.replaceState({}, '', '/team');
+    }
+    if (params.get('outlook') === 'connected') {
+      api.get('/outlook/status').then(r => setOutlookStatus(r.data));
       window.history.replaceState({}, '', '/team');
     }
   }, []);
@@ -54,6 +60,15 @@ export default function TeamPage() {
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const connectOutlook = async () => {
+    try {
+      const r = await api.get('/outlook/connect');
+      window.location.href = r.data.url;
+    } catch (err) {
+      alert(err.response?.data?.error || 'Outlook not configured yet. Add OUTLOOK_CLIENT_ID to Railway environment variables.');
+    }
   };
 
   const connectZoho = async () => {
@@ -113,6 +128,27 @@ export default function TeamPage() {
               </p>
               <button style={s.connectBtn} onClick={connectZoho} disabled={savingZoho}>
                 {savingZoho ? 'Redirecting to Zoho...' : 'Connect Zoho CRM'}
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Outlook */}
+        <div style={s.zohoCard}>
+          <div style={s.cardTitle}>Microsoft Outlook</div>
+          {outlookStatus.connected ? (
+            <div>
+              <span style={s.connectedBadge}>✓ Connected — {outlookStatus.email}</span>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
+                You can now send emails directly from any playbook. Each send is automatically logged as a completed touchpoint in the sequence tracker.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
+                Connect your Outlook to send emails directly from any playbook with one click. Sends are automatically tracked in the sequence tracker.
+              </p>
+              <button style={{ ...s.connectBtn, background: '#0078d4' }} onClick={connectOutlook}>
+                Connect Outlook
               </button>
             </div>
           )}
