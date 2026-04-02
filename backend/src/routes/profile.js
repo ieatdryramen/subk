@@ -19,7 +19,6 @@ router.get('/', auth, async (req, res) => {
     const userR2 = await pool.query('SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]);
     const userProfile = userR2.rows[0] || null;
 
-    // Return merged — org is base, user overrides personal fields
     const merged = {
       ...(orgProfile || {}),
       ...(userProfile || {}),
@@ -39,11 +38,12 @@ router.get('/', auth, async (req, res) => {
 
     res.json(merged);
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Profile GET error:', err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// POST — admins save org-level profile, members save personal settings only
+// POST — saves profile. Admins also save org-level context.
 router.post('/', auth, async (req, res) => {
   const {
     name, product, value_props, icp, target_titles, tone, objections,
@@ -77,10 +77,11 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
-    // Everyone saves their personal settings (name, role, tone)
+    // Everyone saves personal settings
     const personalExists = await pool.query(
       'SELECT id FROM company_profiles WHERE user_id=$1', [req.userId]
     );
+
     let result;
     if (personalExists.rows.length) {
       result = await pool.query(
@@ -89,8 +90,9 @@ router.post('/', auth, async (req, res) => {
           name=$5, product=$6, value_props=$7, icp=$8, target_titles=$9,
           objections=$10, website_url=$11, updated_at=NOW()
          WHERE user_id=$12 RETURNING *`,
-        [sender_name, sender_role, tone, custom_tone,
-         name, product, value_props, icp, target_titles, objections, website_url,
+        [sender_name || '', sender_role || 'AE', tone || '', custom_tone || '',
+         name || '', product || '', value_props || '', icp || '',
+         target_titles || '', objections || '', website_url || '',
          req.userId]
       );
     } else {
@@ -99,14 +101,16 @@ router.post('/', auth, async (req, res) => {
           (user_id, sender_name, sender_role, tone, custom_tone,
            name, product, value_props, icp, target_titles, objections, website_url)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-        [req.userId, sender_name, sender_role, tone, custom_tone,
-         name, product, value_props, icp, target_titles, objections, website_url]
+        [req.userId,
+         sender_name || '', sender_role || 'AE', tone || '', custom_tone || '',
+         name || '', product || '', value_props || '', icp || '',
+         target_titles || '', objections || '', website_url || '']
       );
     }
 
-    res.json(result.rows[0]);
+    res.json({ success: true, profile: result.rows[0] });
   } catch (err) {
-    console.error('Profile save error:', err.message);
+    console.error('Profile POST error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });
