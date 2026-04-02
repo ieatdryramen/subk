@@ -15,6 +15,7 @@ import BillingPage from './pages/BillingPage';
 import AdminDashboard from './pages/AdminDashboard';
 import CardScanPage from './pages/CardScanPage';
 import PipelinePage from './pages/PipelinePage';
+import TemplatesPage from './pages/TemplatesPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -42,6 +43,7 @@ const App = () => (
         <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />
         <Route path="/cardscan" element={<Protected><CardScanPage /></Protected>} />
         <Route path="/pipeline" element={<Protected><PipelinePage /></Protected>} />
+        <Route path="/templates" element={<Protected><TemplatesPage /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
