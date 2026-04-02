@@ -30,6 +30,7 @@ app.use('/api/notes', require('./routes/notes'));
 app.use('/api/battlecard', require('./routes/battlecard'));
 app.use('/api/slack', require('./routes/slack'));
 app.use('/api/calls', require('./routes/calls'));
+app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/cardscan', require('./routes/cardscan'));
