@@ -63,7 +63,7 @@ export default function LeadListDetailPage() {
   const [leads, setLeads] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [modal, setModal] = useState(null);
-  const [addForm, setAddForm] = useState({ full_name: '', company: '', title: '', email: '', linkedin: '', notes: '' });
+  const [addForm, setAddForm] = useState({ full_name: '', company: '', title: '', email: '', phone: '', linkedin: '', notes: '' });
   const [generating, setGenerating] = useState(false);
   const [scoring, setScoring] = useState(false);
   const [progress, setProgress] = useState(0);
