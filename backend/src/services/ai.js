@@ -8,21 +8,70 @@ const withTimeout = (promise, ms, label) => {
   return Promise.race([promise, timeout]);
 };
 
-// Deep research — this sets the foundation for everything else
-const researchLead = async (lead) => {
-  const prompt = `You are a sharp B2B sales researcher preparing a rep for outreach. Be specific and opinionated — no hedging, no "likely" or "probably."
+// ─────────────────────────────────────────────────────────────
+// SUMX GOVCON CONTEXT — baked into every generation
+// Sourced from real demo transcripts and discovery calls
+// ─────────────────────────────────────────────────────────────
+const SUMX_CONTEXT = `
+WHAT SUMX ACTUALLY IS:
+SumX is a modern ERP built specifically for government contractors (GovCon). It replaces legacy systems like Costpoint, Deltek Vision, and Unanet. The tagline that lands in demos: "What if QuickBooks and Costpoint had a baby." It is genuinely easy to use — prospects consistently say "intuitive" and "user friendly" when they see it for the first time. It is also fully DCAA-compliant and built for the GovCon billing and labor environment from the ground up.
 
-Prospect: ${lead.full_name || 'Unknown'}, ${lead.title || 'Unknown'} at ${lead.company || 'Unknown'}
+THE CORE THING THAT MAKES IT DIFFERENT:
+Everything lives with the record it belongs to. In Costpoint, you touch 3-4 different screens to do one thing. Security settings for an employee? Three different places. Posting a bill? You print it, save it to a folder, hope you find it during an audit. Wage determination rates? Four screens just to add someone to a workforce. In SumX, every piece of information — the employee's role, their salary, their security permissions, their leave — lives on the employee record itself. Every billing document, its backup, its approval, its audit trail — lives on the bill. You don't hunt. You don't print and file. You open the record and everything is there.
 
-Write exactly 3 paragraphs:
+THE SPECIFIC PAINS PROSPECTS DESCRIBE IN THEIR OWN WORDS:
+1. "I have to go to three different screens just to set up security for one employee — you've got to do it on this side, then this side, then somewhere else in Costpoint"
+2. "When I get an audit, I have to go hunt for the posting in a folder I hopefully saved it to — I can't just pull it up"
+3. "Wage determination is so painful to maintain — four screens just to add workforce rates"
+4. "I'm limited to 30 characters for project numbers and 25 for project names — I have to get really creative"
+5. "I pull data out of Costpoint into Excel, run a VLOOKUP against the budget, just to see an income statement vs budget — it should just be there"
+6. "Something goes wrong and Janet and I have to bend our brain waves to figure out where we even start looking"
+7. "Those import templates when we moved to Costpoint — they were so painful. She broke bones." (referring to the data migration)
+8. "I have to run through build, compute, update the project — just to see a report. In SumX you just click Update Report"
+9. "I don't want Janet to lose her mind switching systems" — the migration fear is real, especially for controllers and finance staff
+10. "It was easier to put a satellite into orbit than to use Costpoint" — direct quote from a prospect
 
-1. COMPANY REALITY: What does this company actually do and who are their customers? What is their business model? What is their growth stage and what pressure does that create right now? Be specific — name their actual market, not a generic description.
+WHAT ACTUALLY GETS PROSPECTS TO BUY:
+- They see the billing screen and realize they can approve and send a bill without touching anything outside the system
+- The audit trail living with the record — DCAA compliance without the manual filing
+- "If Janet retired, her replacement could actually learn this" — retention and hiring risk from Costpoint complexity
+- Single sign-on pressure / Azure migration creating a natural forcing function to switch
+- Seeing that the implementation is a third the size of what they went through with Costpoint
 
-2. ROLE REALITY: What does someone with this exact title actually do all day? What are they measured on, what keeps them up at night, and what would make them look good to their boss or board? What do they personally care about vs what they say they care about?
+WHAT NOT TO SAY OR DO:
+- Never invent percentages or statistics about their business — you don't know their numbers
+- Never say "streamline" or "optimize" or "leverage"  
+- Never lead with SumX features — lead with their Costpoint/Deltek pain
+- Never assume they're fully replacing — sometimes it starts as just timesheets for 1099s, or AP integration
+- The real objection is almost never price — it's timing, migration fear, and "we just got through implementing the last thing"
 
-3. ANGLE OF ATTACK: Given this specific person at this specific company right now, what's the single most compelling reason they'd take a meeting? What do you lead with? What do you NOT bring up? What's the one thing that would make them feel like this rep did their homework?
+BUYER PERSONAS IN GOVCON:
+- Controller / Accounting Manager (often named Janet in demos): Does the actual work in the system every day. Fears migration, values stability, will be the one who has to learn it. Win her over and you win the deal. Lead with "your day gets easier, not harder."
+- CFO / CEO: Cares about DCAA compliance, audit risk, cash flow velocity, and not being dependent on one finance person who knows the arcane Costpoint workarounds
+- Contracts Manager: Cares about project setup, workforce assignments, billing accuracy, and having mods attached to the right contract record
+- Program Managers: Care about timesheet approval, project visibility, and not getting surprised by billing issues at the end of the month
+`;
 
-No fluff. No hedging. Under 220 words total.`;
+// Research that actually synthesizes rather than hallucinating
+const researchLead = async (lead, profile) => {
+  const legacySystem = profile.legacy_system || 'Costpoint or a similar legacy ERP';
+  const prompt = `You are preparing a GovCon sales rep for outreach to this prospect. Do NOT invent statistics or percentages about their specific business. Only state things you can reasonably infer from their title, company, and the GovCon world they operate in.
+
+PROSPECT: ${lead.full_name || 'Unknown'}, ${lead.title || 'Unknown'} at ${lead.company || 'Unknown'}
+NOTES: ${lead.notes || 'none'}
+THEY LIKELY USE: ${legacySystem}
+
+${SUMX_CONTEXT}
+
+Write exactly 3 paragraphs — under 200 words total:
+
+1. COMPANY REALITY: What does this company likely do based on their name and what you can reasonably infer? What kind of GovCon work — prime, sub, T&M, fixed price, cost-plus? What is their likely size and pressure right now? Be honest about what you don't know — don't invent revenue numbers or contract counts.
+
+2. THIS PERSON'S WORLD: What does someone with this exact title do every day in a GovCon company? What are they personally responsible for? What keeps them up at night — compliance, cash flow, headcount, audit risk, billing accuracy? What would make their life meaningfully easier?
+
+3. THE ANGLE: Given what you know about this person and the Costpoint/legacy ERP pain points above, what is the single most credible opening observation for a sales rep to make? What specific workflow pain is most likely real for them? What should the rep NOT bring up first?
+
+No hedging. No invented numbers. Under 200 words.`;
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
@@ -32,71 +81,82 @@ No fluff. No hedging. Under 220 words total.`;
   return message.content[0].text.trim();
 };
 
-// Role strategies — these define fundamentally different approaches, not just tone
 const roleStrategy = {
   SDR: {
-    mission: 'Get 20 minutes on the calendar. Your only job is to create enough curiosity that they say yes to a call.',
-    emailApproach: 'Short, pattern-interrupting, one question at the end. Never more than 5 sentences. Sounds like a text message from a smart person, not a sales email.',
-    callApproach: 'Lead with a specific observation about them, ask for permission, then shut up and listen. Your goal is discovery, not pitching.',
-    linkedinApproach: 'Connect request with a one-liner observation. DM should be 2-3 sentences max — a genuine question, not a pitch.',
-    winningMove: 'Make them feel like you noticed something specific about them. Curiosity beats features every time.',
+    mission: 'Get 20 minutes on the calendar. Create enough curiosity that they say yes to a call.',
+    emailApproach: 'Short, pattern-interrupting, one question at the end. Never more than 5 sentences. Sounds like a text from a smart person who actually knows GovCon, not a sales email.',
+    callApproach: 'Lead with a specific observation about their system or workflow pain, ask for permission, then shut up and listen.',
+    linkedinApproach: 'Connect request with a one-liner that shows you know their world. DM should be 2-3 sentences max.',
+    winningMove: 'Show you know what it feels like to live in Costpoint. That earns the next conversation.',
   },
   AE: {
-    mission: 'Get to a business case conversation. Establish peer credibility, uncover the real problem, connect it to business outcomes.',
-    emailApproach: 'Peer-level executive communication. 80-120 words. One specific insight about their business or situation. One question that makes them think.',
-    callApproach: 'Establish credibility in 30 seconds, then ask questions. The best AE calls are 80% prospect talking.',
-    linkedinApproach: 'Thoughtful, business-level observation. Reference something specific from their profile or recent company news.',
-    winningMove: 'Show you understand their business better than they expected. That earns the conversation.',
+    mission: 'Get to a business case conversation. Show you understand their ERP pain better than their current vendor does.',
+    emailApproach: 'Peer-level. 80-120 words. One specific observation about a workflow that is painful in their current system. One question that makes them think about the cost of that pain.',
+    callApproach: 'Establish credibility in 30 seconds by naming something specific about their world, then ask questions. The best calls are 80% them talking.',
+    linkedinApproach: 'Thoughtful, business-level observation. Reference something real about GovCon or their specific situation.',
+    winningMove: 'Show you understand their current system\'s pain better than they expected. That earns the demo.',
   },
   AM: {
-    mission: 'Expand the relationship. Protect and grow the account. Lead with their success before you ever mention new products.',
-    emailApproach: 'Warm and consultative. Reference something they told you or something you know about their situation. Expansion framing, not upsell pressure.',
-    callApproach: 'Check-in first. Ask how things are going. Listen. Only pivot to growth conversation when they\'ve confirmed things are working.',
-    linkedinApproach: 'Trusted advisor. Engage with their content genuinely. Share things that are useful to them specifically.',
-    winningMove: 'Remind them of the wins you\'ve already had together. That makes expansion feel natural, not pushy.',
+    mission: 'Expand the relationship. Protect and grow the account.',
+    emailApproach: 'Warm and consultative. Reference what is working. Expansion framing, not upsell pressure.',
+    callApproach: 'Check in first. Ask how the transition went. Listen. Only pivot to growth when they confirm things are working.',
+    linkedinApproach: 'Trusted advisor. Engage genuinely. Share things that are useful to them specifically.',
+    winningMove: 'Remind them of the specific pain they no longer have. That makes expansion feel natural.',
   },
   CSM: {
-    mission: 'Drive adoption, prove ROI, secure renewal. Be the person they call when something goes wrong AND when they want to grow.',
-    emailApproach: 'Helpful and specific. What outcomes have they achieved? What\'s the next milestone? Frame everything around their success.',
-    callApproach: 'Lead with their outcomes, not your product. Ask what\'s working, what\'s not. Be the person who solves problems, not just checks in.',
-    linkedinApproach: 'Thought partner, not vendor. Share insights that are relevant to their role and challenges.',
-    winningMove: 'Make them look good to their boss. If you can connect what they\'re doing with business outcomes their leadership cares about, you own the renewal.',
+    mission: 'Drive adoption, prove ROI, secure renewal.',
+    emailApproach: 'Helpful and specific. Frame everything around their outcomes since going live.',
+    callApproach: 'Lead with their wins. Ask what\'s working, what\'s not. Be the person who solves problems.',
+    linkedinApproach: 'Thought partner. Share insights relevant to their role.',
+    winningMove: 'Connect what they are doing in SumX to outcomes their leadership cares about.',
   },
   SE: {
-    mission: 'Establish technical credibility, understand their environment, drive a POC or technical evaluation.',
-    emailApproach: 'Technically credible without being jargon-heavy. Reference a specific technical challenge that\'s real for their stack or architecture.',
-    callApproach: 'Technical peer energy. Ask about their environment before pitching. They can smell a feature dump from a mile away.',
-    linkedinApproach: 'Reference something technical — a paper they wrote, a stack they use, a challenge their company faces at their scale.',
-    winningMove: 'Show you understand their technical constraints, not just your product\'s features.',
+    mission: 'Establish technical credibility, understand their environment, drive a POC.',
+    emailApproach: 'Technically credible without jargon. Reference a specific integration challenge or data architecture question.',
+    callApproach: 'Technical peer energy. Ask about their environment before anything else.',
+    linkedinApproach: 'Reference something technical — their stack, their compliance architecture, their reporting setup.',
+    winningMove: 'Show you understand their current system\'s technical constraints, not just SumX features.',
   },
 };
 
 const generatePlaybook = async (lead, profile) => {
   const role = profile.sender_role || 'AE';
   const strategy = roleStrategy[role] || roleStrategy.AE;
+  const senderName = profile.sender_name || 'Jack';
+  const tone = profile.tone === 'custom' && profile.custom_tone ? profile.custom_tone : (profile.tone || 'direct and confident, like a peer in the GovCon industry');
+  const legacySystem = profile.legacy_system || 'Costpoint';
+  const complianceContext = profile.compliance_focus || '';
+  const workflowPains = profile.workflow_pains || '';
+  const buyerPersonaContext = profile.buyer_personas || '';
+  const migrationContext = profile.migration_notes || '';
 
   let researchBrief = '';
   try {
-    researchBrief = await withTimeout(researchLead(lead), 12000, 'research');
+    researchBrief = await withTimeout(researchLead(lead, profile), 12000, 'research');
   } catch (err) {
     console.log('Research skipped:', err.message);
     researchBrief = `${lead.full_name || 'This person'} is a ${lead.title || 'professional'} at ${lead.company || 'their company'}.`;
   }
 
-  const senderName = profile.sender_name || 'Your name';
-  const tone = profile.tone === 'custom' && profile.custom_tone ? profile.custom_tone : (profile.tone || 'professional');
+  const prompt = `You are writing a GovCon sales playbook for ${senderName}, a ${role} at ${profile.name || 'SumX'}.
 
-  const prompt = `You are writing a sales playbook for ${senderName}, a ${role} at ${profile.name}.
+${SUMX_CONTEXT}
 
-ABOUT ${profile.name.toUpperCase()}:
-Product: ${profile.product}
-What makes them different: ${profile.value_props}
-Who they sell to: ${profile.icp}
-Target titles: ${profile.target_titles || 'not specified'}
-Communication tone: ${tone}
-Objections they hear constantly: ${profile.objections}
+SELLER CONTEXT:
+Sender: ${senderName}, ${role} at ${profile.name || 'SumX'}
+Product: ${profile.product || 'SumX — modern ERP for government contractors'}
+What makes it different: ${profile.value_props || 'Everything lives with the record. No more hunting across screens.'}
+Who they sell to: ${profile.icp || 'Government contractors using Costpoint, Deltek, or similar legacy ERPs'}
+Target titles: ${profile.target_titles || 'CFO, Controller, Contracts Manager, CEO'}
+Legacy system this prospect likely uses: ${legacySystem}
+Compliance context: ${complianceContext || 'DCAA compliance, CMMC, government contract billing'}
+Additional workflow pains for this org: ${workflowPains || 'see SUMX CONTEXT above'}
+Buyer persona notes: ${buyerPersonaContext || 'see SUMX CONTEXT above'}
+Migration / timing notes: ${migrationContext || ''}
+Objections they hear constantly: ${profile.objections || 'We just implemented Costpoint / Bad timing / Our controller knows all the workarounds'}
+Tone: ${tone}
 
-ABOUT THE PROSPECT:
+PROSPECT:
 Name: ${lead.full_name || 'Unknown'}
 Title: ${lead.title || 'Unknown'}
 Company: ${lead.company || 'Unknown'}
@@ -114,85 +174,75 @@ LinkedIn approach: ${strategy.linkedinApproach}
 Winning move: ${strategy.winningMove}
 
 ═══════════════════════════════════════════════
-ABSOLUTE BANNED LIST — INSTANT DISQUALIFICATION
-If ANY of the following appear anywhere in your output, the entire playbook is rejected and must be rewritten from scratch:
+ABSOLUTE BANNED LIST — VIOLATION = REWRITE FROM SCRATCH
 
-BANNED OPENERS (first sentence of any email CANNOT start with or contain):
-✗ "I've been working with"
-✗ "I've been helping"  
-✗ "I work with [X] companies/firms/clients who..."
-✗ "I noticed that"
-✗ "I came across your"
-✗ "I wanted to reach out"
-✗ "Hope this finds you"
-✗ "I know you're busy"
-✗ "Just following up"
-✗ "Quick question"
-✗ "Touching base"
-✗ "Checking in"
-✗ "I recently came across"
+BANNED OPENERS — first sentence cannot contain:
+✗ "I've been working with / helping"
+✗ "I work with [X] companies/firms who..."
+✗ "I noticed that" / "I came across" / "I wanted to reach out"
+✗ "Hope this finds you" / "I know you're busy"
+✗ "Just following up" / "Quick question" / "Touching base" / "Checking in"
 ✗ "I was doing some research and"
 
-BANNED PHRASES (cannot appear anywhere):
-✗ "touch base" / "circle back" / "loop back"
-✗ "synergies" / "game-changing" / "best-in-class" / "world-class"
-✗ "solution" (use specific product name instead)
-✗ "leverage" (as a verb)
-✗ "utilize" (say "use")
-✗ "pain points" (say what the actual problem is)
-✗ "value proposition" (show it, don't name it)
-✗ "low-hanging fruit"
-✗ "move the needle"
-✗ "at the end of the day"
-✗ Stacked statistics ("15-20% improvement... 40% reduction... 3x faster...")
+BANNED PHRASES — cannot appear anywhere:
+✗ Any statistic or percentage you cannot verify — NO "X% of companies" or "saves Y hours"
+✗ "streamline" / "optimize" / "leverage" / "utilize"
+✗ "touch base" / "circle back" / "synergies" / "game-changing" / "best-in-class"
+✗ "solution" — use "SumX" or be specific about what it does
+✗ "pain points" — name the actual problem
+✗ "value proposition" — show it, don't name it
+✗ "move the needle" / "low-hanging fruit" / "at the end of the day"
+✗ Generic subjects: "Quick question" / "Following up" / "Introduction"
+✗ Stacked statistics or invented numbers about their specific business
 
 BANNED STRUCTURES:
-✗ Starting Email 1 by talking about yourself or your company
-✗ More than ONE statistic in any single email
-✗ Any email that reads like a pitch deck summary
-✗ Objection responses that start with "Great question!" or "I understand your concern"
-✗ Generic subjects like "Quick question," "Following up," "Checking in," "Introduction"
+✗ Starting Email 1 talking about yourself or SumX
+✗ Any email that reads like a feature list
+✗ Objection responses starting with "Great question!" or "I understand your concern"
+✗ More than one statistic in any single email (and only use verified ones — if unsure, use zero)
 ═══════════════════════════════════════════════
 
 HARD RULES:
-1. Every email must open with a specific, verifiable observation about THEIR company, THEIR role, or THEIR industry — not about you, not about your other clients.
-2. Email 1: 4-6 sentences max. Signed: ${senderName}
-3. Email 2: Completely different angle — short story, contrarian take, or provocative insight. No pitch. Signed: ${senderName}
-4. Email 3: Under 75 words total. One thing. One question. Nothing else. Signed: ${senderName}
-5. Email 4: Under 55 words. Honest breakup. No guilt. Leave door open. Signed: ${senderName}
-6. Call opener: Sayable in under 18 seconds. No stats in opening line. Specific reason for calling THIS person.
-7. Write in the voice of: ${tone}. Not generic sales rep energy — ${senderName}'s actual personality.
-8. Objections: Sound like a confident colleague, not a trained closer. Natural, not scripted.
-9. Each of the 4 emails must take a fundamentally different approach — not the same point rephrased.
-10. Before finalizing, mentally check: does any email start with "I"? If yes, rewrite it.
+1. Every email opens with a specific observation about THEIR world — their title's daily reality, their likely current system's workflow, their industry compliance pressure. Not about SumX. Not about you.
+2. Lead with process pain, not product features. The question "how many screens does it take you to do X in Costpoint right now?" is more powerful than any feature claim.
+3. Email 1: 4-6 sentences. One observation, one implication, one question. Signed: ${senderName}
+4. Email 2: Completely different angle — a specific workflow scenario, a consequence of the current system, or something their peers are dealing with. No product pitch. Signed: ${senderName}
+5. Email 3: Under 75 words total. One thing. One question. Nothing else. Signed: ${senderName}
+6. Email 4: Under 55 words. Honest breakup. No guilt. Leave door open. Signed: ${senderName}
+7. Call opener: Sayable in under 18 seconds. Opens with something specific about their role or current system, not a pitch.
+8. Write in the voice of: ${tone}
+9. Objections: Sound like a confident colleague who has heard this before, not a trained closer.
+10. Each email must take a fundamentally different approach.
+11. Before finalizing — does any email start with "I"? If yes, rewrite it.
+12. Never invent numbers about their business. If you don't know it, don't say it.
 
-SELF-CHECK BEFORE OUTPUTTING:
-- Read the first word of each email. If it's "I" — rewrite.
-- Scan for any banned phrase. If found — rewrite that section.
-- Does Email 3 exceed 75 words? If yes — cut it down.
-- Does Email 4 exceed 55 words? If yes — cut it down.
-- Are there multiple statistics in one email? Remove all but the strongest one.
+SELF-CHECK:
+- First word of each email: if "I" → rewrite
+- Any banned phrase present → rewrite that section
+- Email 3 over 75 words → cut it
+- Email 4 over 55 words → cut it
+- Any invented statistic about their specific company → remove it
 
-Return ONLY valid JSON (no markdown, no backticks, no commentary before or after):
+Return ONLY valid JSON (no markdown, no backticks):
 {
-  "research": "The research brief reformatted as 3 clean readable paragraphs for the rep",
-  "email1": "SUBJECT: [specific subject — not a question, not clever, just clear and specific to them]\\n\\n[email body — opens with observation about THEIR world, ends with one question]\\n\\n${senderName}",
-  "email2": "SUBJECT: [different approach subject]\\n\\n[email body — completely different angle, story or insight, no feature pitch]\\n\\n${senderName}",
-  "email3": "SUBJECT: [short subject]\\n\\n[Under 75 words TOTAL including subject. One thing. One question.]\\n\\n${senderName}",
-  "email4": "SUBJECT: [subject]\\n\\n[Under 55 words TOTAL. Honest breakup. No guilt trip. Leave door open.]\\n\\n${senderName}",
-  "linkedin": "CONNECTION REQUEST (under 300 chars, no pitch):\\n[specific one-line reason to connect — references something real about them]\\n\\nFOLLOW-UP DM (after they accept):\\n[2-3 sentences, genuine question, no pitch]\\n\\nIF NO RESPONSE DM:\\n[final short message, adds value or asks a genuinely different question]",
-  "call_opener": "OPENING (say this in under 18 seconds):\\n[Name, company, ONE specific reason you're calling THIS person — tied to something real about their company or role. No stats in the opener.]\\n[Natural permission ask]\\n\\nIF THEY HAVE 2 MIN — DISCOVERY QUESTIONS:\\n1. [Open question about their current situation]\\n2. [Question that surfaces a real problem]\\n3. [Question about impact or cost of that problem]\\n\\nWHEN THEY BRUSH YOU OFF:\\n'Not interested' → [Natural 2-sentence response that earns 30 more seconds without being pushy]\\n'Send me an email' → [Response that validates but keeps the conversation]\\n'We already have something' → [Response that plants doubt without being combative]",
-  "objection_handling": "OBJECTION: [exact words they'd use] | RESPONSE: [conversational, confident — sounds like a smart colleague, not a script]\\n\\n[Cover the objections from the profile PLUS 2-3 specific to this person's title/company/situation]\\n\\nNever start a response with 'Great question' or 'I understand your concern'.",
-  "callbacks": "CONVERSATION HANDLES — specific things to say to keep a call alive:\\n\\n1. [Specific observation about their company or market that creates real conversation]\\n2. [A question that makes them actually think — not leading, genuinely curious]\\n3. [A provocation or contrarian view relevant to their specific industry]\\n4. [A 'companies at your stage typically...' angle with a specific, genuine insight]\\n5. [A reason to follow up — something that creates a natural next step]\\n6. [If they go quiet — a re-engagement question that isn't pushy]\\n7. [A story setup: 'One of your competitors did X — curious if that dynamic is playing out for you']\\n8. [A value-add: something genuinely useful to them even if they don't buy]"
+  "research": "The research brief as 3 clean paragraphs for the rep — what the rep needs to know walking into this call",
+  "email1": "SUBJECT: [specific to their world — not a question, not clever, just clear]\\n\\n[Opens with observation about their daily reality or current system pain. Ends with one question that makes them think about the cost of that pain.]\\n\\n${senderName}",
+  "email2": "SUBJECT: [different angle]\\n\\n[Completely different — a specific workflow scenario they deal with, a consequence of their current system, or something their peers in GovCon are dealing with. No product pitch. Just something that makes them say 'yeah, that's actually true.']\\n\\n${senderName}",
+  "email3": "SUBJECT: [short]\\n\\n[Under 75 words TOTAL. One workflow observation. One question. Nothing else.]\\n\\n${senderName}",
+  "email4": "SUBJECT: [subject]\\n\\n[Under 55 words. Honest. No guilt trip. Leave door open for when timing is right.]\\n\\n${senderName}",
+  "linkedin": "CONNECTION REQUEST (under 300 chars, no pitch):\\n[One line that shows you know their world — their title, their system, their industry. Not a pitch.]\\n\\nFOLLOW-UP DM (after they accept):\\n[2-3 sentences. A genuine question about their current workflow or system situation. No pitch.]\\n\\nIF NO RESPONSE DM:\\n[Final short message. Adds something genuinely useful about GovCon or their role. Different question.]",
+  "call_opener": "OPENING (under 18 seconds):\\n[Name, SumX, one specific reason you're calling THIS person based on their title and likely system. No stats. No pitch. A real observation about their world.]\\n[Natural permission ask]\\n\\nIF THEY HAVE 2 MIN — DISCOVERY:\\n1. [Question about their current system and how they handle a specific workflow]\\n2. [Question that surfaces the real cost of that workflow]\\n3. [Question about what happens when something goes wrong — audit, billing error, key person leaving]\\n\\nWHEN THEY BRUSH YOU OFF:\\n'Not interested' → [2 sentences that earn 30 more seconds without being pushy — reference a specific workflow pain]\\n'Send me an email' → [Validates but keeps the conversation — asks one quick diagnostic question]\\n'We already have something' → [Plants a seed about the specific pain their current system causes — no argument]\\n'Bad timing' → [Acknowledges timing, plants the seed for when it makes sense — asks what would need to change]",
+  "objection_handling": "OBJECTION: [exact words] | RESPONSE: [conversational, confident — sounds like someone who has heard this 100 times and still believes in what they are selling]\\n\\n[Cover: migration fear, timing, 'our controller knows all the workarounds', 'we just implemented Costpoint', DCAA compliance concern, cost, 'we're too small']\\n\\nNever start with 'Great question' or 'I understand your concern'.",
+  "callbacks": "CONVERSATION HANDLES — things to say to keep the call alive:\\n\\n1. [Specific Costpoint/legacy system workflow that is genuinely painful — name it specifically]\\n2. [A question about their audit prep or DCAA compliance that makes them think]\\n3. [A scenario: 'what happens when your controller is out and someone else has to figure out where the billing is'] \\n4. [A question about their timesheet process and how long approval takes]\\n5. [A natural next step — 'would it be worth 20 minutes to see what this looks like for your specific setup']\\n6. [If they go quiet — a re-engagement question about a specific pain, not a pitch]\\n7. [A peer reference setup: 'one of your counterparts at a similar-sized GovCon firm said X — does that resonate']\\n8. [A value-add: something genuinely useful about GovCon compliance or billing even if they don't buy]"
 }`;
 
   const message = await withTimeout(
     client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2500,
+      max_tokens: 3000,
       messages: [{ role: 'user', content: prompt }],
     }),
-    45000,
+    50000,
     'playbook generation'
   );
 
@@ -203,50 +253,26 @@ Return ONLY valid JSON (no markdown, no backticks, no commentary before or after
 const chatWithPlaybook = async (messages, lead, profile, playbook) => {
   const playbookContext = playbook ? `
 FULL PLAYBOOK FOR THIS LEAD:
+RESEARCH: ${playbook.research || 'Not generated'}
+EMAIL 1: ${playbook.email1 || 'Not generated'}
+EMAIL 2: ${playbook.email2 || 'Not generated'}
+EMAIL 3: ${playbook.email3 || 'Not generated'}
+EMAIL 4: ${playbook.email4 || 'Not generated'}
+LINKEDIN: ${playbook.linkedin || 'Not generated'}
+CALL OPENER: ${playbook.call_opener || 'Not generated'}
+OBJECTION HANDLING: ${playbook.objection_handling || 'Not generated'}
+CALLBACKS: ${playbook.callbacks || 'Not generated'}` : 'No playbook generated yet.';
 
-RESEARCH BRIEF:
-${playbook.research || 'Not generated'}
+  const systemPrompt = `You are an expert sales coach helping ${profile.sender_name || 'a rep'} (${profile.sender_role || 'AE'}) at ${profile.name || 'SumX'} with their outreach to ${lead.full_name || 'this prospect'} (${lead.title || 'unknown title'}) at ${lead.company || 'their company'}.
 
-EMAIL 1 (Day 1):
-${playbook.email1 || 'Not generated'}
+${SUMX_CONTEXT}
 
-EMAIL 2 (Day 3):
-${playbook.email2 || 'Not generated'}
-
-EMAIL 3 (Day 7):
-${playbook.email3 || 'Not generated'}
-
-EMAIL 4 (Day 14):
-${playbook.email4 || 'Not generated'}
-
-LINKEDIN MESSAGES:
-${playbook.linkedin || 'Not generated'}
-
-CALL OPENER:
-${playbook.call_opener || 'Not generated'}
-
-OBJECTION HANDLING:
-${playbook.objection_handling || 'Not generated'}
-
-CALLBACKS:
-${playbook.callbacks || 'Not generated'}` : 'No playbook generated yet for this lead.';
-
-  const systemPrompt = `You are an expert sales coach helping ${profile.sender_name || 'a rep'} (${profile.sender_role || 'AE'}) at ${profile.name} with their outreach to ${lead.full_name || 'this prospect'} (${lead.title || 'unknown title'}) at ${lead.company || 'their company'}.
-
-SELLER CONTEXT:
-- Company: ${profile.name}
-- Product: ${profile.product}
-- Sender: ${profile.sender_name}, ${profile.sender_role || 'AE'}
-
-PROSPECT:
-- Name: ${lead.full_name}
-- Title: ${lead.title}
-- Company: ${lead.company}
-- Email: ${lead.email || 'unknown'}
+SELLER: ${profile.sender_name}, ${profile.sender_role || 'AE'} at ${profile.name || 'SumX'}
+PROSPECT: ${lead.full_name}, ${lead.title} at ${lead.company}
 
 ${playbookContext}
 
-You have the FULL playbook above. When asked to rewrite something, rewrite it directly and completely — do not ask the rep to paste it in. Be direct, specific, and immediately useful. When rewriting emails, produce the complete ready-to-send version. When giving coaching advice, be honest — if something is weak, say so and show them better. You're a trusted advisor, not a cheerleader.`;
+You have the full playbook. When asked to rewrite something, rewrite it completely — do not ask the rep to paste it in. Be direct. If something is weak, say so and show better. Never invent statistics. Never use banned phrases. You are a trusted advisor, not a cheerleader.`;
 
   const response = await withTimeout(
     client.messages.create({
