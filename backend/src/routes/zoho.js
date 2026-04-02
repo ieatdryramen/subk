@@ -147,7 +147,7 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 
 router.get('/connect', auth, async (req, res) => {
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
-  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.send_mail.CREATE';
+  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.modules.Emails.CREATE,ZohoCRM.settings.ALL';
   const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
 });
@@ -203,4 +203,5 @@ router.post('/disconnect', auth, async (req, res) => {
 });
 
 module.exports = router;
+
 
