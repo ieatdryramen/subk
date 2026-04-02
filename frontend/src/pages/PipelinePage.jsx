@@ -29,10 +29,17 @@ const LINKEDIN_STAGES = [
 
 const ALL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-  { key: 'in_progress_1', label: 'Day 1 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
-  { key: 'in_progress_2', label: 'Day 3 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
-  { key: 'in_progress_3', label: 'Day 7 ✉', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  { key: 'in_progress_4', label: 'Day 14 ✉', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { key: 'in_progress_1', label: 'Touch 1 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
+  { key: 'in_progress_2', label: 'Touch 2 🔗', color: '#0077b5', bg: 'rgba(0,119,181,0.1)' },
+  { key: 'in_progress_3', label: 'Touch 3 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+  { key: 'in_progress_4', label: 'Touch 4 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
+  { key: 'in_progress_5', label: 'Touch 5 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+  { key: 'in_progress_6', label: 'Touch 6 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
+  { key: 'in_progress_7', label: 'Touch 7 💬', color: '#0077b5', bg: 'rgba(0,119,181,0.1)' },
+  { key: 'in_progress_8', label: 'Touch 8 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+  { key: 'in_progress_9', label: 'Touch 9 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
+  { key: 'in_progress_10', label: 'Touch 10 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
+  { key: 'mefu', label: 'MEFU 📅', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   { key: 'completed', label: 'Completed ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 ];
 
@@ -294,3 +301,4 @@ export default function PipelinePage() {
     </Layout>
   );
 }
+
