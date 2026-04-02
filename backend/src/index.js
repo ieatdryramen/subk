@@ -29,6 +29,8 @@ app.use('/api/gmail', require('./routes/gmail'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/battlecard', require('./routes/battlecard'));
 app.use('/api/slack', require('./routes/slack'));
+app.use('/api/tracking', require('./routes/tracking'));
+app.use('/api/templates', require('./routes/templates'));
 app.use('/api/cardscan', require('./routes/cardscan'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.2.0' }));
