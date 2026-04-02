@@ -74,4 +74,15 @@ router.post('/:leadId/touch', auth, async (req, res) => {
   }
 });
 
+// Move lead to a specific stage
+router.post('/:leadId/stage', auth, async (req, res) => {
+  const { stage } = req.body;
+  try {
+    await pool.query('UPDATE leads SET sequence_stage=$1 WHERE id=$2', [stage, req.params.leadId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
