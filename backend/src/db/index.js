@@ -249,6 +249,13 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
+
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS legacy_system VARCHAR(100) DEFAULT 'Costpoint';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS compliance_focus TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS workflow_pains TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS buyer_personas TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS migration_notes TEXT;
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS govcon_mode BOOLEAN DEFAULT true;
     CREATE TABLE IF NOT EXISTS activity_goals (
       id SERIAL PRIMARY KEY,
       user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
