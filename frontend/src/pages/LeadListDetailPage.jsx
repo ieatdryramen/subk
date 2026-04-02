@@ -51,9 +51,10 @@ const s = {
   label: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 },
   row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 },
   modalBtns: { display: 'flex', gap: 8, marginTop: '1.25rem' },
-  cancelBtn: { flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)' },
-  saveBtn: { flex: 1, padding: 10, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontWeight: 500, border: 'none' },
+  cancelBtn: { flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)', cursor: 'pointer' },
+  saveBtn: { flex: 1, padding: 10, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontWeight: 500, border: 'none', cursor: 'pointer' },
   dropZone: { border: '1.5px dashed var(--border2)', borderRadius: 'var(--radius-lg)', padding: '2rem', textAlign: 'center', cursor: 'pointer', marginBottom: '1rem' },
+  checkbox: { width: 15, height: 15, cursor: 'pointer', accentColor: 'var(--accent)' },
 };
 
 export default function LeadListDetailPage() {
@@ -77,6 +78,11 @@ export default function LeadListDetailPage() {
   const [sortBy, setSortBy] = useState('icp_score');
   const [sortDir, setSortDir] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [icpMin, setIcpMin] = useState('');
+  const [icpMax, setIcpMax] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [showAdvFilters, setShowAdvFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const fileRef = useRef();
@@ -93,8 +99,8 @@ export default function LeadListDetailPage() {
     } catch (err) { console.error(err); }
   };
 
-  useEffect(() => { 
-    loadLeads(); 
+  useEffect(() => {
+    loadLeads();
     api.get('/zoho/status').then(r => setZohoStatus({ connected: r.data.connected })).catch(() => {});
   }, [id]);
 
@@ -127,8 +133,8 @@ export default function LeadListDetailPage() {
   };
 
   const bulkGenerate = async () => {
-    const toGenerate = [...selectedIds].filter(id => {
-      const lead = leads.find(l => l.id === id);
+    const toGenerate = [...selectedIds].filter(lid => {
+      const lead = leads.find(l => l.id === lid);
       return lead && lead.status !== 'done' && lead.status !== 'generating';
     });
     if (!toGenerate.length) return;
@@ -150,21 +156,25 @@ export default function LeadListDetailPage() {
 
   const bulkDelete = async () => {
     if (!selectedIds.size || !confirm(`Delete ${selectedIds.size} leads?`)) return;
-    await Promise.all([...selectedIds].map(id => api.delete(`/lists/${id}/leads/${id}`).catch(() => {})));
+    await Promise.all([...selectedIds].map(lid => api.delete(`/lists/${id}/leads/${lid}`).catch(() => {})));
     setLeads(ls => ls.filter(l => !selectedIds.has(l.id)));
     setSelectedIds(new Set());
   };
 
-  const toggleSelect = (id) => {
+  const toggleSelect = (lid) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(lid) ? next.delete(lid) : next.add(lid);
       return next;
     });
   };
 
-  const selectAll = () => {
-    setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredLeads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+    }
   };
 
   const clearSelection = () => setSelectedIds(new Set());
@@ -172,17 +182,10 @@ export default function LeadListDetailPage() {
   const cancelAll = async () => {
     try {
       await api.post(`/playbooks/cancel-list/${id}`);
-      setGenerating(false);
-      setProgress(0);
+      setGenerating(false); setProgress(0);
       clearInterval(pollRef.current);
       await loadLeads();
     } catch (err) { console.error(err); }
-  };
-
-  const cancelOne = async (e, leadId) => {
-    e.stopPropagation();
-    await api.post(`/playbooks/cancel/${leadId}`);
-    setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'pending' } : l));
   };
 
   const openEdit = (lead) => {
@@ -207,9 +210,7 @@ export default function LeadListDetailPage() {
       setEditingLead(null);
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to save');
-    } finally {
-      setSavingEdit(false);
-    }
+    } finally { setSavingEdit(false); }
   };
 
   const scoreList = async () => {
@@ -246,7 +247,7 @@ export default function LeadListDetailPage() {
       const r = await api.post(`/zoho/push/${leadId}`);
       alert(r.data.message);
     } catch (err) {
-      alert(err.response?.data?.error || 'Zoho push failed. Check your connection in Team & Integrations.');
+      alert(err.response?.data?.error || 'Zoho push failed.');
     }
   };
 
@@ -292,15 +293,23 @@ export default function LeadListDetailPage() {
   });
 
   const filteredLeads = sortedLeads.filter(l => {
-    const matchSearch = !search || 
+    const matchSearch = !search ||
       (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
       (l.company || '').toLowerCase().includes(search.toLowerCase()) ||
-      (l.title || '').toLowerCase().includes(search.toLowerCase());
+      (l.title || '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.email || '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'all' || l.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchIcpMin = !icpMin || (l.icp_score != null && l.icp_score >= parseInt(icpMin));
+    const matchIcpMax = !icpMax || (l.icp_score != null && l.icp_score <= parseInt(icpMax));
+    const matchTitle = !titleFilter || (l.title || '').toLowerCase().includes(titleFilter.toLowerCase());
+    const matchCompany = !companyFilter || (l.company || '').toLowerCase().includes(companyFilter.toLowerCase());
+    return matchSearch && matchStatus && matchIcpMin && matchIcpMax && matchTitle && matchCompany;
   });
+
   const doneCount = leads.filter(l => l.status === 'done').length;
   const scoredCount = leads.filter(l => l.icp_score != null).length;
+  const allSelected = filteredLeads.length > 0 && selectedIds.size === filteredLeads.length;
+  const activeFilters = [icpMin, icpMax, titleFilter, companyFilter].filter(Boolean).length;
 
   return (
     <Layout>
@@ -314,6 +323,7 @@ export default function LeadListDetailPage() {
         <div style={s.sub}>
           {leads.length} lead{leads.length !== 1 ? 's' : ''} · {doneCount} playbook{doneCount !== 1 ? 's' : ''} ready
           {scoredCount > 0 ? ` · ${scoredCount} scored` : ''}
+          {filteredLeads.length !== leads.length ? ` · ${filteredLeads.length} shown` : ''}
         </div>
 
         <div style={s.actions}>
@@ -336,21 +346,17 @@ export default function LeadListDetailPage() {
           )}
           {doneCount > 0 && (
             <div style={{ position: 'relative' }}>
-              <button style={s.btn('info')} onClick={() => setShowExportMenu(m => !m)}>↓ Export Playbooks ▾</button>
+              <button style={s.btn('info')} onClick={() => setShowExportMenu(m => !m)}>↓ Export ▾</button>
               {showExportMenu && (
                 <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', zIndex: 50, minWidth: 180 }}>
                   <div style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: 'var(--text)' }}
                     onMouseEnter={e => e.target.style.background='var(--bg3)'}
                     onMouseLeave={e => e.target.style.background=''}
-                    onClick={() => exportList('html')}>
-                    📄 HTML (Print to PDF)
-                  </div>
+                    onClick={() => exportList('html')}>📄 HTML (Print to PDF)</div>
                   <div style={{ padding: '8px 14px', fontSize: 13, cursor: 'pointer', color: 'var(--text)', borderTop: '1px solid var(--border)' }}
                     onMouseEnter={e => e.target.style.background='var(--bg3)'}
                     onMouseLeave={e => e.target.style.background=''}
-                    onClick={() => exportList('csv')}>
-                    📊 CSV spreadsheet
-                  </div>
+                    onClick={() => exportList('csv')}>📊 CSV spreadsheet</div>
                 </div>
               )}
             </div>
@@ -361,20 +367,20 @@ export default function LeadListDetailPage() {
         {!generating && !scoring && leads.length > 0 && (
           <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
             {[
-              { label: 'Ready', count: leads.filter(l => l.status === 'done').length, color: 'var(--success)', bg: 'var(--success-bg)' },
-              { label: 'Pending', count: leads.filter(l => l.status === 'pending').length, color: 'var(--text3)', bg: 'var(--bg3)' },
-              { label: 'High ICP (70+)', count: leads.filter(l => l.icp_score >= 70).length, color: 'var(--accent2)', bg: 'var(--accent-bg)' },
-              { label: 'Errors', count: leads.filter(l => l.status === 'error').length, color: 'var(--danger)', bg: 'var(--danger-bg)' },
-            ].filter(s => s.count > 0).map(s => (
-              <div key={s.label} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: s.bg, color: s.color, border: `1px solid ${s.color}`, cursor: 'pointer' }}
-                onClick={() => { if (s.label === 'Ready') setStatusFilter('done'); else if (s.label === 'Pending') setStatusFilter('pending'); else if (s.label === 'Errors') setStatusFilter('error'); else setStatusFilter('all'); }}>
-                {s.count} {s.label}
+              { label: 'Ready', count: leads.filter(l => l.status === 'done').length, color: 'var(--success)', bg: 'var(--success-bg)', filter: 'done' },
+              { label: 'Pending', count: leads.filter(l => l.status === 'pending').length, color: 'var(--text3)', bg: 'var(--bg3)', filter: 'pending' },
+              { label: 'High ICP (70+)', count: leads.filter(l => l.icp_score >= 70).length, color: 'var(--accent2)', bg: 'var(--accent-bg)', filter: null },
+              { label: 'Errors', count: leads.filter(l => l.status === 'error').length, color: 'var(--danger)', bg: 'var(--danger-bg)', filter: 'error' },
+            ].filter(x => x.count > 0).map(x => (
+              <div key={x.label} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: x.bg, color: x.color, border: `1px solid ${x.color}`, cursor: 'pointer' }}
+                onClick={() => x.filter ? setStatusFilter(prev => prev === x.filter ? 'all' : x.filter) : null}>
+                {x.count} {x.label}
               </div>
             ))}
             {leads.filter(l => l.status === 'error').length > 0 && (
               <div style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, color: 'var(--danger)', cursor: 'pointer' }}
-                onClick={() => leads.filter(l => l.status === 'error').forEach(l => generateOne(l.id))}>
-                ↺ Retry all errors
+                onClick={() => leads.filter(l => l.status === 'error').forEach(l => generateOne({ stopPropagation: () => {} }, l.id))}>
+                ↺ Retry errors
               </div>
             )}
           </div>
@@ -384,50 +390,90 @@ export default function LeadListDetailPage() {
           <div style={s.progress}><div style={s.progressBar(progress)} /></div>
         )}
 
-        {/* Search, filter, bulk actions */}
+        {/* Search + filters */}
         {leads.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search leads..."
-            style={{ flex: 1, minWidth: 200, padding: '7px 12px', fontSize: 13 }}
-          />
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
-            <option value="all">All status</option>
-            <option value="done">Ready</option>
-            <option value="pending">Pending</option>
-            <option value="generating">Generating</option>
-            <option value="error">Error</option>
-          </select>
-          {selectedIds.size > 0 ? (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: 'var(--text2)' }}>{selectedIds.size} selected</span>
-              <button style={s.btn('success')} onClick={bulkGenerate} disabled={bulkGenerating}>
-                {bulkGenerating ? 'Generating...' : `⚡ Generate (${selectedIds.size})`}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, company, title, email..."
+                style={{ flex: 1, minWidth: 220, padding: '7px 12px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              />
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+                <option value="all">All status</option>
+                <option value="done">Ready</option>
+                <option value="pending">Pending</option>
+                <option value="generating">Generating</option>
+                <option value="error">Error</option>
+              </select>
+              <button
+                style={{ ...s.btn(showAdvFilters || activeFilters > 0 ? 'warning' : 'info'), padding: '7px 12px', fontSize: 12 }}
+                onClick={() => setShowAdvFilters(v => !v)}>
+                {activeFilters > 0 ? `Filters (${activeFilters})` : 'More filters'}
               </button>
-              <button style={s.btn('danger')} onClick={bulkDelete}>🗑 Delete</button>
-              <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
+              {selectedIds.size > 0 ? (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text2)' }}>{selectedIds.size} selected</span>
+                  <button style={s.btn('success')} onClick={bulkGenerate} disabled={bulkGenerating}>
+                    {bulkGenerating ? 'Generating...' : `⚡ Generate (${selectedIds.size})`}
+                  </button>
+                  <button style={s.btn('danger')} onClick={bulkDelete}>🗑 Delete</button>
+                  <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
+                </div>
+              ) : (
+                <>
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                    style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+                    <option value="icp_score">Sort: ICP Score</option>
+                    <option value="company">Sort: Company</option>
+                    <option value="title">Sort: Title</option>
+                    <option value="status">Sort: Status</option>
+                    <option value="full_name">Sort: Name</option>
+                  </select>
+                  <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                    style={{ padding: '7px 10px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minWidth: 36 }}>
+                    {sortDir === 'desc' ? '↓' : '↑'}
+                  </button>
+                </>
+              )}
             </div>
-          ) : (
-            <>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
-            <option value="icp_score">Sort: ICP Score</option>
-            <option value="company">Sort: Company</option>
-            <option value="title">Sort: Title</option>
-            <option value="status">Sort: Status</option>
-            <option value="full_name">Sort: Name</option>
-          </select>
-          <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-            style={{ padding: '7px 10px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minWidth: 36 }}>
-            {sortDir === 'desc' ? '↓' : '↑'}
-          </button>
-          <button style={s.btn('info')} onClick={selectAll}>Select all</button>
-            </>
-          )}
-        </div>
+
+            {/* Advanced filters panel */}
+            {showAdvFilters && (
+              <div style={{ display: 'flex', gap: 10, marginTop: 8, flexWrap: 'wrap', padding: '10px 14px', background: 'var(--bg3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>ICP Score Min</label>
+                  <input type="number" min="0" max="100" value={icpMin} onChange={e => setIcpMin(e.target.value)}
+                    placeholder="0" style={{ width: 80, padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>ICP Score Max</label>
+                  <input type="number" min="0" max="100" value={icpMax} onChange={e => setIcpMax(e.target.value)}
+                    placeholder="100" style={{ width: 80, padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Title contains</label>
+                  <input value={titleFilter} onChange={e => setTitleFilter(e.target.value)}
+                    placeholder="VP, Director..." style={{ width: 140, padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Company contains</label>
+                  <input value={companyFilter} onChange={e => setCompanyFilter(e.target.value)}
+                    placeholder="Federal, Gov..." style={{ width: 140, padding: '5px 8px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }} />
+                </div>
+                {activeFilters > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <button style={{ ...s.btn('danger'), padding: '5px 12px', fontSize: 12 }}
+                      onClick={() => { setIcpMin(''); setIcpMax(''); setTitleFilter(''); setCompanyFilter(''); }}>
+                      Clear filters
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {leads.length === 0 ? (
@@ -436,9 +482,12 @@ export default function LeadListDetailPage() {
             <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
           </div>
         ) : (
-        <table style={s.table}>
+          <table style={s.table}>
             <thead>
               <tr>
+                <th style={{ ...s.th, width: 36 }}>
+                  <input type="checkbox" style={s.checkbox} checked={allSelected} onChange={toggleSelectAll} />
+                </th>
                 <th style={s.th}>Name</th>
                 <th style={s.th}>Company</th>
                 <th style={s.th}>Title</th>
@@ -450,18 +499,19 @@ export default function LeadListDetailPage() {
             <tbody>
               {filteredLeads.map(lead => (
                 <>
-                  <tr key={lead.id} style={{ cursor: 'pointer' }}
+                  <tr key={lead.id} style={{ cursor: 'pointer', background: selectedIds.has(lead.id) ? 'var(--accent-bg)' : '' }}
                     onClick={() => toggleRow(lead.id)}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}>
+                    onMouseEnter={e => { if (!selectedIds.has(lead.id)) e.currentTarget.style.background = 'var(--bg3)'; }}
+                    onMouseLeave={e => { if (!selectedIds.has(lead.id)) e.currentTarget.style.background = ''; }}>
+                    <td style={{ ...s.td, width: 36 }} onClick={e => { e.stopPropagation(); toggleSelect(lead.id); }}>
+                      <input type="checkbox" style={s.checkbox} checked={selectedIds.has(lead.id)} onChange={() => toggleSelect(lead.id)} />
+                    </td>
                     <td style={s.td}><div style={{ fontWeight: 500 }}>{lead.full_name || '—'}</div></td>
                     <td style={s.td}>{lead.company || '—'}</td>
                     <td style={s.td}>{lead.title || '—'}</td>
                     <td style={s.td}>
                       {lead.icp_score != null ? (
-                        <span style={s.scoreBadge(lead.icp_score)} title={lead.icp_reason || ''}>
-                          {lead.icp_score}
-                        </span>
+                        <span style={s.scoreBadge(lead.icp_score)} title={lead.icp_reason || ''}>{lead.icp_score}</span>
                       ) : '—'}
                     </td>
                     <td style={s.td}>
@@ -481,13 +531,14 @@ export default function LeadListDetailPage() {
                             {lead.zoho_contact_id ? '↻ Zoho' : '→ Zoho'}
                           </button>
                         )}
+                        <button style={s.smallBtn('default')} onClick={e => { e.stopPropagation(); openEdit(lead); }}>Edit</button>
                         <button style={s.smallBtn('red')} onClick={e => deleteLead(e, lead.id)}>✕</button>
                       </div>
                     </td>
                   </tr>
                   {expandedId === lead.id && (
                     <tr key={`expand-${lead.id}`}>
-                      <td colSpan={6} style={s.rowExpand}>
+                      <td colSpan={7} style={s.rowExpand}>
                         <div style={s.expandInner}>
                           {lead.icp_score != null && lead.icp_reason && (
                             <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 12, padding: '8px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', borderLeft: `3px solid ${scoreColor(lead.icp_score).color}` }}>
@@ -495,7 +546,7 @@ export default function LeadListDetailPage() {
                             </div>
                           )}
                           {lead.status === 'done' && (lead.research || lead.email1) ? (
-                            <PlaybookViewer playbook={lead} leadId={lead.id} />
+                            <PlaybookViewer playbook={lead} leadId={lead.id} lead={lead} />
                           ) : lead.status === 'generating' ? (
                             <div style={{ color: 'var(--text2)', fontSize: 13, padding: '1rem 0' }}>Building playbook — about 20 seconds...</div>
                           ) : lead.status === 'error' ? (
@@ -516,6 +567,7 @@ export default function LeadListDetailPage() {
         )}
       </div>
 
+      {/* Add Lead Modal */}
       {modal === 'add' && (
         <div style={s.modal} onClick={() => setModal(null)}>
           <div style={s.modalCard} onClick={e => e.stopPropagation()}>
@@ -528,8 +580,11 @@ export default function LeadListDetailPage() {
               <div style={s.field}><label style={s.label}>Title</label><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="VP of Business Development" /></div>
               <div style={s.field}><label style={s.label}>Email</label><input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="s.chen@apex.com" /></div>
             </div>
-            <div style={s.field}><label style={s.label}>LinkedIn URL (optional)</label><input value={addForm.linkedin} onChange={e => setAddForm(f => ({ ...f, linkedin: e.target.value }))} placeholder="https://linkedin.com/in/..." /></div>
-            <div style={s.field}><label style={s.label}>Notes (optional)</label><textarea value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} placeholder="Met at conference, interested in compliance module" style={{ minHeight: 60 }} /></div>
+            <div style={s.row2}>
+              <div style={s.field}><label style={s.label}>Phone</label><input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" /></div>
+              <div style={s.field}><label style={s.label}>LinkedIn URL</label><input value={addForm.linkedin} onChange={e => setAddForm(f => ({ ...f, linkedin: e.target.value }))} placeholder="https://linkedin.com/in/..." /></div>
+            </div>
+            <div style={s.field}><label style={s.label}>Notes (optional)</label><textarea value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} placeholder="Met at conference..." style={{ minHeight: 60 }} /></div>
             <div style={s.modalBtns}>
               <button style={s.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={s.saveBtn} onClick={addLead} disabled={!addForm.full_name && !addForm.company}>Add lead</button>
@@ -538,37 +593,18 @@ export default function LeadListDetailPage() {
         </div>
       )}
 
+      {/* Edit Lead Modal */}
       {editingLead && (
         <div style={s.modal} onClick={() => setEditingLead(null)}>
           <div style={{ ...s.modalCard, maxWidth: 520 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: '1.25rem', fontFamily: 'Syne, sans-serif' }}>
-              Edit lead
-            </div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: '1.25rem' }}>Edit lead</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={s.label}>Full name</label>
-                <input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} />
-              </div>
-              <div>
-                <label style={s.label}>Company</label>
-                <input value={editForm.company} onChange={e => setEditForm(f => ({...f, company: e.target.value}))} />
-              </div>
-              <div>
-                <label style={s.label}>Title</label>
-                <input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} />
-              </div>
-              <div>
-                <label style={s.label}>Email</label>
-                <input value={editForm.email} onChange={e => setEditForm(f => ({...f, email: e.target.value}))} />
-              </div>
-              <div>
-                <label style={s.label}>Phone</label>
-                <input value={editForm.phone} onChange={e => setEditForm(f => ({...f, phone: e.target.value}))} placeholder="+1 (555) 000-0000" />
-              </div>
-              <div>
-                <label style={s.label}>LinkedIn URL</label>
-                <input value={editForm.linkedin} onChange={e => setEditForm(f => ({...f, linkedin: e.target.value}))} />
-              </div>
+              <div><label style={s.label}>Full name</label><input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} /></div>
+              <div><label style={s.label}>Company</label><input value={editForm.company} onChange={e => setEditForm(f => ({...f, company: e.target.value}))} /></div>
+              <div><label style={s.label}>Title</label><input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} /></div>
+              <div><label style={s.label}>Email</label><input value={editForm.email} onChange={e => setEditForm(f => ({...f, email: e.target.value}))} /></div>
+              <div><label style={s.label}>Phone</label><input value={editForm.phone} onChange={e => setEditForm(f => ({...f, phone: e.target.value}))} placeholder="+1 (555) 000-0000" /></div>
+              <div><label style={s.label}>LinkedIn URL</label><input value={editForm.linkedin} onChange={e => setEditForm(f => ({...f, linkedin: e.target.value}))} /></div>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={s.label}>Notes</label>
@@ -583,13 +619,14 @@ export default function LeadListDetailPage() {
         </div>
       )}
 
+      {/* Upgrade Modal */}
       {showUpgradeModal && (
         <div style={s.modal} onClick={() => setShowUpgradeModal(false)}>
           <div style={{ ...s.modalCard, maxWidth: 460, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, fontFamily: 'Syne, sans-serif' }}>Playbook limit reached</div>
+            <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Playbook limit reached</div>
             <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-              You've used all your free playbooks. Upgrade to keep generating personalized outreach for your leads.
+              You've used all your free playbooks. Upgrade to keep generating personalized outreach.
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: '1.5rem' }}>
               {[
@@ -597,7 +634,7 @@ export default function LeadListDetailPage() {
                 { name: 'Team', price: '$149/mo', detail: '500 playbooks', featured: true },
                 { name: 'Pro', price: '$299/mo', detail: 'Unlimited' },
               ].map(p => (
-                <div key={p.name} style={{ padding: '12px', background: p.featured ? 'var(--accent-bg)' : 'var(--bg3)', border: p.featured ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
+                <div key={p.name} style={{ padding: 12, background: p.featured ? 'var(--accent-bg)' : 'var(--bg3)', border: p.featured ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius)', cursor: 'pointer' }}
                   onClick={() => { setShowUpgradeModal(false); window.location.href = '/billing'; }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 2 }}>{p.name}</div>
                   <div style={{ fontSize: 13, color: p.featured ? 'var(--accent2)' : 'var(--text2)' }}>{p.price}</div>
@@ -613,6 +650,7 @@ export default function LeadListDetailPage() {
         </div>
       )}
 
+      {/* CSV Modal */}
       {modal === 'csv' && (
         <div style={s.modal} onClick={() => setModal(null)}>
           <div style={s.modalCard} onClick={e => e.stopPropagation()}>
@@ -633,4 +671,3 @@ export default function LeadListDetailPage() {
     </Layout>
   );
 }
-
