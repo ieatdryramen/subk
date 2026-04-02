@@ -13,6 +13,7 @@ import LeadListDetailPage from './pages/LeadListDetailPage';
 import TeamPage from './pages/TeamPage';
 import BillingPage from './pages/BillingPage';
 import AdminDashboard from './pages/AdminDashboard';
+import CardScanPage from './pages/CardScanPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -38,6 +39,7 @@ const App = () => (
         <Route path="/team" element={<Protected><TeamPage /></Protected>} />
         <Route path="/billing" element={<Protected><BillingPage /></Protected>} />
         <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />
+        <Route path="/cardscan" element={<Protected><CardScanPage /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
