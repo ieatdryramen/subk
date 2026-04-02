@@ -63,15 +63,19 @@ THEY LIKELY USE: ${legacySystem}
 
 ${SUMX_CONTEXT}
 
-Write exactly 3 paragraphs — under 200 words total:
+Write exactly 3 paragraphs — under 200 words total. Be direct, no hedging words like "probably" or "likely" more than once per paragraph:
 
-1. COMPANY REALITY: What does this company likely do based on their name and what you can reasonably infer? What kind of GovCon work — prime, sub, T&M, fixed price, cost-plus? What is their likely size and pressure right now? Be honest about what you don't know — don't invent revenue numbers or contract counts.
+1. COMPANY REALITY: What does this company do based on their name and what you can reasonably infer? What kind of GovCon work — prime, sub, T&M, fixed price? Be honest about what you don't know. Do NOT invent revenue numbers, headcount, or contract counts. Do NOT name any specific ERP system they use — you don't know what they run.
 
-2. THIS PERSON'S WORLD: What does someone with this exact title do every day in a GovCon company? What are they personally responsible for? What keeps them up at night — compliance, cash flow, headcount, audit risk, billing accuracy? What would make their life meaningfully easier?
+2. THIS PERSON'S WORLD: What does someone with this exact title actually do every day in a GovCon company? What are they responsible for and what keeps them up at night — compliance, audit risk, cash flow, billing accuracy, key-person dependency? Focus on role-based reality, not invented specifics.
 
-3. THE ANGLE: Given what you know about this person and the Costpoint/legacy ERP pain points above, what is the single most credible opening observation for a sales rep to make? What specific workflow pain is most likely real for them? What should the rep NOT bring up first?
+3. THE ANGLE: What is the single most credible opening question or observation for this person? Frame it around a workflow pain that is genuinely common in GovCon finance — NOT naming a specific ERP system. Do NOT mention Costpoint, Deltek, or any vendor. What should the rep absolutely NOT assume or bring up first?
 
-No hedging. No invented numbers. Under 200 words.`;
+HARD RULES FOR THIS OUTPUT:
+- Never mention Costpoint, Deltek, Unanet, or any ERP by name — you don't know what they use
+- Never invent statistics, firm counts, or percentages ("200+ firms", "40% of companies")
+- Never say "probably" more than once per paragraph
+- Under 200 words total`;
 
   const message = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',
