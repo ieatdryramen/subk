@@ -191,8 +191,6 @@ export default function ProfilePage() {
               <span style={s.hint}>One per line — the AI writes specific rebuttals for each one.</span>
             </div>
           </div>
-        </div>
-
         </div>}
 
         {/* Member view — company context is set by admin */}
@@ -263,4 +261,5 @@ export default function ProfilePage() {
     </Layout>
   );
 }
+
 
