@@ -33,6 +33,9 @@ body {
 
 h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 600; }
 
+/* Prevent stylized zeros in Syne font */
+[style*="Syne"] { font-variant-numeric: normal; }
+
 input, textarea, select {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
