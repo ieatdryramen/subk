@@ -3,7 +3,9 @@ import api from '../lib/api';
 
 const TOUCHPOINT_ICONS = {
   email1: '✉', email2: '✉', email3: '✉', email4: '✉',
-  linkedin_connect: '🔗', linkedin_dm: '💬', call: '📞',
+  call1: '📞', call2: '📞', call3: '📞', call4: '📞',
+  linkedin_connect: '🔗', linkedin_dm: '💬',
+  call: '📞', mefu: '📅',
 };
 
 const TYPE_COLORS = {
@@ -192,3 +194,4 @@ export default function SequenceTracker({ leadId }) {
     </div>
   );
 }
+
