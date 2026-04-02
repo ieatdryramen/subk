@@ -31,6 +31,17 @@ THE SPECIFIC PAINS PROSPECTS DESCRIBE IN THEIR OWN WORDS:
 9. "I don't want Janet to lose her mind switching systems" — the migration fear is real, especially for controllers and finance staff
 10. "It was easier to put a satellite into orbit than to use Costpoint" — direct quote from a prospect
 
+THE FOUR DISTINCT PAIN ANGLES — USE THESE TO VARY EMAIL HOOKS:
+Each angle is a real, standalone pain. Do NOT stack all four into one sequence. Pick the most credible one for Email 1 based on the prospect's title, then rotate to a different angle for each subsequent email.
+
+ANGLE 1 — KEY PERSON RISK: One person knows where everything lives. If they leave, take a vacation, or get sick, billing stops and audit prep becomes a crisis. Works for: any title that owns finance or operations.
+
+ANGLE 2 — BILLING VELOCITY / CASH FLOW LAG: Government pays net-30 (or slower). Every day of delay between approved timesheets and invoice-out-the-door is a day of cash collection lost. Multi-screen approval workflows add days to a process that should take minutes. Works best for: CFO, VP Finance, COO, President/CEO.
+
+ANGLE 3 — AUDIT DOCUMENTATION HUNT: When DCAA shows up, your team spends more time finding documents than explaining the work. The backup should live with the bill record — instead it's in folders, printouts, and emails across multiple systems. Works best for: CFO, Controller, Compliance leads.
+
+ANGLE 4 — REPORTING THAT REQUIRES EXCEL: To see budget vs. actual, your team exports data out of the ERP and builds it in a spreadsheet. The system that should give you visibility requires you to leave the system to get it. Works best for: CFO, Controller, Program Manager, COO.
+
 WHAT ACTUALLY GETS PROSPECTS TO BUY:
 - They see the billing screen and realize they can approve and send a bill without touching anything outside the system
 - The audit trail living with the record — DCAA compliance without the manual filing
@@ -221,7 +232,7 @@ HARD RULES:
 10. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done.
 11. Write in the voice of: ${tone}
 12. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."
-13. Each email takes a genuinely different angle — not the same pain rephrased with different words.
+13. Each email takes a genuinely different angle — use the FOUR DISTINCT PAIN ANGLES defined in SUMX_CONTEXT. Email 1 picks the single most credible angle for this prospect's title. Email 2 picks a DIFFERENT named angle. Email 3 picks yet another. Never use the same angle twice in one sequence. Key person risk is ONE of four options — do not make it the default for every email.
 14. Final check: does any email start with "I"? Rewrite it. Does it name a specific ERP? Remove it. Does it assert something as fact you cannot verify? Make it a question.
 
 SELF-CHECK:
