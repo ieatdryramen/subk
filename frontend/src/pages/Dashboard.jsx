@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [dueCount, setDueCount] = useState(0);
 
   useEffect(() => {
-    api.get('/reminders/due').then(r => setDueCount((r.data || []).filter(l => l.urgency !== 'upcoming').length)).catch(() => {});
+    api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
     Promise.all([
       api.get('/lists'),
       api.get('/admin/dashboard').catch(() => null),
@@ -180,3 +180,4 @@ export default function Dashboard() {
     </Layout>
   );
 }
+
