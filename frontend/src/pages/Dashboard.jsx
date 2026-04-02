@@ -132,8 +132,7 @@ export default function Dashboard() {
               <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: a.type === 'playbook' ? 'var(--accent)' : 'var(--success)', marginTop: 5, flexShrink: 0 }} />
                 <div style={{ flex: 1, fontSize: 12, color: 'var(--text)', lineHeight: 1.5 }}>
-                  <strong>{a.user_name || 'You'}</strong> {a.type === 'playbook' ? 'generated playbook for' : 'completed touch with'} <strong>{a.lead_name}</strong>
-                  {a.company ? <span style={{ color: 'var(--text3)' }}> at {a.company}</span> : ''}
+                  <strong>{a.user_name || 'You'}</strong> {a.type === 'playbook' ? 'generated playbook for' : 'completed touch with'} <strong>{[a.lead_name, a.company].filter(Boolean).join(' at ') || 'a lead'}</strong>
                 </div>
                 <div style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(a.timestamp)}</div>
               </div>
