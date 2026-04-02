@@ -107,6 +107,11 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
     }
   }, [chatMessages]);
 
+  const exportLead = (format) => {
+    const token = localStorage.getItem('pf_token');
+    window.open(`/api/export/lead/${leadId}/${format}?token=${token}`, '_blank');
+  };
+
   const copy = () => {
     navigator.clipboard.writeText(playbook?.[activeTab] || '');
     setCopied(true);
@@ -328,6 +333,8 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
         <div style={s.content}>
           <div style={s.actionRow}>
             <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+            <button style={s.btn('copy')} onClick={() => exportLead('html')}>⬇ Export PDF</button>
+            <button style={s.btn('copy')} onClick={() => exportLead('csv')}>⬇ Export CSV</button>
             {isEmailTab && (
               <button style={s.btn(savedTemplate ? 'saved' : 'template')} onClick={() => saveAsTemplate(activeTab)}>
                 {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
@@ -348,3 +355,4 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
     </div>
   );
 }
+
