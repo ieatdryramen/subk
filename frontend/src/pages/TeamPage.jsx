@@ -149,11 +149,24 @@ export default function TeamPage() {
           <div style={s.cardTitle}>Zoho CRM</div>
           {zohoConnected ? (
             <div>
-              <span style={s.connectedBadge}>✓ Connected to Zoho CRM</span>
-              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={s.connectedBadge}>✓ Connected to Zoho CRM</span>
+                <button
+                  style={{ fontSize: 12, padding: '5px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--danger)', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer' }}
+                  onClick={async () => {
+                    if (!confirm('Disconnect Zoho CRM?')) return;
+                    try {
+                      await api.post('/zoho/disconnect');
+                      setZohoConnected(false);
+                    } catch { alert('Failed to disconnect'); }
+                  }}>
+                  Disconnect
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 12 }}>
                 Zoho is connected. You can push leads, sync playbooks, and send tracked emails directly from any playbook.
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
                 {[
                   '✓ Push contacts to Zoho',
                   '✓ Sync full playbooks as notes',
@@ -163,6 +176,10 @@ export default function TeamPage() {
                   <span key={f} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }}>{f}</span>
                 ))}
               </div>
+              <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', cursor: 'pointer' }}
+                onClick={connectZoho} disabled={savingZoho}>
+                {savingZoho ? 'Redirecting...' : '↺ Reconnect Zoho'}
+              </button>
             </div>
           ) : (
             <div>
@@ -227,3 +244,4 @@ export default function TeamPage() {
     </Layout>
   );
 }
+
