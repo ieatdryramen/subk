@@ -4,36 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 
-const s = {
-  page: { padding: '2rem 2.5rem', maxWidth: 1100 },
-  heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
-  sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '2rem' },
-  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: '2rem' },
-  statCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' },
-  statNum: { fontSize: 30, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 2 },
-  statLabel: { fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' },
-  statSub: { fontSize: 11, color: 'var(--text3)', marginTop: 4 },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: '2rem' },
-  card: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' },
-  cardHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' },
-  cardTitle: { fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  viewAll: { fontSize: 12, color: 'var(--accent2)', cursor: 'pointer' },
-  listRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' },
-  listName: { fontSize: 14, fontWeight: 500, marginBottom: 2 },
-  listMeta: { fontSize: 12, color: 'var(--text2)' },
-  badge: (color) => ({ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: `var(--${color}-bg)`, color: `var(--${color})`, border: `1px solid var(--${color})` }),
-  activityItem: { display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' },
-  activityDot: (color) => ({ width: 8, height: 8, borderRadius: '50%', background: `var(--${color})`, marginTop: 5, flexShrink: 0 }),
-  activityText: { fontSize: 13, flex: 1, color: 'var(--text)' },
-  activityTime: { fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap' },
-  seqBar: { display: 'flex', gap: 4, marginTop: 8 },
-  seqStep: (done) => ({ flex: 1, height: 4, borderRadius: 2, background: done ? 'var(--accent)' : 'var(--bg3)' }),
-  empty: { fontSize: 13, color: 'var(--text3)', padding: '1rem 0', textAlign: 'center' },
-  newBtn: { padding: '8px 16px', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500, border: 'none', cursor: 'pointer' },
-  scoreBar: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' },
-  score: (s) => ({ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, flexShrink: 0, background: s >= 70 ? 'var(--success-bg)' : s >= 40 ? 'var(--warning-bg)' : 'var(--danger-bg)', color: s >= 70 ? 'var(--success)' : s >= 40 ? 'var(--warning)' : 'var(--danger)' }),
-};
-
 const timeAgo = (ts) => {
   if (!ts) return '';
   const diff = Date.now() - new Date(ts).getTime();
@@ -45,103 +15,127 @@ const timeAgo = (ts) => {
   return `${Math.floor(hrs / 24)}d ago`;
 };
 
+const scoreColor = (s) => s >= 70 ? 'var(--success)' : s >= 40 ? 'var(--warning)' : 'var(--text3)';
+const scoreBg = (s) => s >= 70 ? 'var(--success-bg)' : s >= 40 ? 'var(--warning-bg)' : 'var(--bg3)';
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [lists, setLists] = useState([]);
-  const [myStats, setMyStats] = useState(null);
+  const [stats, setStats] = useState(null);
   const [topLeads, setTopLeads] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [sequenceStats, setSequenceStats] = useState(null);
+  const [activity, setActivity] = useState([]);
+  const [billing, setBilling] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load lists
-    api.get('/lists').then(r => setLists(r.data)).catch(console.error);
-
-    // Load personal stats from admin dashboard
-    api.get('/admin/dashboard').then(r => {
-      const me = r.data.members?.find(m => m.email === user?.email);
-      setMyStats(me);
-      setTopLeads(r.data.topLeads?.slice(0, 5) || []);
-      setRecentActivity(r.data.activity?.slice(0, 8) || []);
-    }).catch(() => {
-      // Non-admin fallback - load basic stats
-      api.get('/billing/status').then(r => setMyStats({ plan: r.data.plan }));
-    });
+    Promise.all([
+      api.get('/lists'),
+      api.get('/admin/dashboard').catch(() => null),
+      api.get('/billing/status').catch(() => null),
+    ]).then(([listsRes, adminRes, billingRes]) => {
+      setLists(listsRes.data || []);
+      if (adminRes?.data) {
+        const me = adminRes.data.members?.find(m => m.email === user?.email);
+        setStats(me);
+        setTopLeads(adminRes.data.topLeads?.slice(0, 6) || []);
+        setActivity(adminRes.data.activity?.slice(0, 10) || []);
+      }
+      if (billingRes?.data) setBilling(billingRes.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [user]);
 
   const totalLeads = lists.reduce((a, l) => a + parseInt(l.lead_count || 0), 0);
-  const doneLeads = lists.reduce((a, l) => a + parseInt(l.done_count || 0), 0);
+  const readyLeads = lists.reduce((a, l) => a + parseInt(l.done_count || 0), 0);
+  const firstName = user?.full_name?.split(' ')[0] || 'there';
+
+  const statCards = [
+    { n: stats?.playbooks_generated || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)' },
+    { n: totalLeads, label: 'Total leads', sub: `${readyLeads} with playbooks`, color: 'var(--text)' },
+    { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'Across all sequences', color: 'var(--success)' },
+    { n: lists.length, label: 'Lead lists', sub: 'Active lists', color: 'var(--text2)' },
+  ];
 
   return (
     <Layout>
-      <div style={s.page}>
-        <div style={s.heading}>
-          {user?.full_name ? `Hey ${user.full_name.split(' ')[0]} 👋` : 'Dashboard'}
+      <div style={{ padding: '2rem 2.5rem', maxWidth: 1100 }}>
+        {/* Header */}
+        <div style={{ marginBottom: '2rem' }}>
+          <div style={{ fontSize: 26, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 4 }}>
+            Hey {firstName} 👋
+          </div>
+          <div style={{ color: 'var(--text2)', fontSize: 14 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          </div>
         </div>
-        <div style={s.sub}>Here's what's happening with your pipeline</div>
+
+        {/* Trial warning */}
+        {billing?.plan === 'trial' && billing.playbooks_used >= 7 && (
+          <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, color: 'var(--warning)' }}>
+              ⚠ {10 - billing.playbooks_used} free playbooks remaining
+            </div>
+            <button onClick={() => navigate('/billing')} style={{ padding: '6px 14px', background: 'var(--warning)', color: '#000', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+              Upgrade →
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
-        <div style={s.statsGrid}>
-          <div style={s.statCard}>
-            <div style={s.statNum}>{myStats?.playbooks_generated || 0}</div>
-            <div style={s.statLabel}>Playbooks created</div>
-            <div style={s.statSub}>+{myStats?.playbooks_this_week || 0} this week</div>
-          </div>
-          <div style={s.statCard}>
-            <div style={s.statNum}>{myStats?.leads_created || totalLeads}</div>
-            <div style={s.statLabel}>Total leads</div>
-            <div style={s.statSub}>+{myStats?.leads_this_week || 0} this week</div>
-          </div>
-          <div style={s.statCard}>
-            <div style={s.statNum}>{myStats?.touchpoints_completed || 0}</div>
-            <div style={s.statLabel}>Touchpoints sent</div>
-            <div style={s.statSub}>Across all sequences</div>
-          </div>
-          <div style={s.statCard}>
-            <div style={s.statNum}>{lists.length}</div>
-            <div style={s.statLabel}>Lead lists</div>
-            <div style={s.statSub}>Active lists</div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '2rem' }}>
+          {statCards.map(s => (
+            <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'Syne, sans-serif', color: s.color, marginBottom: 2 }}>{s.n}</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{s.sub}</div>
+            </div>
+          ))}
         </div>
 
-        <div style={s.grid2}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, marginBottom: '1.5rem' }}>
           {/* Lead Lists */}
-          <div style={s.card}>
-            <div style={s.cardHead}>
-              <div style={s.cardTitle}>Lead Lists</div>
-              <button style={s.newBtn} onClick={() => navigate('/lists')}>+ New List</button>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Lead Lists</div>
+              <button onClick={() => navigate('/lists')} style={{ padding: '6px 14px', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500, border: 'none', cursor: 'pointer' }}>+ New List</button>
             </div>
             {lists.length === 0 ? (
-              <div style={s.empty}>No lists yet — create your first lead list</div>
-            ) : lists.slice(0, 6).map(list => (
-              <div key={list.id} style={s.listRow} onClick={() => navigate(`/lists/${list.id}`)}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}>
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)', fontSize: 13 }}>
+                No lists yet — create your first lead list
+              </div>
+            ) : lists.slice(0, 7).map(list => (
+              <div key={list.id}
+                onClick={() => navigate(`/lists/${list.id}`)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
                 <div>
-                  <div style={s.listName}>{list.name}</div>
-                  <div style={s.listMeta}>{list.lead_count} leads · {new Date(list.created_at).toLocaleDateString()}</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{list.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>
+                    {list.lead_count} leads · {list.done_count || 0} playbooks
+                  </div>
                 </div>
                 <span style={{ fontSize: 13, color: 'var(--text3)' }}>→</span>
               </div>
             ))}
           </div>
 
-          {/* Recent Activity */}
-          <div style={s.card}>
-            <div style={s.cardHead}>
-              <div style={s.cardTitle}>Recent Activity</div>
-            </div>
-            {recentActivity.length === 0 ? (
-              <div style={s.empty}>No activity yet — generate your first playbook</div>
-            ) : recentActivity.map((a, i) => (
-              <div key={i} style={s.activityItem}>
-                <div style={s.activityDot(a.type === 'playbook' ? 'accent' : 'success')} />
-                <div style={s.activityText}>
+          {/* Activity Feed */}
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>Team Activity</div>
+            {activity.length === 0 ? (
+              <div style={{ color: 'var(--text3)', fontSize: 13, padding: '2rem 0', textAlign: 'center' }}>
+                No activity yet — generate your first playbook
+              </div>
+            ) : activity.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' }}>
+                <div style={{ width: 7, height: 7, borderRadius: '50%', background: a.type === 'playbook' ? 'var(--accent)' : 'var(--success)', marginTop: 5, flexShrink: 0 }} />
+                <div style={{ flex: 1, fontSize: 12, color: 'var(--text)', lineHeight: 1.5 }}>
                   <strong>{a.user_name || 'You'}</strong> {a.type === 'playbook' ? 'generated playbook for' : 'completed touch with'} <strong>{a.lead_name}</strong>
-                  {a.company ? ` at ${a.company}` : ''}
+                  {a.company ? <span style={{ color: 'var(--text3)' }}> at {a.company}</span> : ''}
                 </div>
-                <div style={s.activityTime}>{timeAgo(a.timestamp)}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', whiteSpace: 'nowrap', flexShrink: 0 }}>{timeAgo(a.timestamp)}</div>
               </div>
             ))}
           </div>
@@ -149,23 +143,24 @@ export default function Dashboard() {
 
         {/* Top Leads */}
         {topLeads.length > 0 && (
-          <div style={s.card}>
-            <div style={s.cardHead}>
-              <div style={s.cardTitle}>Top leads by ICP score</div>
-              <span style={s.viewAll} onClick={() => navigate('/lists')}>View all lists →</span>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Top leads by ICP score</div>
+              <span onClick={() => navigate('/pipeline')} style={{ fontSize: 12, color: 'var(--accent2)', cursor: 'pointer' }}>View pipeline →</span>
             </div>
-            {topLeads.map((lead, i) => (
-              <div key={i} style={s.scoreBar}>
-                <span style={s.score(lead.icp_score)}>{lead.icp_score}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{lead.full_name} — {lead.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{lead.company}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {topLeads.map((lead, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--bg3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <span style={{ padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: scoreBg(lead.icp_score), color: scoreColor(lead.icp_score), flexShrink: 0 }}>
+                    {lead.icp_score}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.full_name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.company}</div>
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: lead.status === 'done' ? 'var(--success-bg)' : 'var(--bg3)', color: lead.status === 'done' ? 'var(--success)' : 'var(--text3)', border: '1px solid var(--border)' }}>
-                  {lead.status}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
