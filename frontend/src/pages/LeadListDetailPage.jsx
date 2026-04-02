@@ -74,6 +74,8 @@ export default function LeadListDetailPage() {
   const [editForm, setEditForm] = useState({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('icp_score');
+  const [sortDir, setSortDir] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -279,7 +281,17 @@ export default function LeadListDetailPage() {
 
   const toggleRow = (leadId) => setExpandedId(prev => prev === leadId ? null : leadId);
 
-  const filteredLeads = leads.filter(l => {
+  const sortedLeads = [...leads].sort((a, b) => {
+    let aVal = a[sortBy], bVal = b[sortBy];
+    if (sortBy === 'icp_score') { aVal = aVal ?? -1; bVal = bVal ?? -1; }
+    if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+    if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const filteredLeads = sortedLeads.filter(l => {
     const matchSearch = !search || 
       (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
       (l.company || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -350,6 +362,29 @@ export default function LeadListDetailPage() {
           )}
         </div>
 
+        {/* Smart stats bar */}
+        {!generating && !scoring && leads.length > 0 && (
+          <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Ready', count: leads.filter(l => l.status === 'done').length, color: 'var(--success)', bg: 'var(--success-bg)' },
+              { label: 'Pending', count: leads.filter(l => l.status === 'pending').length, color: 'var(--text3)', bg: 'var(--bg3)' },
+              { label: 'High ICP (70+)', count: leads.filter(l => l.icp_score >= 70).length, color: 'var(--accent2)', bg: 'var(--accent-bg)' },
+              { label: 'Errors', count: leads.filter(l => l.status === 'error').length, color: 'var(--danger)', bg: 'var(--danger-bg)' },
+            ].filter(s => s.count > 0).map(s => (
+              <div key={s.label} style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500, background: s.bg, color: s.color, border: `1px solid ${s.color}`, cursor: 'pointer' }}
+                onClick={() => { if (s.label === 'Ready') setStatusFilter('done'); else if (s.label === 'Pending') setStatusFilter('pending'); else if (s.label === 'Errors') setStatusFilter('error'); else setStatusFilter('all'); }}>
+                {s.count} {s.label}
+              </div>
+            ))}
+            {leads.filter(l => l.status === 'error').length > 0 && (
+              <div style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, color: 'var(--danger)', cursor: 'pointer' }}
+                onClick={() => leads.filter(l => l.status === 'error').forEach(l => generateOne(l.id))}>
+                ↺ Retry all errors
+              </div>
+            )}
+          </div>
+        )}
+
         {(generating || scoring) && (
           <div style={s.progress}><div style={s.progressBar(progress)} /></div>
         )}
@@ -381,7 +416,19 @@ export default function LeadListDetailPage() {
               <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
             </div>
           ) : (
-            <button style={s.btn('info')} onClick={selectAll}>Select all</button>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+            <option value="icp_score">Sort: ICP Score</option>
+            <option value="company">Sort: Company</option>
+            <option value="title">Sort: Title</option>
+            <option value="status">Sort: Status</option>
+            <option value="full_name">Sort: Name</option>
+          </select>
+          <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+            style={{ padding: '7px 10px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text2)', cursor: 'pointer', minWidth: 36 }}>
+            {sortDir === 'desc' ? '↓' : '↑'}
+          </button>
+          <button style={s.btn('info')} onClick={selectAll}>Select all</button>
           )}
         </div>
         )}
