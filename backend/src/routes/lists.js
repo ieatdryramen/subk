@@ -85,16 +85,24 @@ router.post('/:id/import', auth, upload.single('file'), async (req, res) => {
     const records = parse(content, { columns: true, skip_empty_lines: true, trim: true });
     const inserted = [];
     for (const row of records) {
-      const name = row.name || row.full_name || row['Full Name'] || '';
-      const company = row.company || row.Company || '';
-      const title = row.title || row.Title || row.role || '';
-      const email = row.email || row.Email || '';
-      const linkedin = row.linkedin || row.LinkedIn || '';
-      const notes = row.notes || row.Notes || '';
-      if (!name && !company) continue;
+      // Handle all common ZoomInfo and CRM export column formats
+      const firstName = row['First Name'] || row['first_name'] || row['FirstName'] || '';
+      const lastName = row['Last Name'] || row['last_name'] || row['LastName'] || '';
+      const name = (
+        row['Full Name'] || row['full_name'] || row['Name'] || row['name'] ||
+        row['Contact Name'] || row['Person Name'] || row['Contact'] ||
+        (`${firstName} ${lastName}`.trim())
+      ) || '';
+      const company = row['Company'] || row['company'] || row['Company Name'] || row['Account Name'] || row['Organization'] || '';
+      const title = row['Title'] || row['title'] || row['Job Title'] || row['Position'] || row['Role'] || row['role'] || '';
+      const email = row['Email'] || row['email'] || row['Email Address'] || row['Work Email'] || '';
+      const phone = row['Phone'] || row['phone'] || row['Mobile Phone'] || row['Direct Phone'] || row['Phone Number'] || '';
+      const linkedin = row['LinkedIn'] || row['linkedin'] || row['LinkedIn URL'] || row['Person Linkedin Url'] || row['LinkedIn Profile'] || '';
+      const notes = row['Notes'] || row['notes'] || '';
+      if (!name && !company && !email) continue;
       const r = await pool.query(
-        'INSERT INTO leads (list_id, user_id, full_name, company, title, email, linkedin, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-        [req.params.id, req.userId, name, company, title, email, linkedin, notes]
+        'INSERT INTO leads (list_id, user_id, full_name, company, title, email, phone, linkedin, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+        [req.params.id, req.userId, name, company, title, email, phone, linkedin, notes]
       );
       inserted.push(r.rows[0]);
     }
@@ -102,6 +110,32 @@ router.post('/:id/import', auth, upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'CSV parse error: ' + err.message });
+  }
+});
+
+// Fix missing names from email addresses (one-time utility)
+router.post('/:listId/fix-names', auth, async (req, res) => {
+  try {
+    const leads = await pool.query(
+      "SELECT id, email FROM leads WHERE list_id=$1 AND (full_name IS NULL OR full_name = '')",
+      [req.params.listId]
+    );
+    let fixed = 0;
+    for (const lead of leads.rows) {
+      if (lead.email) {
+        const emailName = lead.email.split('@')[0]
+          .replace(/[._-]/g, ' ')
+          .replace(/\w/g, c => c.toUpperCase())
+          .trim();
+        if (emailName && emailName.length > 1) {
+          await pool.query('UPDATE leads SET full_name=$1 WHERE id=$2', [emailName, lead.id]);
+          fixed++;
+        }
+      }
+    }
+    res.json({ fixed, total: leads.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
