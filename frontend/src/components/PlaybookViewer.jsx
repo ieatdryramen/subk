@@ -3,6 +3,7 @@ import api from '../lib/api';
 import SequenceTracker from './SequenceTracker';
 import LeadNotes from './LeadNotes';
 import Battlecard from './Battlecard';
+import CallLogger from './CallLogger';
 
 const tabs = [
   { key: 'sequence', label: '📋 Sequence' },
@@ -15,6 +16,7 @@ const tabs = [
   { key: 'call_opener', label: 'Call Opener' },
   { key: 'objection_handling', label: 'Objections' },
   { key: 'callbacks', label: 'Callbacks' },
+  { key: 'call_log', label: '📞 Call Log' },
   { key: 'battlecard', label: '⚔️ Battlecard' },
   { key: 'notes', label: '📝 Notes' },
   { key: 'chat', label: '💬 AI Coach' },
