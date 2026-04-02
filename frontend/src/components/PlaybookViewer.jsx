@@ -6,6 +6,7 @@ import Battlecard from './Battlecard';
 import CallLogger from './CallLogger';
 
 const tabs = [
+  { key: 'lead_info', label: '👤 Lead Info' },
   { key: 'sequence', label: '📋 Sequence' },
   { key: 'research', label: 'Research' },
   { key: 'email1', label: 'Email 1' },
@@ -23,7 +24,7 @@ const tabs = [
 ];
 
 const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
-const SPECIAL_TABS = ['sequence', 'call_log', 'battlecard', 'notes', 'chat'];
+const SPECIAL_TABS = ['lead_info', 'sequence', 'call_log', 'battlecard', 'notes', 'chat'];
 const CHAT_HINTS = [
   'Rewrite email 1 more aggressively',
   'Shorter call opener',
@@ -59,6 +60,13 @@ const s = {
   sendChatBtn: { padding: '10px 18px', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500, alignSelf: 'flex-end', border: 'none', cursor: 'pointer' },
   chatHints: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   hint: { fontSize: 11, padding: '4px 10px', borderRadius: 20, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer' },
+  infoGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
+  infoField: { display: 'flex', flexDirection: 'column', gap: 4 },
+  infoLabel: { fontSize: 11, fontWeight: 500, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  infoValue: { fontSize: 13, color: 'var(--text)', wordBreak: 'break-word' },
+  infoLink: { fontSize: 13, color: 'var(--accent2)', textDecoration: 'none', wordBreak: 'break-word' },
+  editInput: { fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: '100%' },
+  editTextarea: { fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: '100%', resize: 'vertical', minHeight: 70 },
 };
 
 const msgStyle = (role) => ({
@@ -69,7 +77,7 @@ const msgStyle = (role) => ({
   border: role === 'user' ? 'none' : '1px solid var(--border)',
 });
 
-export default function PlaybookViewer({ playbook, leadId, lead }) {
+export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
@@ -79,11 +87,19 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
+  const [infoForm, setInfoForm] = useState({});
+  const [savingInfo, setSavingInfo] = useState(false);
+  const [localLead, setLocalLead] = useState(leadProp || {});
   const chatBottomRef = useRef(null);
 
   useEffect(() => {
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (leadProp) setLocalLead(leadProp);
+  }, [leadProp]);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -111,9 +127,7 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
       setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
     } catch (err) {
       alert(err.response?.data?.error || 'Zoho send failed. Check connection in Team & Integrations.');
-    } finally {
-      setSending(false);
-    }
+    } finally { setSending(false); }
   };
 
   const saveAsTemplate = async (tabKey) => {
@@ -129,9 +143,7 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
       await api.post('/templates', { name, subject, body, touchpoint: tabKey });
       setSavedTemplate(true);
       setTimeout(() => setSavedTemplate(false), 2500);
-    } catch (err) {
-      alert('Failed to save template');
-    }
+    } catch (err) { alert('Failed to save template'); }
   };
 
   const sendChat = async (text) => {
@@ -146,14 +158,41 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
       setChatMessages([...newMessages, { role: 'assistant', content: r.data.reply }]);
     } catch (err) {
       setChatMessages([...newMessages, { role: 'assistant', content: 'Error: ' + (err.response?.data?.error || err.message) }]);
-    } finally {
-      setChatLoading(false);
-    }
+    } finally { setChatLoading(false); }
+  };
+
+  const startEditInfo = () => {
+    setInfoForm({
+      full_name: localLead.full_name || '',
+      company: localLead.company || '',
+      title: localLead.title || '',
+      email: localLead.email || '',
+      phone: localLead.phone || '',
+      linkedin: localLead.linkedin || '',
+      notes: localLead.notes || '',
+    });
+    setEditingInfo(true);
+  };
+
+  const saveInfo = async () => {
+    setSavingInfo(true);
+    try {
+      // Get list_id from lead
+      const listId = localLead.list_id;
+      if (listId) {
+        await api.put(`/lists/${listId}/leads/${leadId}`, infoForm);
+      }
+      setLocalLead(prev => ({ ...prev, ...infoForm }));
+      setEditingInfo(false);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save');
+    } finally { setSavingInfo(false); }
   };
 
   if (!playbook) return null;
 
   const isEmailTab = EMAIL_KEYS.includes(activeTab);
+  const displayLead = localLead;
 
   return (
     <div style={s.wrap}>
@@ -165,12 +204,90 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
         ))}
       </div>
 
+      {/* Lead Info Tab */}
+      {activeTab === 'lead_info' && (
+        <div style={s.content}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>Lead Details</div>
+            {!editingInfo ? (
+              <button style={{ ...s.btn('copy'), padding: '5px 12px', fontSize: 12 }} onClick={startEditInfo}>✏️ Edit</button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={{ ...s.btn('saved'), padding: '5px 12px', fontSize: 12 }} onClick={saveInfo} disabled={savingInfo}>
+                  {savingInfo ? 'Saving...' : '✓ Save'}
+                </button>
+                <button style={{ ...s.btn('copy'), padding: '5px 12px', fontSize: 12 }} onClick={() => setEditingInfo(false)}>Cancel</button>
+              </div>
+            )}
+          </div>
+          {!editingInfo ? (
+            <div style={s.infoGrid}>
+              {[
+                { label: 'Full Name', value: displayLead.full_name },
+                { label: 'Company', value: displayLead.company },
+                { label: 'Title', value: displayLead.title },
+                { label: 'Email', value: displayLead.email, isEmail: true },
+                { label: 'Phone', value: displayLead.phone },
+                { label: 'LinkedIn', value: displayLead.linkedin, isLink: true },
+              ].map(f => (
+                <div key={f.label} style={s.infoField}>
+                  <div style={s.infoLabel}>{f.label}</div>
+                  {f.isEmail && f.value ? (
+                    <a href={`mailto:${f.value}`} style={s.infoLink}>{f.value}</a>
+                  ) : f.isLink && f.value ? (
+                    <a href={f.value} target="_blank" rel="noreferrer" style={s.infoLink}>{f.value}</a>
+                  ) : (
+                    <div style={{ ...s.infoValue, color: f.value ? 'var(--text)' : 'var(--text3)' }}>{f.value || '—'}</div>
+                  )}
+                </div>
+              ))}
+              <div style={{ ...s.infoField, gridColumn: '1 / -1' }}>
+                <div style={s.infoLabel}>Notes</div>
+                <div style={{ ...s.infoValue, color: displayLead.notes ? 'var(--text)' : 'var(--text3)', whiteSpace: 'pre-wrap' }}>{displayLead.notes || '—'}</div>
+              </div>
+              {displayLead.icp_score != null && (
+                <div style={{ ...s.infoField, gridColumn: '1 / -1' }}>
+                  <div style={s.infoLabel}>ICP Analysis</div>
+                  <div style={{ fontSize: 13, color: 'var(--text)', padding: '8px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)' }}>
+                    <strong>Score: {displayLead.icp_score}</strong>{displayLead.icp_reason ? ` — ${displayLead.icp_reason}` : ''}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                {[
+                  { key: 'full_name', label: 'Full Name', placeholder: 'Sarah Chen' },
+                  { key: 'company', label: 'Company', placeholder: 'Apex Federal' },
+                  { key: 'title', label: 'Title', placeholder: 'VP of Business Development' },
+                  { key: 'email', label: 'Email', placeholder: 's.chen@apex.com' },
+                  { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+                  { key: 'linkedin', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/...' },
+                ].map(f => (
+                  <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={s.infoLabel}>{f.label}</label>
+                    <input style={s.editInput} value={infoForm[f.key] || ''} placeholder={f.placeholder}
+                      onChange={e => setInfoForm(p => ({ ...p, [f.key]: e.target.value }))} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <label style={s.infoLabel}>Notes</label>
+                <textarea style={s.editTextarea} value={infoForm.notes || ''} placeholder="Notes about this lead..."
+                  onChange={e => setInfoForm(p => ({ ...p, notes: e.target.value }))} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Special tabs with their own components */}
       {activeTab === 'sequence' && (
         <div style={s.content}><SequenceTracker leadId={leadId} /></div>
       )}
       {activeTab === 'call_log' && (
-        <div style={s.content}><CallLogger leadId={leadId} lead={lead} /></div>
+        <div style={s.content}><CallLogger leadId={leadId} lead={displayLead} /></div>
       )}
       {activeTab === 'battlecard' && (
         <div style={s.content}><Battlecard leadId={leadId} /></div>
@@ -207,22 +324,17 @@ export default function PlaybookViewer({ playbook, leadId, lead }) {
       )}
 
       {/* Text content tabs */}
-      {!SPECIAL_TABS.includes(activeTab) && activeTab !== 'chat' && (
+      {!SPECIAL_TABS.includes(activeTab) && (
         <div style={s.content}>
           <div style={s.actionRow}>
             <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
             {isEmailTab && (
-              <button
-                style={s.btn(savedTemplate ? 'saved' : 'template')}
-                onClick={() => saveAsTemplate(activeTab)}>
+              <button style={s.btn(savedTemplate ? 'saved' : 'template')} onClick={() => saveAsTemplate(activeTab)}>
                 {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
               </button>
             )}
             {isEmailTab && zohoConnected && (
-              <button
-                style={s.btn(sent[activeTab] ? 'saved' : 'send')}
-                onClick={() => sendViaZoho(activeTab)}
-                disabled={sending}>
+              <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => sendViaZoho(activeTab)} disabled={sending}>
                 {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
               </button>
             )}
