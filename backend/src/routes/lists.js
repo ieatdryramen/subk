@@ -10,7 +10,9 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.get('/', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT ll.*, COUNT(l.id) as lead_count 
+      `SELECT ll.*, 
+              COUNT(l.id) as lead_count,
+              COUNT(CASE WHEN l.status = 'done' THEN 1 END) as done_count
        FROM lead_lists ll LEFT JOIN leads l ON l.list_id=ll.id 
        WHERE ll.user_id=$1 GROUP BY ll.id ORDER BY ll.created_at DESC`,
       [req.userId]
@@ -49,7 +51,8 @@ router.delete('/:id', auth, async (req, res) => {
 router.get('/:id/leads', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT l.*, p.research, p.email1, p.email2, p.email3, p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
+      `SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4, 
+              p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
        FROM leads l LEFT JOIN playbooks p ON p.lead_id=l.id
        WHERE l.list_id=$1 AND l.user_id=$2 ORDER BY l.created_at ASC`,
       [req.params.id, req.userId]
@@ -158,3 +161,4 @@ router.delete('/:listId/leads/:leadId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
