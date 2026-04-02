@@ -112,14 +112,19 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 
     if (!contactId) return res.status(400).json({ error: 'Could not find or create Zoho contact' });
 
+    // Inject tracking pixel for open tracking
+    const appUrl = process.env.APP_URL || 'https://prospectforge-production-1f99.up.railway.app';
+    const trackingPixel = `\n\n<img src="${appUrl}/api/tracking/open/${lead.id}/${req.body.touchpoint || 'email'}" width="1" height="1" style="display:none" />`;
+    const htmlBody = body.replace(/\n/g, '<br>') + trackingPixel;
+
     // Send via Zoho CRM email (tracks opens and clicks)
     await axios.post(`https://www.zohoapis.com/crm/v2/Contacts/${contactId}/actions/send_mail`, {
       data: [{
-        from: { user_name: null, email: null }, // Uses logged-in user's email
+        from: { user_name: null, email: null },
         to: [{ user_name: lead.full_name || '', email: lead.email }],
         subject,
-        content: body,
-        mail_format: 'text',
+        content: htmlBody,
+        mail_format: 'html',
         org_email: false,
       }]
     }, { headers });
