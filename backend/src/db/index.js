@@ -250,6 +250,18 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
 
+
+    ALTER TABLE company_profiles ALTER COLUMN name TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN product TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN value_props TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN icp TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN target_titles TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN tone TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN objections TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN sender_name TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN sender_role TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN custom_tone TYPE TEXT;
+    ALTER TABLE company_profiles ALTER COLUMN website_url TYPE TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS company_profiles_org_id_unique ON company_profiles(org_id) WHERE org_id IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS company_profiles_user_id_unique ON company_profiles(user_id) WHERE user_id IS NOT NULL;
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS legacy_system VARCHAR(100) DEFAULT 'Costpoint';
@@ -284,6 +296,7 @@ const initDb = async () => {
 };
 
 module.exports = { pool, initDb };
+
 
 
 
