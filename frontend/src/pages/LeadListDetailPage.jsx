@@ -70,6 +70,9 @@ export default function LeadListDetailPage() {
   const [zohoStatus, setZohoStatus] = useState({});
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [editingLead, setEditingLead] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [savingEdit, setSavingEdit] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -178,6 +181,33 @@ export default function LeadListDetailPage() {
     e.stopPropagation();
     await api.post(`/playbooks/cancel/${leadId}`);
     setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'pending' } : l));
+  };
+
+  const openEdit = (lead) => {
+    setEditForm({
+      full_name: lead.full_name || '',
+      company: lead.company || '',
+      title: lead.title || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      linkedin: lead.linkedin || '',
+      notes: lead.notes || '',
+    });
+    setEditingLead(lead);
+  };
+
+  const saveEdit = async () => {
+    if (!editingLead) return;
+    setSavingEdit(true);
+    try {
+      await api.put(`/lists/${id}/leads/${editingLead.id}`, editForm);
+      setLeads(ls => ls.map(l => l.id === editingLead.id ? { ...l, ...editForm } : l));
+      setEditingLead(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save');
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const scoreList = async () => {
@@ -459,6 +489,51 @@ export default function LeadListDetailPage() {
             <div style={s.modalBtns}>
               <button style={s.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={s.saveBtn} onClick={addLead} disabled={!addForm.full_name && !addForm.company}>Add lead</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingLead && (
+        <div style={s.modal} onClick={() => setEditingLead(null)}>
+          <div style={{ ...s.modalCard, maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: '1.25rem', fontFamily: 'Syne, sans-serif' }}>
+              Edit lead
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div>
+                <label style={s.label}>Full name</label>
+                <input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} />
+              </div>
+              <div>
+                <label style={s.label}>Company</label>
+                <input value={editForm.company} onChange={e => setEditForm(f => ({...f, company: e.target.value}))} />
+              </div>
+              <div>
+                <label style={s.label}>Title</label>
+                <input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} />
+              </div>
+              <div>
+                <label style={s.label}>Email</label>
+                <input value={editForm.email} onChange={e => setEditForm(f => ({...f, email: e.target.value}))} />
+              </div>
+              <div>
+                <label style={s.label}>Phone</label>
+                <input value={editForm.phone} onChange={e => setEditForm(f => ({...f, phone: e.target.value}))} placeholder="+1 (555) 000-0000" />
+              </div>
+              <div>
+                <label style={s.label}>LinkedIn URL</label>
+                <input value={editForm.linkedin} onChange={e => setEditForm(f => ({...f, linkedin: e.target.value}))} />
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={s.label}>Notes</label>
+              <textarea value={editForm.notes} onChange={e => setEditForm(f => ({...f, notes: e.target.value}))}
+                style={{ width: '100%', minHeight: 60, fontSize: 13, padding: '8px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={s.saveBtn} onClick={saveEdit} disabled={savingEdit}>{savingEdit ? 'Saving...' : 'Save changes'}</button>
+              <button style={{ ...s.saveBtn, background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)' }} onClick={() => setEditingLead(null)}>Cancel</button>
             </div>
           </div>
         </div>
