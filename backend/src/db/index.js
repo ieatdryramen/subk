@@ -121,6 +121,7 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_access_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
@@ -195,6 +196,7 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS sequence_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
