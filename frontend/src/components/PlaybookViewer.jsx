@@ -70,10 +70,11 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState({});
-  const [outlookConnected, setOutlookConnected] = useState(false);
+
+  const [zohoConnected, setZohoConnected] = useState(false);
 
   useEffect(() => {
-    api.get('/outlook/status').then(r => setOutlookConnected(r.data.connected)).catch(() => {});
+    api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
   }, []);
   const [sending, setSending] = useState({});
   const [sent, setSent] = useState({});
@@ -129,16 +130,17 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
     const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
     const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
-    const to = prompt(`Send to email address:`);
-    if (!to) return;
+    
+    if (!window.confirm(`Send "${subject}" via Zoho CRM?\n\nThis will send from your connected Zoho mailbox and track opens/clicks in your CRM.`)) return;
+    
     setSending(true);
     try {
       const touchpointMap = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
-      await api.post('/outlook/send', { to, subject, body, leadId, touchpoint: touchpointMap[tabKey] });
+      const r = await api.post(`/zoho/send-email/${leadId}`, { subject, body, touchpoint: touchpointMap[tabKey] });
       setSent(s => ({ ...s, [tabKey]: true }));
       setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send. Check Outlook connection in Team & Integrations.');
+      alert(err.response?.data?.error || 'Failed to send. Make sure Zoho is connected in Team & Integrations.');
     } finally {
       setSending(false);
     }
