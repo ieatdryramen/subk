@@ -31,6 +31,7 @@ app.use('/api/battlecard', require('./routes/battlecard'));
 app.use('/api/slack', require('./routes/slack'));
 app.use('/api/calls', require('./routes/calls'));
 app.use('/api/reminders', require('./routes/reminders'));
+app.use('/api/goals', require('./routes/goals'));
 app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/cardscan', require('./routes/cardscan'));
@@ -64,3 +65,4 @@ initDb().then(async () => {
   console.error('DB init failed:', err);
   process.exit(1);
 });
+
