@@ -122,6 +122,17 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_access_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
+    ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
+    ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
+    CREATE TABLE IF NOT EXISTS email_tracking (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      touchpoint VARCHAR(50),
+      opened_at TIMESTAMP DEFAULT NOW(),
+      ip VARCHAR(100),
+      user_agent TEXT,
+      UNIQUE(lead_id, touchpoint)
+    );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
@@ -175,6 +186,17 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
+    ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
+    ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
+    CREATE TABLE IF NOT EXISTS email_tracking (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      touchpoint VARCHAR(50),
+      opened_at TIMESTAMP DEFAULT NOW(),
+      ip VARCHAR(100),
+      user_agent TEXT,
+      UNIQUE(lead_id, touchpoint)
+    );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
