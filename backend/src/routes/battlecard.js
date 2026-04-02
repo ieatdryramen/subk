@@ -12,11 +12,23 @@ router.post('/generate/:leadId', auth, async (req, res) => {
     if (!leadResult.rows.length) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
 
-    const profileResult = await pool.query(
-      'SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]
-    );
-    if (!profileResult.rows.length) return res.status(400).json({ error: 'No company profile' });
-    const profile = profileResult.rows[0];
+    // Use org profile merged with user profile
+    const userMeta = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userMeta.rows[0]?.org_id;
+    let orgProfile = null;
+    if (orgId) {
+      const orgR = await pool.query('SELECT * FROM company_profiles WHERE org_id=$1 ORDER BY updated_at DESC LIMIT 1', [orgId]);
+      orgProfile = orgR.rows[0] || null;
+    }
+    const userPR = await pool.query('SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]);
+    const userProfile = userPR.rows[0] || null;
+    if (!orgProfile && !userProfile) return res.status(400).json({ error: 'No company profile' });
+    const profile = {
+      ...(orgProfile || {}), ...(userProfile || {}),
+      name: orgProfile?.name || userProfile?.name || 'SumX AI',
+      product: orgProfile?.product || userProfile?.product || '',
+      value_props: orgProfile?.value_props || userProfile?.value_props || '',
+    };
 
     const playbookResult = await pool.query(
       'SELECT research FROM playbooks WHERE lead_id=$1', [lead.id]
