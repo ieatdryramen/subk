@@ -146,6 +146,24 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     }
   };
 
+  const saveAsTemplate = async (tabKey) => {
+    const emailContent = playbook[tabKey];
+    if (!emailContent) return;
+    const name = prompt('Template name (e.g. "Day 1 - CFO outreach"):');
+    if (!name) return;
+    const lines = emailContent.split('\n');
+    const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
+    const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : '';
+    const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
+    try {
+      await api.post('/templates', { name, subject, body, touchpoint: tabKey });
+      setSavedTemplate(true);
+      setTimeout(() => setSavedTemplate(false), 2000);
+    } catch (err) {
+      alert('Failed to save template');
+    }
+  };
+
   const sendChat = async (text) => {
     const msg = text || chatInput.trim();
     if (!msg || chatLoading) return;
