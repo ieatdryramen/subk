@@ -10,6 +10,7 @@ const navItems = [
   { to: '/team', label: 'Team & Integrations', icon: '◎' },
   { to: '/billing', label: 'Billing', icon: '◇' },
   { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
+  { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
 ];
 
 export default function Layout({ children }) {
