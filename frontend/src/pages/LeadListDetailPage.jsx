@@ -541,12 +541,12 @@ export default function LeadListDetailPage() {
             <tbody>
               {filteredLeads.map(lead => (
                 <>
-                  <tr key={lead.id} style={{ cursor: 'pointer', background: selectedIds.has(lead.id) ? 'var(--accent-bg)' : '' }}
-                    onClick={() => toggleRow(lead.id)}
+                  <tr key={lead.id} style={{ cursor: 'pointer', background: selectedIds.has(lead.id) ? 'var(--accent-bg)' : '', outline: selectedIds.has(lead.id) ? '1.5px solid var(--accent)' : 'none', outlineOffset: '-1px' }}
+                    onClick={(e) => { if (selectedIds.size > 0) { toggleSelect(lead.id); } else { toggleRow(lead.id); } }}
                     onMouseEnter={e => { if (!selectedIds.has(lead.id)) e.currentTarget.style.background = 'var(--bg3)'; }}
                     onMouseLeave={e => { if (!selectedIds.has(lead.id)) e.currentTarget.style.background = ''; }}>
-                    <td style={{ ...s.td, width: 36 }} onClick={e => { e.stopPropagation(); toggleSelect(lead.id); }}>
-                      <input type="checkbox" style={s.checkbox} checked={selectedIds.has(lead.id)} onChange={() => toggleSelect(lead.id)} />
+                    <td style={{ ...s.td, width: 48, padding: '0 12px' }} onClick={e => { e.stopPropagation(); toggleSelect(lead.id); }}>
+                      <input type="checkbox" style={{ ...s.checkbox, width: 18, height: 18 }} checked={selectedIds.has(lead.id)} onChange={() => toggleSelect(lead.id)} />
                     </td>
                     <td style={s.td}><div style={{ fontWeight: 500 }}>{lead.full_name || '—'}</div></td>
                     <td style={s.td}>{lead.company || '—'}</td>
@@ -713,4 +713,5 @@ export default function LeadListDetailPage() {
     </Layout>
   );
 }
+
 
