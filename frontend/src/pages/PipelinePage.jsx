@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
@@ -53,6 +53,9 @@ export default function PipelinePage() {
   const [viewMode, setViewMode] = useState('all');
   const [search, setSearch] = useState('');
   const [icpFilter, setIcpFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkStage, setBulkStage] = useState('');
+  const [bulkMoving, setBulkMoving] = useState(false);
   const navigate = useNavigate();
 
   const currentView = VIEW_MODES.find(v => v.key === viewMode);
@@ -72,22 +75,49 @@ export default function PipelinePage() {
       .catch(() => setLoading(false));
   }, [selectedList, lists]);
 
+  // Clear selection when view changes
+  useEffect(() => { setSelectedIds(new Set()); setBulkStage(''); }, [viewMode]);
+
   const moveStage = async (leadId, newStage) => {
     setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: newStage, sequence_stage: viewMode === 'all' ? newStage : l.sequence_stage } : l));
     try {
-      if (viewMode === 'all') {
-        await api.post(`/sequence/${leadId}/stage`, { stage: newStage });
-      } else {
-        await api.post(`/sequence/${leadId}/stage`, { stage: newStage, field: stageField });
-      }
+      await api.post(`/sequence/${leadId}/stage`, { stage: newStage, field: stageField });
     } catch (err) { console.error(err); }
   };
 
+  const bulkMove = async () => {
+    if (!bulkStage || !selectedIds.size) return;
+    setBulkMoving(true);
+    setLeads(ls => ls.map(l => selectedIds.has(l.id) ? { ...l, [stageField]: bulkStage, sequence_stage: viewMode === 'all' ? bulkStage : l.sequence_stage } : l));
+    try {
+      await Promise.all([...selectedIds].map(id =>
+        api.post(`/sequence/${id}/stage`, { stage: bulkStage, field: stageField })
+      ));
+    } catch (err) { console.error(err); }
+    setBulkMoving(false);
+    setSelectedIds(new Set());
+    setBulkStage('');
+  };
+
+  const toggleSelect = (e, leadId) => {
+    e.stopPropagation();
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(leadId) ? next.delete(leadId) : next.add(leadId);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+  const clearSelection = () => { setSelectedIds(new Set()); setBulkStage(''); };
+
   const onDragStart = (e, leadId) => {
-    setDraggedId(leadId);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', leadId);
-    e.currentTarget.style.opacity = '0.5';
+    if (selectedIds.size === 0) {
+      setDraggedId(leadId);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', leadId);
+      e.currentTarget.style.opacity = '0.5';
+    }
   };
   const onDragEnd = (e) => { setDraggedId(null); setDragOverStage(null); e.currentTarget.style.opacity = '1'; };
   const onDragOver = (e, stageKey) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverStage(stageKey); };
@@ -107,16 +137,21 @@ export default function PipelinePage() {
   const getStageLeads = (key) => filteredLeads.filter(l => (l[stageField] || l.sequence_stage || 'not_started') === key);
 
   const total = filteredLeads.length;
-  const inProgress = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '').includes('in_progress') || ['email1_sent','email2_sent','email3_sent','call_attempted','call_connected','call_voicemail','linkedin_connected','linkedin_dm_sent'].includes(l[stageField] || l.sequence_stage || '')).length;
+  const inProgress = filteredLeads.filter(l => {
+    const s = l[stageField] || l.sequence_stage || '';
+    return s.includes('in_progress') || ['email1_sent','email2_sent','email3_sent','call_attempted','call_connected','call_voicemail','linkedin_connected','linkedin_dm_sent'].includes(s);
+  }).length;
   const completed = filteredLeads.filter(l => ['completed','replied','call_booked','linkedin_replied'].includes(l[stageField] || l.sequence_stage || '')).length;
   const notStarted = filteredLeads.filter(l => !l[stageField] && (!l.sequence_stage || l.sequence_stage === 'not_started')).length;
+
+  const btnBase = { padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.15s' };
 
   return (
     <Layout>
       <div style={{ padding: '2rem 2.5rem' }}>
         <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>Pipeline</div>
         <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: '1.5rem' }}>
-          Drag leads between stages to track your cadence
+          Drag leads between stages · check boxes for bulk actions
         </div>
 
         {/* Stats */}
@@ -138,7 +173,7 @@ export default function PipelinePage() {
         <div style={{ display: 'flex', gap: 6, marginBottom: '1rem' }}>
           {VIEW_MODES.map(v => (
             <button key={v.key}
-              style={{ padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: viewMode === v.key ? '1px solid var(--accent)' : '1px solid var(--border)', background: viewMode === v.key ? 'var(--accent)' : 'var(--bg2)', color: viewMode === v.key ? '#fff' : 'var(--text2)', transition: 'all 0.15s' }}
+              style={{ ...btnBase, background: viewMode === v.key ? 'var(--accent)' : 'var(--bg2)', color: viewMode === v.key ? '#fff' : 'var(--text2)', borderColor: viewMode === v.key ? 'var(--accent)' : 'var(--border)' }}
               onClick={() => setViewMode(v.key)}>
               {v.label}
             </button>
@@ -146,7 +181,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: selectedIds.size > 0 ? 8 : '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
             style={{ fontSize: 13, padding: '7px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: 200 }} />
           <select value={selectedList} onChange={e => setSelectedList(e.target.value)}
@@ -161,10 +196,35 @@ export default function PipelinePage() {
             <option value="mid">Mid ICP (40-69)</option>
             <option value="low">Low / Unscored</option>
           </select>
+          <button style={{ ...btnBase, background: 'var(--bg3)', color: 'var(--text2)', fontSize: 12, padding: '7px 12px' }} onClick={selectAll}>
+            Select all ({filteredLeads.length})
+          </button>
           <span style={{ fontSize: 12, color: 'var(--text3)' }}>
-            {loading ? 'Loading...' : `${total} leads · drag to move`}
+            {loading ? 'Loading...' : `${total} leads`}
           </span>
         </div>
+
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', padding: '10px 14px', background: 'var(--accent-bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent2)' }}>{selectedIds.size} selected</span>
+            <span style={{ color: 'var(--border)', fontSize: 13 }}>·</span>
+            <span style={{ fontSize: 13, color: 'var(--text2)' }}>Move to:</span>
+            <select value={bulkStage} onChange={e => setBulkStage(e.target.value)}
+              style={{ fontSize: 13, padding: '5px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+              <option value="">— pick a stage —</option>
+              {STAGES.map(st => <option key={st.key} value={st.key}>{st.label}</option>)}
+            </select>
+            <button
+              style={{ ...btnBase, background: bulkStage ? 'var(--accent)' : 'var(--bg3)', color: bulkStage ? '#fff' : 'var(--text3)', borderColor: bulkStage ? 'var(--accent)' : 'var(--border)', padding: '5px 14px', fontSize: 12 }}
+              onClick={bulkMove} disabled={!bulkStage || bulkMoving}>
+              {bulkMoving ? 'Moving...' : '→ Move'}
+            </button>
+            <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
+              ✕ Clear
+            </button>
+          </div>
+        )}
 
         {/* Kanban board */}
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, 1fr)`, gap: 10, overflowX: 'auto', minWidth: 0 }}>
@@ -182,22 +242,44 @@ export default function PipelinePage() {
                   <span style={{ fontSize: 11, background: 'var(--bg3)', color: 'var(--text3)', padding: '1px 6px', borderRadius: 10 }}>{stageLeads.length}</span>
                 </div>
                 <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {stageLeads.map(lead => (
-                    <div key={lead.id} draggable onDragStart={e => onDragStart(e, lead.id)} onDragEnd={onDragEnd}
-                      style={{ background: draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 10px', cursor: 'grab', userSelect: 'none', transition: 'opacity 0.15s' }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3 }}>{lead.full_name || '—'}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3 }}>{lead.company || '—'}</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        {lead.icp_score != null ? (
-                          <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
-                            {lead.icp_score}
-                          </span>
-                        ) : <span />}
-                        <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                          onClick={() => navigate(`/lists/${lead.list_id}`)}>→</button>
+                  {stageLeads.map(lead => {
+                    const isSelected = selectedIds.has(lead.id);
+                    return (
+                      <div key={lead.id}
+                        draggable={selectedIds.size === 0}
+                        onDragStart={e => onDragStart(e, lead.id)}
+                        onDragEnd={onDragEnd}
+                        style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
+                        onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={e => toggleSelect(e, lead.id)}
+                            onClick={e => e.stopPropagation()}
+                            style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer' }}
+                          />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {lead.full_name || '—'}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {lead.company || '—'}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              {lead.icp_score != null ? (
+                                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
+                                  {lead.icp_score}
+                                </span>
+                              ) : <span />}
+                              <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                                onClick={e => { e.stopPropagation(); navigate(`/lists/${lead.list_id}`); }}>→</button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {stageLeads.length === 0 && (
                     <div style={{ fontSize: 11, color: isOver ? stage.color : 'var(--text3)', textAlign: 'center', padding: '20px 0', opacity: 0.7 }}>
                       {isOver ? 'Drop here' : 'Empty'}
