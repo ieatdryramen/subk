@@ -188,8 +188,10 @@ BANNED OPENERS — first sentence cannot contain:
 ✗ "Just following up" / "Quick question" / "Touching base" / "Checking in"
 ✗ "I was doing some research and"
 
-BANNED PHRASES — cannot appear anywhere:
+BANNED PHRASES — cannot appear anywhere in ANY section of output:
 ✗ Any statistic or percentage you cannot verify — NO "X% of companies" or "saves Y hours"
+✗ Costpoint, Deltek, Unanet, or ANY competitor ERP name — not in emails, not in brush-offs, not in callbacks, not even as a question like "are you using Costpoint?" You do not know what system they use. NEVER NAME IT.
+✗ "Janet" or any placeholder first name used generically — ALWAYS say "your controller" or "your finance person" instead
 ✗ "streamline" / "optimize" / "leverage" / "utilize"
 ✗ "touch base" / "circle back" / "synergies" / "game-changing" / "best-in-class"
 ✗ "solution" — use "SumX" or be specific about what it does
@@ -197,7 +199,7 @@ BANNED PHRASES — cannot appear anywhere:
 ✗ "value proposition" — show it, don't name it
 ✗ "move the needle" / "low-hanging fruit" / "at the end of the day"
 ✗ Generic subjects: "Quick question" / "Following up" / "Introduction"
-✗ Stacked statistics or invented numbers about their specific business
+✗ Unverifiable assertions dressed as facts — if you cannot prove it, ask it as a question instead
 
 BANNED STRUCTURES:
 ✗ Starting Email 1 talking about yourself or SumX
@@ -210,7 +212,7 @@ HARD RULES:
 1. Every email opens with a specific observation about THEIR world — their title, their role in GovCon finance, what someone in their position is responsible for. Not about SumX. Not about you.
 2. Lead with process pain framed as a question or observation — never an assumption. "Most GovCon finance teams deal with X" is better than "your team probably has X problem."
 3. Do NOT name Costpoint, Deltek, Unanet, or any ERP vendor anywhere in emails — you do not know what they use.
-4. Do NOT use "Janet" as a generic placeholder name — use "your controller" or "your finance person" instead.
+4. Do NOT use "Janet" or ANY placeholder first name as a generic stand-in anywhere in the output — in emails, brush-offs, callbacks, or objection handling. Always say "your controller" or "your finance person" or "that person."
 5. Do NOT make unverifiable assertions dressed as facts — "government contractors lose more deals to back-office capacity than pricing" is invented. If you cannot verify it, make it a question instead.
 6. Email 1: 4-6 sentences max. One role-specific observation about GovCon finance reality, one implication, one question. Signed: ${senderName}
 7. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. No product pitch. No unverifiable assertions. Signed: ${senderName}
