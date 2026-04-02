@@ -324,13 +324,8 @@ export default function LeadListDetailPage() {
           <div style={s.progress}><div style={s.progressBar(progress)} /></div>
         )}
 
-        {leads.length === 0 ? (
-          <div style={s.empty}>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No leads yet</div>
-            <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
-          </div>
-        ) : (
-          {/* Search, filter, bulk actions */}
+        {/* Search, filter, bulk actions */}
+        {leads.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             value={search}
@@ -359,6 +354,14 @@ export default function LeadListDetailPage() {
             <button style={s.btn('info')} onClick={selectAll}>Select all</button>
           )}
         </div>
+        )}
+
+        {leads.length === 0 ? (
+          <div style={s.empty}>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No leads yet</div>
+            <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
+          </div>
+        ) : (
         <table style={s.table}>
             <thead>
               <tr>
