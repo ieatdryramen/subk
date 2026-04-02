@@ -22,7 +22,6 @@ const getLeads = async (listId, userId, filterIds) => {
     LEFT JOIN playbooks p ON p.lead_id = l.id
     JOIN users u ON u.id = $2
     WHERE l.list_id = $1
-      AND l.status = 'done'
       ${filterIds && filterIds.length ? `AND l.id = ANY(ARRAY[${filterIds.join(',')}]::int[])` : ''}
       AND (
         l.user_id = $2 OR
@@ -48,7 +47,7 @@ router.get('/list/:listId/html', authFromQuery, async (req, res) => {
   try {
     const filterIds = req.query.ids ? req.query.ids.split(',').map(Number).filter(Boolean) : null;
     const leads = await getLeads(req.params.listId, req.userId, filterIds);
-    if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
+    if (!leads.length) return res.status(400).json({ error: 'No leads found in this list' });
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
 
@@ -128,7 +127,7 @@ router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
   try {
     const filterIds = req.query.ids ? req.query.ids.split(',').map(Number).filter(Boolean) : null;
     const leads = await getLeads(req.params.listId, req.userId, filterIds);
-    if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
+    if (!leads.length) return res.status(400).json({ error: 'No leads found in this list' });
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
 
@@ -170,7 +169,7 @@ router.get('/lead/:leadId/html', authFromQuery, async (req, res) => {
              p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
-      WHERE l.id = $1 AND l.status = 'done'
+      WHERE l.id = $1
     `, [req.params.leadId]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Lead not found or playbook not generated' });
@@ -240,7 +239,7 @@ router.get('/lead/:leadId/csv', authFromQuery, async (req, res) => {
              p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
-      WHERE l.id = $1 AND l.status = 'done'
+      WHERE l.id = $1
     `, [req.params.leadId]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Lead not found or playbook not generated' });
