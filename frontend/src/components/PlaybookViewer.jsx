@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import api from '../lib/api';
 import SequenceTracker from './SequenceTracker';
+import LeadNotes from './LeadNotes';
 
 const tabs = [
   { key: 'sequence', label: '📋 Sequence' },
@@ -13,6 +14,7 @@ const tabs = [
   { key: 'call_opener', label: 'Call Opener' },
   { key: 'objection_handling', label: 'Objections' },
   { key: 'callbacks', label: 'Callbacks' },
+  { key: 'notes', label: '📝 Notes' },
   { key: 'chat', label: '💬 AI Coach' },
 ];
 
@@ -121,6 +123,26 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     }
   };
 
+
+  const sendViaGmail = async (tabKey) => {
+    const emailContent = playbook[tabKey];
+    if (!emailContent || !playbook) return;
+    const lines = emailContent.split('\n');
+    const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
+    const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
+    const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
+    const touchpointMap = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
+    setSending(true);
+    try {
+      await api.post(`/gmail/send/${leadId}`, { subject, body, touchpoint: touchpointMap[tabKey] });
+      setSent(s => ({ ...s, [`gmail_${tabKey}`]: true }));
+      setTimeout(() => setSent(s => ({ ...s, [`gmail_${tabKey}`]: false })), 3000);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Gmail send failed. Check connection in Team & Integrations.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const sendChat = async (text) => {
     const msg = text || chatInput.trim();
