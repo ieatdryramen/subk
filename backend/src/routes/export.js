@@ -14,7 +14,7 @@ const authFromQuery = async (req, res, next) => {
   }
 };
 
-const getLeads = async (listId, userId) => {
+const getLeads = async (listId, userId, filterIds) => {
   const result = await pool.query(`
     SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4,
            p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
@@ -23,6 +23,7 @@ const getLeads = async (listId, userId) => {
     JOIN users u ON u.id = $2
     WHERE l.list_id = $1
       AND l.status = 'done'
+      ${filterIds && filterIds.length ? `AND l.id = ANY(ARRAY[${filterIds.join(',')}]::int[])` : ''}
       AND (
         l.user_id = $2 OR
         EXISTS (SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL)
@@ -45,7 +46,8 @@ const escCsv = (val) => {
 // HTML export
 router.get('/list/:listId/html', authFromQuery, async (req, res) => {
   try {
-    const leads = await getLeads(req.params.listId, req.userId);
+    const filterIds = req.query.ids ? req.query.ids.split(',').map(Number).filter(Boolean) : null;
+    const leads = await getLeads(req.params.listId, req.userId, filterIds);
     if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
@@ -124,7 +126,8 @@ ${leads.map(lead => {
 // CSV export — RFC 4180 compliant with \r\n row terminators
 router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
   try {
-    const leads = await getLeads(req.params.listId, req.userId);
+    const filterIds = req.query.ids ? req.query.ids.split(',').map(Number).filter(Boolean) : null;
+    const leads = await getLeads(req.params.listId, req.userId, filterIds);
     if (!leads.length) return res.status(400).json({ error: 'No completed playbooks to export' });
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
