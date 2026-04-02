@@ -123,10 +123,18 @@ router.post('/:listId/fix-names', auth, async (req, res) => {
     let fixed = 0;
     for (const lead of leads.rows) {
       if (lead.email) {
-        const emailName = lead.email.split('@')[0]
-          .replace(/[._-]/g, ' ')
-          .replace(/\w/g, c => c.toUpperCase())
-          .trim();
+        const prefix = lead.email.split('@')[0];
+        // Skip if it looks like initials only (e.g. "bgillan", "ckantor")
+        // Try to split on dots/underscores/hyphens first
+        const parts = prefix.split(/[._-]/);
+        let emailName = '';
+        if (parts.length >= 2) {
+          // Has separator - likely firstname.lastname format
+          emailName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ').trim();
+        } else if (prefix.length > 3) {
+          // Single token - capitalize first letter only
+          emailName = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+        }
         if (emailName && emailName.length > 1) {
           await pool.query('UPDATE leads SET full_name=$1 WHERE id=$2', [emailName, lead.id]);
           fixed++;
