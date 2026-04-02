@@ -85,6 +85,8 @@ export default function LeadListDetailPage() {
   const [showAdvFilters, setShowAdvFilters] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkZohoing, setBulkZohoing] = useState(false);
+  const [bulkScoring, setBulkScoring] = useState(false);
   const fileRef = useRef();
   const pollRef = useRef();
 
@@ -178,6 +180,37 @@ export default function LeadListDetailPage() {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkZoho = async () => {
+    if (!selectedIds.size) return;
+    setBulkZohoing(true);
+    let ok = 0, fail = 0;
+    for (const lid of [...selectedIds]) {
+      try { await api.post(`/zoho/push/${lid}`); ok++; }
+      catch { fail++; }
+    }
+    setBulkZohoing(false);
+    setSelectedIds(new Set());
+    alert(`Pushed ${ok} to Zoho${fail > 0 ? `, ${fail} failed` : ''}`);
+  };
+
+  const bulkScore = async () => {
+    if (!selectedIds.size) return;
+    setBulkScoring(true);
+    for (const lid of [...selectedIds]) {
+      try { await api.post(`/scoring/score/${lid}`); }
+      catch { /* continue */ }
+    }
+    setBulkScoring(false);
+    setSelectedIds(new Set());
+    await loadLeads();
+  };
+
+  const exportSelected = () => {
+    const token = localStorage.getItem('pf_token');
+    const ids = [...selectedIds].join(',');
+    window.open(`/api/export/list/${id}/html?token=${token}&ids=${ids}`, '_blank');
+  };
 
   const cancelAll = async () => {
     try {
@@ -419,6 +452,15 @@ export default function LeadListDetailPage() {
                   <button style={s.btn('success')} onClick={bulkGenerate} disabled={bulkGenerating}>
                     {bulkGenerating ? 'Generating...' : `⚡ Generate (${selectedIds.size})`}
                   </button>
+                  <button style={s.btn('warning')} onClick={bulkScore} disabled={bulkScoring}>
+                    {bulkScoring ? 'Scoring...' : `◎ Score (${selectedIds.size})`}
+                  </button>
+                  {zohoStatus.connected && (
+                    <button style={s.btn('info')} onClick={bulkZoho} disabled={bulkZohoing}>
+                      {bulkZohoing ? 'Pushing...' : `→ Zoho (${selectedIds.size})`}
+                    </button>
+                  )}
+                  <button style={s.btn('info')} onClick={exportSelected}>↓ Export</button>
                   <button style={s.btn('danger')} onClick={bulkDelete}>🗑 Delete</button>
                   <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
                 </div>
@@ -671,3 +713,4 @@ export default function LeadListDetailPage() {
     </Layout>
   );
 }
+
