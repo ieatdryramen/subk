@@ -75,7 +75,11 @@ export default function SequenceTracker({ leadId }) {
             <div style={s.label}>
               <div style={s.labelText(tp.status)}>{tp.label}</div>
               {tp.status === 'done' && tp.completed_at
-                ? <div style={s.completedAt}>✓ {new Date(tp.completed_at).toLocaleDateString()}{tp.notes ? ` — ${tp.notes}` : ''}</div>
+                ? <div style={s.completedAt}>
+                    ✓ {new Date(tp.completed_at).toLocaleDateString()}{tp.notes ? ` — ${tp.notes}` : ''}
+                    {tp.opened_at && <span style={{ marginLeft: 8, color: 'var(--success)', fontSize: 10 }}>👁 Opened</span>}
+                    {tp.clicked_at && <span style={{ marginLeft: 6, color: 'var(--accent2)', fontSize: 10 }}>🔗 Clicked</span>}
+                  </div>
                 : <div style={s.day}>{tp.day}</div>}
             </div>
             <div style={s.actions}>
