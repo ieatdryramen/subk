@@ -42,6 +42,8 @@ ANGLE 3 — AUDIT DOCUMENTATION HUNT: When DCAA shows up, your team spends more 
 
 ANGLE 4 — REPORTING THAT REQUIRES EXCEL: To see budget vs. actual, your team exports data out of the ERP and builds it in a spreadsheet. The system that should give you visibility requires you to leave the system to get it. Works best for: CFO, Controller, Program Manager, COO.
 
+ANGLE 5 — SSO / AZURE MIGRATION FORCING FUNCTION: Many GovCon firms are being pushed to migrate to Azure AD or implement SSO as part of CMMC or IT modernization. When that happens, legacy ERP systems that don't support modern auth become a forcing function to evaluate everything. Works best for: COO, CIO, IT-adjacent ops leaders, CEOs at firms actively pursuing CMMC compliance. Use this angle when the prospect's company name or notes suggest IT/systems focus.
+
 WHAT ACTUALLY GETS PROSPECTS TO BUY:
 - They see the billing screen and realize they can approve and send a bill without touching anything outside the system
 - The audit trail living with the record — DCAA compliance without the manual filing
@@ -51,8 +53,9 @@ WHAT ACTUALLY GETS PROSPECTS TO BUY:
 
 WHAT NOT TO SAY OR DO:
 - Never invent percentages or statistics about their business — you don't know their numbers
-- Never say "streamline" or "optimize" or "leverage"  
-- Never lead with SumX features — lead with their Costpoint/Deltek pain
+- Never say "streamline" or "optimize" or "leverage"
+- Never name a competitor ERP in outbound copy — you don't know what they use. Not in emails, not in DMs, not in call openers. Never.
+- Never lead with SumX features — lead with their workflow pain
 - Never assume they're fully replacing — sometimes it starts as just timesheets for 1099s, or AP integration
 - The real objection is almost never price — it's timing, migration fear, and "we just got through implementing the last thing"
 
@@ -203,7 +206,7 @@ BANNED PHRASES — cannot appear anywhere in ANY section of output:
 ✗ Any statistic or percentage you cannot verify — NO "X% of companies" or "saves Y hours"
 ✗ Costpoint, Deltek, Unanet, or ANY competitor ERP name — not in emails, not in brush-offs, not in callbacks, not even as a question like "are you using Costpoint?" You do not know what system they use. NEVER NAME IT.
 ✗ "Janet" or any placeholder first name used generically — ALWAYS say "your controller" or "your finance person" instead
-✗ "streamline" / "optimize" / "leverage" / "utilize"
+✗ "streamline" / "optimize" / "optimized" / "leverage" / "utilize"
 ✗ "touch base" / "circle back" / "synergies" / "game-changing" / "best-in-class"
 ✗ "solution" — use "SumX" or be specific about what it does
 ✗ "pain points" — name the actual problem
@@ -232,7 +235,7 @@ HARD RULES:
 10. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done.
 11. Write in the voice of: ${tone}
 12. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."
-13. Each email takes a genuinely different angle — use the FOUR DISTINCT PAIN ANGLES defined in SUMX_CONTEXT. Email 1 picks the single most credible angle for this prospect's title. Email 2 picks a DIFFERENT named angle. Email 3 picks yet another. Never use the same angle twice in one sequence. Key person risk is ONE of four options — do not make it the default for every email.
+13. Each email takes a genuinely different angle — use the FIVE DISTINCT PAIN ANGLES defined in SUMX_CONTEXT. Email 1 picks the single most credible angle for this prospect's title. Email 2 picks a DIFFERENT named angle. Email 3 picks yet another. Never use the same angle twice in one sequence. Key person risk is ONE of five options — do not make it the default for every email. Angle 5 (SSO/Azure) should only be used when the prospect's company name or notes suggest IT/systems work or CMMC pursuit.
 14. Final check: does any email start with "I"? Rewrite it. Does it name a specific ERP? Remove it. Does it assert something as fact you cannot verify? Make it a question.
 
 SELF-CHECK:
