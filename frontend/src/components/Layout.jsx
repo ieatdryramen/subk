@@ -20,6 +20,7 @@ const navItems = [
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const handleLogout = () => { logout(); navigate('/login'); };
@@ -37,7 +38,7 @@ export default function Layout({ children }) {
         <button onClick={() => setMobileOpen(false)} style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
       <nav style={{ flex: 1, padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {navItems.map(item => (
+        {navItems.filter(item => !item.adminOnly || isAdmin).map(item => (
           <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
             style={({ isActive }) => ({
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
@@ -92,4 +93,5 @@ export default function Layout({ children }) {
     </>
   );
 }
+
 
