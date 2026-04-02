@@ -31,6 +31,7 @@ export default function TeamPage() {
   const [copied, setCopied] = useState(false);
   const [zohoConnected, setZohoConnected] = useState(false);
   const [outlookStatus, setOutlookStatus] = useState({ connected: false, email: null });
+  const [gmailStatus, setGmailStatus] = useState({ connected: false, email: null });
   const [zohoClientId, setZohoClientId] = useState('');
   const [zohoClientSecret, setZohoClientSecret] = useState('');
   const [savingZoho, setSavingZoho] = useState(false);
@@ -42,6 +43,7 @@ export default function TeamPage() {
     }).catch(console.error);
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
     api.get('/outlook/status').then(r => setOutlookStatus(r.data)).catch(() => {});
+    api.get('/gmail/status').then(r => setGmailStatus(r.data)).catch(() => {});
     // Check if just connected
     const params = new URLSearchParams(window.location.search);
     if (params.get('zoho') === 'connected') {
@@ -52,6 +54,10 @@ export default function TeamPage() {
       api.get('/outlook/status').then(r => setOutlookStatus(r.data));
       window.history.replaceState({}, '', '/team');
     }
+    if (params.get('gmail') === 'connected') {
+      api.get('/gmail/status').then(r => setGmailStatus(r.data));
+      window.history.replaceState({}, '', '/team');
+    }
   }, []);
 
   const inviteUrl = org ? `${window.location.origin}/login?invite=${org.invite_code}` : '';
@@ -60,6 +66,15 @@ export default function TeamPage() {
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const connectGmail = async () => {
+    try {
+      const r = await api.get('/gmail/connect');
+      window.location.href = r.data.url;
+    } catch (err) {
+      alert(err.response?.data?.error || 'Gmail not configured yet. Add GMAIL_CLIENT_ID to Railway environment variables.');
+    }
   };
 
   const connectOutlook = async () => {
@@ -138,6 +153,27 @@ export default function TeamPage() {
               </p>
               <button style={s.connectBtn} onClick={connectZoho} disabled={savingZoho}>
                 {savingZoho ? 'Redirecting to Zoho...' : 'Connect Zoho CRM'}
+              </button>
+            </div>
+          )}
+        </div>
+        {/* Gmail */}
+        <div style={s.zohoCard}>
+          <div style={s.cardTitle}>Gmail</div>
+          {gmailStatus.connected ? (
+            <div>
+              <span style={s.connectedBadge}>✓ Connected — {gmailStatus.email}</span>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
+                Send emails directly from any playbook via Gmail. Each send is logged as a completed touchpoint.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
+                Connect Gmail to send emails directly from playbooks with one click.
+              </p>
+              <button style={{ ...s.connectBtn, background: '#EA4335' }} onClick={connectGmail}>
+                Connect Gmail
               </button>
             </div>
           )}
