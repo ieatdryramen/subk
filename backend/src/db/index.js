@@ -249,10 +249,32 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
+    CREATE TABLE IF NOT EXISTS activity_goals (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+      daily_calls INTEGER DEFAULT 60,
+      daily_emails INTEGER DEFAULT 100,
+      daily_linkedin INTEGER DEFAULT 0,
+      weekly_calls INTEGER DEFAULT 300,
+      weekly_emails INTEGER DEFAULT 500,
+      weekly_linkedin INTEGER DEFAULT 0,
+      goal_mode VARCHAR(20) DEFAULT 'daily',
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+      activity_type VARCHAR(50) NOT NULL,
+      touchpoint VARCHAR(50),
+      logged_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_log_user_date ON activity_log(user_id, logged_at);
   `);
   console.log('Database initialized');
 };
 
 module.exports = { pool, initDb };
+
 
 
