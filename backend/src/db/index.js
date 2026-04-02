@@ -124,6 +124,16 @@ const initDb = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      duration_seconds INTEGER DEFAULT 0,
+      outcome VARCHAR(50) DEFAULT 'connected',
+      notes TEXT,
+      called_at TIMESTAMP DEFAULT NOW(),
+      zoho_synced BOOLEAN DEFAULT FALSE
+    );
     CREATE TABLE IF NOT EXISTS email_tracking (
       id SERIAL PRIMARY KEY,
       lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
@@ -188,6 +198,16 @@ const initDb = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
     ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS clicked_at TIMESTAMP;
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      duration_seconds INTEGER DEFAULT 0,
+      outcome VARCHAR(50) DEFAULT 'connected',
+      notes TEXT,
+      called_at TIMESTAMP DEFAULT NOW(),
+      zoho_synced BOOLEAN DEFAULT FALSE
+    );
     CREATE TABLE IF NOT EXISTS email_tracking (
       id SERIAL PRIMARY KEY,
       lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
