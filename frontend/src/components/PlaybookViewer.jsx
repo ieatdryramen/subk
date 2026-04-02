@@ -26,11 +26,13 @@ const tabs = [
 const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
 const SPECIAL_TABS = ['lead_info', 'sequence', 'call_log', 'battlecard', 'notes', 'chat'];
 const CHAT_HINTS = [
-  'Rewrite email 1 more aggressively',
-  'Shorter call opener',
-  'What else should I know about this company?',
+  'Rewrite email 1 — shorter, punchier',
+  'Tighten the call opener to 12 seconds',
   'Give me 3 more objection rebuttals',
-  'Rewrite email 2 different angle',
+  'Rewrite email 2 from a different angle',
+  'What should I know walking into this call?',
+  'Write a LinkedIn DM for after they accept',
+  'What are the landmines to avoid with this title?',
 ];
 
 const s = {
@@ -355,4 +357,5 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
     </div>
   );
 }
+
 
