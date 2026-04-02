@@ -237,18 +237,20 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
           <div style={s.actionRow}>
             <button style={s.copyBtn} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
             {isEmailTab && (
-              outlookConnected ? (
-                sent[activeTab] ? (
-                  <span style={s.sentBadge}>✓ Sent via Outlook</span>
-                ) : sending[activeTab] ? (
-                  <span style={s.sendingBtn}>Sending...</span>
-                ) : (
-                  <button style={s.sendBtn} onClick={() => sendEmail(activeTab)}>
-                    Send via Outlook ({EMAIL_DAYS[activeTab]})
-                  </button>
-                )
+              <button style={{ ...s.copyBtn, background: savedTemplate ? 'var(--success-bg)' : 'var(--bg3)', color: savedTemplate ? 'var(--success)' : 'var(--text3)', border: `1px solid ${savedTemplate ? 'var(--success)' : 'var(--border)'}` }}
+                onClick={() => saveAsTemplate(activeTab)}>
+                {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
+              </button>
+            )}
+            {isEmailTab && outlookConnected && (
+              sent[activeTab] ? (
+                <span style={s.sentBadge}>✓ Sent via Zoho</span>
+              ) : sending[activeTab] ? (
+                <span style={s.sendingBtn}>Sending...</span>
               ) : (
-                <span style={s.outlookNote}>Connect Outlook in Team & Integrations to send directly</span>
+                <button style={s.sendBtn} onClick={() => sendEmail(activeTab)}>
+                  ✉ Send via Zoho
+                </button>
               )
             )}
           </div>
