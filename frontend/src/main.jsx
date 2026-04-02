@@ -17,6 +17,7 @@ import CardScanPage from './pages/CardScanPage';
 import PipelinePage from './pages/PipelinePage';
 import TemplatesPage from './pages/TemplatesPage';
 import RemindersPage from './pages/RemindersPage';
+import ActivityBoard from './pages/ActivityBoard';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -46,6 +47,7 @@ const App = () => (
         <Route path="/pipeline" element={<Protected><PipelinePage /></Protected>} />
         <Route path="/templates" element={<Protected><TemplatesPage /></Protected>} />
         <Route path="/reminders" element={<Protected><RemindersPage /></Protected>} />
+        <Route path="/activity" element={<Protected><ActivityBoard /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
@@ -59,3 +61,4 @@ const PublicOrApp = () => {
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
