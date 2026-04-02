@@ -416,6 +416,7 @@ export default function LeadListDetailPage() {
               <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
             </div>
           ) : (
+            <>
             <select value={sortBy} onChange={e => setSortBy(e.target.value)}
             style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
             <option value="icp_score">Sort: ICP Score</option>
@@ -429,6 +430,7 @@ export default function LeadListDetailPage() {
             {sortDir === 'desc' ? '↓' : '↑'}
           </button>
           <button style={s.btn('info')} onClick={selectAll}>Select all</button>
+            </>
           )}
         </div>
         )}
@@ -636,3 +638,4 @@ export default function LeadListDetailPage() {
     </Layout>
   );
 }
+
