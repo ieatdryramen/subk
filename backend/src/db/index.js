@@ -124,6 +124,7 @@ const initDb = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
     CREATE TABLE IF NOT EXISTS lead_notes (
       id SERIAL PRIMARY KEY,
       lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
@@ -176,6 +177,7 @@ const initDb = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
     CREATE TABLE IF NOT EXISTS lead_notes (
       id SERIAL PRIMARY KEY,
       lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
