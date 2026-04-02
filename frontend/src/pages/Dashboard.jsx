@@ -54,7 +54,7 @@ export default function Dashboard() {
 
   const statCards = [
     { n: stats?.playbooks_generated || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)' },
-    { n: totalLeads, label: 'Total leads', sub: `${readyLeads} with playbooks`, color: 'var(--text)' },
+    { n: totalLeads, label: 'Total leads', sub: `${readyLeads} playbooks ready`, color: 'var(--text)' },
     { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'Across all sequences', color: 'var(--success)' },
     { n: lists.length, label: 'Lead lists', sub: 'Active lists', color: 'var(--text2)' },
   ];
@@ -180,4 +180,5 @@ export default function Dashboard() {
     </Layout>
   );
 }
+
 
