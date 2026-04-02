@@ -94,7 +94,7 @@ export default function PipelinePage() {
             { n: completed, l: 'Completed', c: 'var(--success)' },
           ].map(s => (
             <div key={s.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, fontFamily: 'Syne, sans-serif', color: s.c }}>{s.n}</div>
+              <div style={{ fontSize: 28, fontWeight: 700, fontFamily: s.n === 0 ? 'Inter, sans-serif' : 'Syne, sans-serif', color: s.c }}>{s.n}</div>
               <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{s.l}</div>
             </div>
           ))}
