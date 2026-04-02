@@ -75,11 +75,14 @@ export default function ProfilePage() {
   const [autoFilling, setAutoFilling] = useState(false);
   const [useCustomTone, setUseCustomTone] = useState(false);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     api.get('/profile').then(r => {
       if (r.data) {
         setForm(f => ({ ...f, ...r.data }));
         if (r.data.custom_tone) setUseCustomTone(true);
+        if (r.data.is_admin) setIsAdmin(true);
       }
     }).catch(() => {});
   }, []);
@@ -153,8 +156,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* What you sell */}
-        <div style={s.card}>
+        {/* What you sell — admin only */}
+        {isAdmin && <div style={s.card}>
           <div style={s.cardTitle}>What you sell</div>
           <div style={s.cardSub}>Keep this sharp and honest. It feeds into research and email generation.</div>
           <div style={s.divider} />
@@ -189,6 +192,23 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        </div>}
+
+        {/* Member view — company context is set by admin */}
+        {!isAdmin && (
+          <div style={s.card}>
+            <div style={s.cardTitle}>Company context</div>
+            <div style={s.cardSub}>Set by your org admin — applies to everyone on the team.</div>
+            <div style={s.divider} />
+            <div style={s.contextBox}>
+              <div style={{ marginBottom: 6 }}><strong style={{ color: 'var(--text)' }}>Product:</strong> {form.product || 'Not set by admin yet'}</div>
+              <div style={{ marginBottom: 6 }}><strong style={{ color: 'var(--text)' }}>Positioning:</strong> Costpoint, Deltek, Unanet replacements</div>
+              <div style={{ marginBottom: 6 }}><strong style={{ color: 'var(--text)' }}>Compliance:</strong> DCAA, CMMC, DFARS, FAR</div>
+              <div><strong style={{ color: 'var(--text)' }}>Core pain points, buyer personas, migration framing</strong> — all locked in by admin</div>
+            </div>
+          </div>
+        )}
 
         {/* Built-in GovCon context */}
         <div style={s.card}>
