@@ -16,14 +16,21 @@ const tabs = [
   { key: 'call_opener', label: 'Call Opener' },
   { key: 'objection_handling', label: 'Objections' },
   { key: 'callbacks', label: 'Callbacks' },
-  { key: 'call_log', label: '📞 Call Log' },
+  { key: 'call_log', label: '📞 Calls' },
   { key: 'battlecard', label: '⚔️ Battlecard' },
   { key: 'notes', label: '📝 Notes' },
   { key: 'chat', label: '💬 AI Coach' },
 ];
 
-const EMAIL_KEYS = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
-const EMAIL_DAYS = { email1: 'Day 1', email2: 'Day 3', email3: 'Day 7', email4: 'Day 14' };
+const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
+const SPECIAL_TABS = ['sequence', 'call_log', 'battlecard', 'notes', 'chat'];
+const CHAT_HINTS = [
+  'Rewrite email 1 more aggressively',
+  'Shorter call opener',
+  'What else should I know about this company?',
+  'Give me 3 more objection rebuttals',
+  'Rewrite email 2 different angle',
+];
 
 const s = {
   wrap: { marginTop: 16 },
@@ -37,55 +44,46 @@ const s = {
   }),
   content: { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', position: 'relative' },
   pre: { whiteSpace: 'pre-wrap', fontFamily: 'Inter, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', wordBreak: 'break-word' },
-  actionRow: { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
-  copyBtn: { padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)', cursor: 'pointer' },
-  sendBtn: { padding: '6px 14px', fontSize: 12, fontWeight: 500, background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 'var(--radius)', cursor: 'pointer' },
-  sendingBtn: { padding: '6px 14px', fontSize: 12, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text3)', borderRadius: 'var(--radius)', cursor: 'not-allowed' },
-  sentBadge: { padding: '6px 14px', fontSize: 12, background: 'var(--success-bg)', color: 'var(--success)', borderRadius: 'var(--radius)', fontWeight: 500 },
+  actionRow: { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' },
+  btn: (variant) => ({
+    padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer',
+    background: variant === 'copy' ? 'var(--bg3)' : variant === 'send' ? 'var(--success-bg)' : variant === 'saved' ? 'var(--success-bg)' : 'var(--bg3)',
+    color: variant === 'copy' ? 'var(--text2)' : variant === 'send' ? 'var(--success)' : variant === 'saved' ? 'var(--success)' : 'var(--text3)',
+    border: variant === 'copy' ? '1px solid var(--border)' : variant === 'send' ? '1px solid var(--success)' : variant === 'saved' ? '1px solid var(--success)' : '1px solid var(--border)',
+  }),
   genTime: { fontSize: 11, color: 'var(--text3)', marginTop: 10, textAlign: 'right' },
   chatWrap: { display: 'flex', flexDirection: 'column', height: 420 },
-  chatMessages: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12, paddingRight: 4, scrollBehavior: 'smooth' },
+  chatMessages: { flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 12, paddingRight: 4 },
   chatInput: { display: 'flex', gap: 8 },
   chatTextarea: { flex: 1, minHeight: 44, maxHeight: 120, resize: 'vertical', fontSize: 13, padding: '10px 12px' },
   sendChatBtn: { padding: '10px 18px', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500, alignSelf: 'flex-end', border: 'none', cursor: 'pointer' },
   chatHints: { display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   hint: { fontSize: 11, padding: '4px 10px', borderRadius: 20, background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', cursor: 'pointer' },
-  outlookNote: { fontSize: 12, color: 'var(--text3)', padding: '8px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', marginBottom: 10 },
 };
 
-const CHAT_HINTS = [
-  'Rewrite email 1 more aggressively',
-  'Shorter call opener',
-  'What else should I know about this company?',
-  'Give me 3 more objection rebuttals',
-  'Rewrite email 2 different angle',
-];
+const msgStyle = (role) => ({
+  padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: 13, lineHeight: 1.6,
+  maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start',
+  background: role === 'user' ? 'var(--accent)' : 'var(--bg3)',
+  color: role === 'user' ? '#fff' : 'var(--text)',
+  border: role === 'user' ? 'none' : '1px solid var(--border)',
+});
 
-const parseEmailParts = (emailText) => {
-  if (!emailText) return { subject: '', body: '' };
-  const lines = emailText.split('\n');
-  const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
-  const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : '';
-  const bodyStart = subjectLine ? lines.indexOf(subjectLine) + 1 : 0;
-  const body = lines.slice(bodyStart).join('\n').trim();
-  return { subject, body };
-};
-
-export default function PlaybookViewer({ playbook, leadId, lead, outlookConnected }) {
+export default function PlaybookViewer({ playbook, leadId, lead }) {
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState({});
-
+  const [savedTemplate, setSavedTemplate] = useState(false);
   const [zohoConnected, setZohoConnected] = useState(false);
-
-  useEffect(() => {
-    api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
-  }, []);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const chatBottomRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -93,74 +91,44 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     }
   }, [chatMessages]);
 
-  // Pre-populate sent status from sequence data
-  useEffect(() => {
-    if (lead) {
-      setSent({
-        email1: !!lead.email1_sent,
-        email2: !!lead.email2_sent,
-        email3: !!lead.email3_sent,
-        email4: !!lead.email4_sent,
-      });
-    }
-  }, [lead?.id]);
-
   const copy = () => {
-    const text = playbook?.[activeTab] || '';
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(playbook?.[activeTab] || '');
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const sendEmail = async (emailKey) => {
-    const emailText = playbook?.[emailKey];
+  const sendViaZoho = async (tabKey) => {
+    const emailText = playbook?.[tabKey];
     if (!emailText) return;
-    const { subject, body } = parseEmailParts(emailText);
-    setSending(s => ({ ...s, [emailKey]: true }));
-    try {
-      await api.post(`/outlook/send/${leadId}`, { emailKey, subject, body });
-      setSent(s => ({ ...s, [emailKey]: true }));
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send. Check Outlook connection in Team & Integrations.');
-    } finally {
-      setSending(s => ({ ...s, [emailKey]: false }));
-    }
-  };
-
-
-  const sendViaGmail = async (tabKey) => {
-    const emailContent = playbook[tabKey];
-    if (!emailContent || !playbook) return;
-    const lines = emailContent.split('\n');
+    const lines = emailText.split('\n');
     const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
     const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
     const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
-    const touchpointMap = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
     setSending(true);
     try {
-      await api.post(`/gmail/send/${leadId}`, { subject, body, touchpoint: touchpointMap[tabKey] });
-      setSent(s => ({ ...s, [`gmail_${tabKey}`]: true }));
-      setTimeout(() => setSent(s => ({ ...s, [`gmail_${tabKey}`]: false })), 3000);
+      await api.post(`/zoho/send-email/${leadId}`, { subject, body, touchpoint: tabKey });
+      setSent(s => ({ ...s, [tabKey]: true }));
+      setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
     } catch (err) {
-      alert(err.response?.data?.error || 'Gmail send failed. Check connection in Team & Integrations.');
+      alert(err.response?.data?.error || 'Zoho send failed. Check connection in Team & Integrations.');
     } finally {
       setSending(false);
     }
   };
 
   const saveAsTemplate = async (tabKey) => {
-    const emailContent = playbook[tabKey];
-    if (!emailContent) return;
+    const emailText = playbook?.[tabKey];
+    if (!emailText) return;
     const name = prompt('Template name (e.g. "Day 1 - CFO outreach"):');
     if (!name) return;
-    const lines = emailContent.split('\n');
+    const lines = emailText.split('\n');
     const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
     const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : '';
     const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
     try {
       await api.post('/templates', { name, subject, body, touchpoint: tabKey });
       setSavedTemplate(true);
-      setTimeout(() => setSavedTemplate(false), 2000);
+      setTimeout(() => setSavedTemplate(false), 2500);
     } catch (err) {
       alert('Failed to save template');
     }
@@ -183,17 +151,9 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     }
   };
 
-  const msgStyle = (role) => ({
-    padding: '10px 14px', borderRadius: 'var(--radius-lg)', fontSize: 13, lineHeight: 1.6,
-    maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start',
-    background: role === 'user' ? 'var(--accent)' : 'var(--bg3)',
-    color: role === 'user' ? '#fff' : 'var(--text)',
-    border: role === 'user' ? 'none' : '1px solid var(--border)',
-  });
-
   if (!playbook) return null;
 
-  const isEmailTab = EMAIL_KEYS[activeTab];
+  const isEmailTab = EMAIL_KEYS.includes(activeTab);
 
   return (
     <div style={s.wrap}>
@@ -205,10 +165,22 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
         ))}
       </div>
 
-      {activeTab === 'sequence' ? (
-        <div style={s.content}>
-        </div>
-      ) : activeTab === 'chat' ? (
+      {/* Special tabs with their own components */}
+      {activeTab === 'sequence' && (
+        <div style={s.content}><SequenceTracker leadId={leadId} /></div>
+      )}
+      {activeTab === 'call_log' && (
+        <div style={s.content}><CallLogger leadId={leadId} lead={lead} /></div>
+      )}
+      {activeTab === 'battlecard' && (
+        <div style={s.content}><Battlecard leadId={leadId} /></div>
+      )}
+      {activeTab === 'notes' && (
+        <div style={s.content}><LeadNotes leadId={leadId} /></div>
+      )}
+
+      {/* AI Coach */}
+      {activeTab === 'chat' && (
         <div style={s.content}>
           <div style={s.chatWrap}>
             <div style={s.chatMessages}>
@@ -232,26 +204,27 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
             </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Text content tabs */}
+      {!SPECIAL_TABS.includes(activeTab) && activeTab !== 'chat' && (
         <div style={s.content}>
           <div style={s.actionRow}>
-            <button style={s.copyBtn} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+            <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
             {isEmailTab && (
-              <button style={{ ...s.copyBtn, background: savedTemplate ? 'var(--success-bg)' : 'var(--bg3)', color: savedTemplate ? 'var(--success)' : 'var(--text3)', border: `1px solid ${savedTemplate ? 'var(--success)' : 'var(--border)'}` }}
+              <button
+                style={s.btn(savedTemplate ? 'saved' : 'template')}
                 onClick={() => saveAsTemplate(activeTab)}>
                 {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
               </button>
             )}
-            {isEmailTab && outlookConnected && (
-              sent[activeTab] ? (
-                <span style={s.sentBadge}>✓ Sent via Zoho</span>
-              ) : sending[activeTab] ? (
-                <span style={s.sendingBtn}>Sending...</span>
-              ) : (
-                <button style={s.sendBtn} onClick={() => sendEmail(activeTab)}>
-                  ✉ Send via Zoho
-                </button>
-              )
+            {isEmailTab && zohoConnected && (
+              <button
+                style={s.btn(sent[activeTab] ? 'saved' : 'send')}
+                onClick={() => sendViaZoho(activeTab)}
+                disabled={sending}>
+                {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
+              </button>
             )}
           </div>
           <pre style={s.pre}>{playbook[activeTab] || 'Regenerate this playbook to get this section.'}</pre>
@@ -263,5 +236,3 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     </div>
   );
 }
-
-
