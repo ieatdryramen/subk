@@ -32,6 +32,9 @@ export default function TeamPage() {
   const [zohoConnected, setZohoConnected] = useState(false);
   const [outlookStatus, setOutlookStatus] = useState({ connected: false, email: null });
   const [gmailStatus, setGmailStatus] = useState({ connected: false, email: null });
+  const [slackConnected, setSlackConnected] = useState(false);
+  const [slackWebhook, setSlackWebhook] = useState('');
+  const [savingSlack, setSavingSlack] = useState(false);
   const [zohoClientId, setZohoClientId] = useState('');
   const [zohoClientSecret, setZohoClientSecret] = useState('');
   const [savingZoho, setSavingZoho] = useState(false);
@@ -44,6 +47,7 @@ export default function TeamPage() {
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
     api.get('/outlook/status').then(r => setOutlookStatus(r.data)).catch(() => {});
     api.get('/gmail/status').then(r => setGmailStatus(r.data)).catch(() => {});
+    api.get('/slack/status').then(r => setSlackConnected(r.data.connected)).catch(() => {});
     // Check if just connected
     const params = new URLSearchParams(window.location.search);
     if (params.get('zoho') === 'connected') {
@@ -66,6 +70,20 @@ export default function TeamPage() {
     navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const saveSlack = async () => {
+    if (!slackWebhook) return;
+    setSavingSlack(true);
+    try {
+      await api.post('/slack/configure', { webhook_url: slackWebhook });
+      setSlackConnected(true);
+      setSlackWebhook('');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to connect Slack');
+    } finally {
+      setSavingSlack(false);
+    }
   };
 
   const connectGmail = async () => {
@@ -157,6 +175,33 @@ export default function TeamPage() {
             </div>
           )}
         </div>
+        {/* Slack */}
+        <div style={s.zohoCard}>
+          <div style={s.cardTitle}>Slack notifications</div>
+          {slackConnected ? (
+            <div>
+              <span style={s.connectedBadge}>✓ Slack connected</span>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
+                Team activity notifications are being sent to your Slack channel.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
+                Get notified in Slack when playbooks are generated or touchpoints completed. Create an incoming webhook at <a href="https://api.slack.com/apps" target="_blank" style={{ color: 'var(--accent2)' }}>api.slack.com/apps</a>.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input value={slackWebhook} onChange={e => setSlackWebhook(e.target.value)}
+                  placeholder="https://hooks.slack.com/services/..." style={{ flex: 1 }} />
+                <button style={{ ...s.connectBtn, background: '#4A154B', flexShrink: 0 }}
+                  onClick={saveSlack} disabled={savingSlack || !slackWebhook}>
+                  {savingSlack ? 'Connecting...' : 'Connect Slack'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Gmail */}
         <div style={s.zohoCard}>
           <div style={s.cardTitle}>Gmail</div>
