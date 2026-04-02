@@ -70,6 +70,10 @@ export default function LeadListDetailPage() {
   const [zohoStatus, setZohoStatus] = useState({});
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkGenerating, setBulkGenerating] = useState(false);
   const fileRef = useRef();
   const pollRef = useRef();
 
@@ -116,6 +120,49 @@ export default function LeadListDetailPage() {
     try { await api.post(`/playbooks/generate-list/${id}`); }
     catch (err) { alert(err.response?.data?.error || 'Generation failed. Check your company profile.'); setGenerating(false); }
   };
+
+  const bulkGenerate = async () => {
+    const toGenerate = [...selectedIds].filter(id => {
+      const lead = leads.find(l => l.id === id);
+      return lead && lead.status !== 'done' && lead.status !== 'generating';
+    });
+    if (!toGenerate.length) return;
+    setBulkGenerating(true);
+    for (const leadId of toGenerate) {
+      try {
+        setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'generating' } : l));
+        await api.post(`/playbooks/generate/${leadId}`);
+        setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'done' } : l));
+      } catch (err) {
+        if (err.response?.data?.upgrade) { setShowUpgradeModal(true); break; }
+        setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'error' } : l));
+      }
+    }
+    setBulkGenerating(false);
+    setSelectedIds(new Set());
+    await loadLeads();
+  };
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size || !confirm(`Delete ${selectedIds.size} leads?`)) return;
+    await Promise.all([...selectedIds].map(id => api.delete(`/lists/${id}/leads/${id}`).catch(() => {})));
+    setLeads(ls => ls.filter(l => !selectedIds.has(l.id)));
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const cancelAll = async () => {
     try {
@@ -202,6 +249,14 @@ export default function LeadListDetailPage() {
 
   const toggleRow = (leadId) => setExpandedId(prev => prev === leadId ? null : leadId);
 
+  const filteredLeads = leads.filter(l => {
+    const matchSearch = !search || 
+      (l.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.company || '').toLowerCase().includes(search.toLowerCase()) ||
+      (l.title || '').toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === 'all' || l.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
   const doneCount = leads.filter(l => l.status === 'done').length;
   const scoredCount = leads.filter(l => l.icp_score != null).length;
 
@@ -275,7 +330,36 @@ export default function LeadListDetailPage() {
             <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
           </div>
         ) : (
-          <table style={s.table}>
+          {/* Search, filter, bulk actions */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search leads..."
+            style={{ flex: 1, minWidth: 200, padding: '7px 12px', fontSize: 13 }}
+          />
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+            <option value="all">All status</option>
+            <option value="done">Ready</option>
+            <option value="pending">Pending</option>
+            <option value="generating">Generating</option>
+            <option value="error">Error</option>
+          </select>
+          {selectedIds.size > 0 ? (
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 12, color: 'var(--text2)' }}>{selectedIds.size} selected</span>
+              <button style={s.btn('success')} onClick={bulkGenerate} disabled={bulkGenerating}>
+                {bulkGenerating ? 'Generating...' : `⚡ Generate (${selectedIds.size})`}
+              </button>
+              <button style={s.btn('danger')} onClick={bulkDelete}>🗑 Delete</button>
+              <button style={s.btn('info')} onClick={clearSelection}>✕ Clear</button>
+            </div>
+          ) : (
+            <button style={s.btn('info')} onClick={selectAll}>Select all</button>
+          )}
+        </div>
+        <table style={s.table}>
             <thead>
               <tr>
                 <th style={s.th}>Name</th>
