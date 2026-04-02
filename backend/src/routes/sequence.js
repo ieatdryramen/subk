@@ -84,6 +84,99 @@ router.put('/config', auth, async (req, res) => {
   }
 });
 
+// GET /sequence/due/today — for the banner and action center
+router.get('/due/today', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    const TOUCHPOINTS = await getOrgTouchpoints(orgId);
+
+    // Get all active leads for this user's org
+    const leadsR = await pool.query(`
+      SELECT l.id, l.full_name, l.company, l.list_id, l.icp_score, l.sequence_stage
+      FROM leads l
+      JOIN users u ON u.id = $1
+      WHERE l.status = 'done'
+        AND (l.user_id = $1 OR (u.org_id IS NOT NULL AND EXISTS (
+          SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id
+        )))
+        AND (l.sequence_stage IS NULL OR l.sequence_stage != 'completed')
+      ORDER BY l.icp_score DESC NULLS LAST
+    `, [req.userId]);
+
+    const due = [];
+    const overdue = [];
+
+    for (const lead of leadsR.rows) {
+      const events = await pool.query(
+        'SELECT * FROM sequence_events WHERE lead_id=$1 ORDER BY created_at ASC',
+        [lead.id]
+      );
+      const eventMap = {};
+      events.rows.forEach(e => { eventMap[e.touchpoint] = e; });
+
+      // Find next pending touchpoint and its due date
+      let lastCompletedDate = null;
+      let nextTouch = null;
+
+      for (let idx = 0; idx < TOUCHPOINTS.length; idx++) {
+        const tp = TOUCHPOINTS[idx];
+        const event = eventMap[tp.key];
+        const status = event?.status || 'pending';
+
+        if (status === 'done') {
+          lastCompletedDate = event.completed_at;
+          continue;
+        }
+
+        // This is the next pending touch
+        let due_date = null;
+        if (idx === 0) {
+          due_date = new Date().toISOString(); // first touch always due
+        } else if (lastCompletedDate) {
+          due_date = addBusinessDays(lastCompletedDate, 1).toISOString();
+        }
+
+        if (due_date) {
+          if (isOverdue(due_date)) {
+            const daysAgo = Math.floor((new Date() - new Date(due_date)) / (1000 * 60 * 60 * 24));
+            overdue.push({ ...lead, next_touch: tp.key, next_touch_label: tp.label, next_touch_type: tp.type, due_date, days_overdue: daysAgo, urgency: 'overdue' });
+          } else if (isToday(due_date)) {
+            due.push({ ...lead, next_touch: tp.key, next_touch_label: tp.label, next_touch_type: tp.type, due_date, days_overdue: 0, urgency: 'due' });
+          }
+        }
+        nextTouch = tp;
+        break;
+      }
+
+      // MEFU check
+      if (!nextTouch && lead.sequence_stage === 'mefu') {
+        const mefuEvent = eventMap['mefu'];
+        const lastDone = events.rows.filter(e => e.touchpoint !== 'mefu' && e.status === 'done').pop();
+        let mefuDue = null;
+        if (mefuEvent?.completed_at) {
+          const next = new Date(mefuEvent.completed_at);
+          next.setMonth(next.getMonth() + 1);
+          mefuDue = next.toISOString();
+        } else if (lastDone?.completed_at) {
+          const next = new Date(lastDone.completed_at);
+          next.setMonth(next.getMonth() + 1);
+          mefuDue = next.toISOString();
+        }
+        if (mefuDue && isOverdue(mefuDue)) {
+          overdue.push({ ...lead, next_touch: 'mefu', next_touch_label: 'Monthly Follow-Up', next_touch_type: 'email', due_date: mefuDue, days_overdue: Math.floor((new Date() - new Date(mefuDue)) / (1000 * 60 * 60 * 24)), urgency: 'overdue' });
+        } else if (mefuDue && isToday(mefuDue)) {
+          due.push({ ...lead, next_touch: 'mefu', next_touch_label: 'Monthly Follow-Up', next_touch_type: 'email', due_date: mefuDue, days_overdue: 0, urgency: 'due' });
+        }
+      }
+    }
+
+    res.json({ overdue, due, total: overdue.length + due.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /sequence/:leadId — returns sequence with due dates calculated from completion dates
 router.get('/:leadId', auth, async (req, res) => {
   try {
@@ -239,97 +332,6 @@ router.post('/:leadId/stage', auth, async (req, res) => {
   }
 });
 
-// GET /sequence/due/today — for the banner and action center
-router.get('/due/today', auth, async (req, res) => {
-  try {
-    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
-    const orgId = userR.rows[0]?.org_id;
-    const TOUCHPOINTS = await getOrgTouchpoints(orgId);
-
-    // Get all active leads for this user's org
-    const leadsR = await pool.query(`
-      SELECT l.id, l.full_name, l.company, l.list_id, l.icp_score, l.sequence_stage
-      FROM leads l
-      JOIN users u ON u.id = $1
-      WHERE l.status = 'done'
-        AND (l.user_id = $1 OR (u.org_id IS NOT NULL AND EXISTS (
-          SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id
-        )))
-        AND (l.sequence_stage IS NULL OR l.sequence_stage != 'completed')
-      ORDER BY l.icp_score DESC NULLS LAST
-    `, [req.userId]);
-
-    const due = [];
-    const overdue = [];
-
-    for (const lead of leadsR.rows) {
-      const events = await pool.query(
-        'SELECT * FROM sequence_events WHERE lead_id=$1 ORDER BY created_at ASC',
-        [lead.id]
-      );
-      const eventMap = {};
-      events.rows.forEach(e => { eventMap[e.touchpoint] = e; });
-
-      // Find next pending touchpoint and its due date
-      let lastCompletedDate = null;
-      let nextTouch = null;
-
-      for (let idx = 0; idx < TOUCHPOINTS.length; idx++) {
-        const tp = TOUCHPOINTS[idx];
-        const event = eventMap[tp.key];
-        const status = event?.status || 'pending';
-
-        if (status === 'done') {
-          lastCompletedDate = event.completed_at;
-          continue;
-        }
-
-        // This is the next pending touch
-        let due_date = null;
-        if (idx === 0) {
-          due_date = new Date().toISOString(); // first touch always due
-        } else if (lastCompletedDate) {
-          due_date = addBusinessDays(lastCompletedDate, 1).toISOString();
-        }
-
-        if (due_date) {
-          if (isOverdue(due_date)) {
-            const daysAgo = Math.floor((new Date() - new Date(due_date)) / (1000 * 60 * 60 * 24));
-            overdue.push({ ...lead, next_touch: tp.key, next_touch_label: tp.label, next_touch_type: tp.type, due_date, days_overdue: daysAgo, urgency: 'overdue' });
-          } else if (isToday(due_date)) {
-            due.push({ ...lead, next_touch: tp.key, next_touch_label: tp.label, next_touch_type: tp.type, due_date, days_overdue: 0, urgency: 'due' });
-          }
-        }
-        nextTouch = tp;
-        break;
-      }
-
-      // MEFU check
-      if (!nextTouch && lead.sequence_stage === 'mefu') {
-        const mefuEvent = eventMap['mefu'];
-        const lastDone = events.rows.filter(e => e.touchpoint !== 'mefu' && e.status === 'done').pop();
-        let mefuDue = null;
-        if (mefuEvent?.completed_at) {
-          const next = new Date(mefuEvent.completed_at);
-          next.setMonth(next.getMonth() + 1);
-          mefuDue = next.toISOString();
-        } else if (lastDone?.completed_at) {
-          const next = new Date(lastDone.completed_at);
-          next.setMonth(next.getMonth() + 1);
-          mefuDue = next.toISOString();
-        }
-        if (mefuDue && isOverdue(mefuDue)) {
-          overdue.push({ ...lead, next_touch: 'mefu', next_touch_label: 'Monthly Follow-Up', next_touch_type: 'email', due_date: mefuDue, days_overdue: Math.floor((new Date() - new Date(mefuDue)) / (1000 * 60 * 60 * 24)), urgency: 'overdue' });
-        } else if (mefuDue && isToday(mefuDue)) {
-          due.push({ ...lead, next_touch: 'mefu', next_touch_label: 'Monthly Follow-Up', next_touch_type: 'email', due_date: mefuDue, days_overdue: 0, urgency: 'due' });
-        }
-      }
-    }
-
-    res.json({ overdue, due, total: overdue.length + due.length });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;
+
