@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import UsageBanner from './UsageBanner';
+import TouchBanner from './TouchBanner';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/team', label: 'Integrations', icon: '◎' },
   { to: '/billing', label: 'Billing', icon: '◇' },
   { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
+  { to: '/activity', label: 'Activity Board', icon: '📊', adminOnly: true },
 ];
 
 export default function Layout({ children }) {
@@ -48,6 +50,7 @@ export default function Layout({ children }) {
           </NavLink>
         ))}
       </nav>
+      <TouchBanner />
       <UsageBanner />
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
         <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{user?.role || 'member'}</div>
@@ -89,3 +92,4 @@ export default function Layout({ children }) {
     </>
   );
 }
+
