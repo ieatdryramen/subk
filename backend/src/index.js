@@ -46,8 +46,19 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-initDb().then(() => {
-  app.listen(PORT, () => console.log(`ProspectForge v2.2 running on port ${PORT}`));
+initDb().then(async () => {
+  // Clean up any leads stuck in 'generating' state from previous crashes
+  const { pool } = require('./db');
+  try {
+    const result = await pool.query(
+      "UPDATE leads SET status='pending' WHERE status='generating'"
+    );
+    if (result.rowCount > 0) {
+      console.log(`Reset ${result.rowCount} stuck generating leads`);
+    }
+  } catch(e) { console.error('Cleanup error:', e.message); }
+
+  app.listen(PORT, () => console.log(`ProspectForge v2.4 running on port ${PORT}`));
 }).catch(err => {
   console.error('DB init failed:', err);
   process.exit(1);
