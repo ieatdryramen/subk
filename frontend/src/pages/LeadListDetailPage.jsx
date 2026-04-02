@@ -302,11 +302,6 @@ export default function LeadListDetailPage() {
   const doneCount = leads.filter(l => l.status === 'done').length;
   const scoredCount = leads.filter(l => l.icp_score != null).length;
 
-  // Sort by ICP score if scored
-  const sortedLeads = scoredCount > 0
-    ? [...leads].sort((a, b) => (b.icp_score || 0) - (a.icp_score || 0))
-    : leads;
-
   return (
     <Layout>
       <div style={s.page}>
@@ -453,7 +448,7 @@ export default function LeadListDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedLeads.map(lead => (
+              {filteredLeads.map(lead => (
                 <>
                   <tr key={lead.id} style={{ cursor: 'pointer' }}
                     onClick={() => toggleRow(lead.id)}
