@@ -261,10 +261,10 @@ export default function PipelinePage() {
                           />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {lead.full_name || '—'}
+                              {lead.full_name || lead.email || '—'}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {lead.company || '—'}
+                              {lead.company || lead.title || '—'}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               {lead.icp_score != null ? (
