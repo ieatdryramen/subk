@@ -27,8 +27,10 @@ export default function Dashboard() {
   const [activity, setActivity] = useState([]);
   const [billing, setBilling] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dueCount, setDueCount] = useState(0);
 
   useEffect(() => {
+    api.get('/reminders/due').then(r => setDueCount((r.data || []).filter(l => l.urgency !== 'upcoming').length)).catch(() => {});
     Promise.all([
       api.get('/lists'),
       api.get('/admin/dashboard').catch(() => null),
@@ -69,6 +71,18 @@ export default function Dashboard() {
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
           </div>
         </div>
+
+        {/* Due touches nudge */}
+        {dueCount > 0 && (
+          <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 13, color: 'var(--warning)' }}>
+              🎯 {dueCount} touch{dueCount !== 1 ? 'es' : ''} due today
+            </div>
+            <button onClick={() => navigate('/reminders')} style={{ padding: '6px 14px', background: 'var(--warning)', color: '#000', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+              See who →
+            </button>
+          </div>
+        )}
 
         {/* Trial warning */}
         {billing?.plan === 'trial' && billing.playbooks_used >= 7 && (
