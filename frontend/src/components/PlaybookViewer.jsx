@@ -76,8 +76,6 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
   useEffect(() => {
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
   }, []);
-  const [sending, setSending] = useState({});
-  const [sent, setSent] = useState({});
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -123,28 +121,6 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     }
   };
 
-  const sendEmail = async (tabKey) => {
-    const emailContent = playbook[tabKey];
-    if (!emailContent || !playbook) return;
-    const lines = emailContent.split('\n');
-    const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
-    const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
-    const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
-    
-    if (!window.confirm(`Send "${subject}" via Zoho CRM?\n\nThis will send from your connected Zoho mailbox and track opens/clicks in your CRM.`)) return;
-    
-    setSending(true);
-    try {
-      const touchpointMap = { email1: 'email1', email2: 'email2', email3: 'email3', email4: 'email4' };
-      const r = await api.post(`/zoho/send-email/${leadId}`, { subject, body, touchpoint: touchpointMap[tabKey] });
-      setSent(s => ({ ...s, [tabKey]: true }));
-      setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to send. Make sure Zoho is connected in Team & Integrations.');
-    } finally {
-      setSending(false);
-    }
-  };
 
   const sendChat = async (text) => {
     const msg = text || chatInput.trim();
@@ -241,3 +217,5 @@ export default function PlaybookViewer({ playbook, leadId, lead, outlookConnecte
     </div>
   );
 }
+
+
