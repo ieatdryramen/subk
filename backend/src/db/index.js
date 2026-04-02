@@ -250,6 +250,8 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
 
+    CREATE UNIQUE INDEX IF NOT EXISTS company_profiles_org_id_unique ON company_profiles(org_id) WHERE org_id IS NOT NULL;
+    CREATE UNIQUE INDEX IF NOT EXISTS company_profiles_user_id_unique ON company_profiles(user_id) WHERE user_id IS NOT NULL;
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS legacy_system VARCHAR(100) DEFAULT 'Costpoint';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS compliance_focus TEXT;
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS workflow_pains TEXT;
@@ -282,6 +284,7 @@ const initDb = async () => {
 };
 
 module.exports = { pool, initDb };
+
 
 
 
