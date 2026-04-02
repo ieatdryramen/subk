@@ -117,9 +117,19 @@ export default function TeamPage() {
           {zohoConnected ? (
             <div>
               <span style={s.connectedBadge}>✓ Connected to Zoho CRM</span>
-              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
-                You can now push leads and playbooks to Zoho directly from any lead list.
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12, marginBottom: 12 }}>
+                Zoho is connected. You can push leads, sync playbooks, and send tracked emails directly from any playbook.
               </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {[
+                  '✓ Push contacts to Zoho',
+                  '✓ Sync full playbooks as notes',
+                  '✓ Send emails with open tracking',
+                  '✓ Sequences logged automatically',
+                ].map(f => (
+                  <span key={f} style={{ fontSize: 12, padding: '4px 10px', borderRadius: 20, background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)' }}>{f}</span>
+                ))}
+              </div>
             </div>
           ) : (
             <div>
@@ -128,27 +138,6 @@ export default function TeamPage() {
               </p>
               <button style={s.connectBtn} onClick={connectZoho} disabled={savingZoho}>
                 {savingZoho ? 'Redirecting to Zoho...' : 'Connect Zoho CRM'}
-              </button>
-            </div>
-          )}
-        </div>
-        {/* Outlook */}
-        <div style={s.zohoCard}>
-          <div style={s.cardTitle}>Microsoft Outlook</div>
-          {outlookStatus.connected ? (
-            <div>
-              <span style={s.connectedBadge}>✓ Connected — {outlookStatus.email}</span>
-              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
-                You can now send emails directly from any playbook. Each send is automatically logged as a completed touchpoint in the sequence tracker.
-              </p>
-            </div>
-          ) : (
-            <div>
-              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
-                Connect your Outlook to send emails directly from any playbook with one click. Sends are automatically tracked in the sequence tracker.
-              </p>
-              <button style={{ ...s.connectBtn, background: '#0078d4' }} onClick={connectOutlook}>
-                Connect Outlook
               </button>
             </div>
           )}
