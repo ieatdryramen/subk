@@ -5,14 +5,14 @@ import { useAuth } from '../hooks/useAuth';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { to: '/profile', label: 'Company Profile', icon: '◈' },
+  { to: '/profile', label: 'Profile', icon: '◈' },
   { to: '/lists', label: 'Lead Lists', icon: '◉' },
   { to: '/pipeline', label: 'Pipeline', icon: '▤' },
   { to: '/templates', label: 'Templates', icon: '◧' },
-  { to: '/team', label: 'Team & Integrations', icon: '◎' },
+  { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
+  { to: '/team', label: 'Integrations', icon: '◎' },
   { to: '/billing', label: 'Billing', icon: '◇' },
   { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
-  { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
 ];
 
 export default function Layout({ children }) {
