@@ -13,16 +13,48 @@ router.post('/generate/:leadId', auth, async (req, res) => {
     if (!leadResult.rows.length) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
 
-    const profileResult = await pool.query(
-      'SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]
-    );
-    if (!profileResult.rows.length) return res.status(400).json({ error: 'No company profile found. Set up your profile first.' });
-    const profile = profileResult.rows[0];
 
-    // Check usage limit
-    const userResult = await pool.query('SELECT org_id, email FROM users WHERE id=$1', [req.userId]);
+    // Build profile: org-level company context + user's personal name/role/tone
+    const userResult = await pool.query('SELECT org_id, email, full_name FROM users WHERE id=$1', [req.userId]);
     const orgId = userResult.rows[0]?.org_id;
     const userEmail = userResult.rows[0]?.email || '';
+
+    // Get org-level profile (the shared company context set by admin)
+    let orgProfile = null;
+    if (orgId) {
+      const orgProfileResult = await pool.query(
+        'SELECT * FROM company_profiles WHERE org_id=$1 ORDER BY updated_at DESC LIMIT 1', [orgId]
+      );
+      orgProfile = orgProfileResult.rows[0] || null;
+    }
+
+    // Get user's personal profile (name, role, tone)
+    const userProfileResult = await pool.query(
+      'SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]
+    );
+    const userProfile = userProfileResult.rows[0] || null;
+
+    // Merge: org context is the base, user personal settings override name/role/tone
+    const profile = {
+      ...(orgProfile || {}),
+      ...(userProfile || {}),
+      // Always use the org-level product context if available
+      name: orgProfile?.name || userProfile?.name || 'SumX AI',
+      product: orgProfile?.product || userProfile?.product || '',
+      value_props: orgProfile?.value_props || userProfile?.value_props || '',
+      icp: orgProfile?.icp || userProfile?.icp || '',
+      target_titles: orgProfile?.target_titles || userProfile?.target_titles || '',
+      objections: orgProfile?.objections || userProfile?.objections || '',
+      // User-specific overrides
+      sender_name: userProfile?.sender_name || userResult.rows[0]?.full_name || 'Your rep',
+      sender_role: userProfile?.sender_role || 'AE',
+      tone: userProfile?.tone || orgProfile?.tone || 'direct and confident',
+      custom_tone: userProfile?.custom_tone || orgProfile?.custom_tone || '',
+    };
+
+    if (!orgProfile && !userProfile) return res.status(400).json({ error: 'No company profile found. Set up your profile first.' });
+
+    // Check usage limit
     
     // Whitelist internal domains - unlimited access
     const whitelistedDomains = ['sumxai.com', 'sumx.ai'];
@@ -78,11 +110,46 @@ router.post('/generate-list/:listId', auth, async (req, res) => {
     const leads = leadsResult.rows;
     if (!leads.length) return res.status(400).json({ error: 'No leads in list' });
 
-    const profileResult = await pool.query(
+
+    // Build profile: org-level company context + user's personal name/role/tone
+    const userResult = await pool.query('SELECT org_id, email, full_name FROM users WHERE id=$1', [req.userId]);
+    const orgId = userResult.rows[0]?.org_id;
+    const userEmail = userResult.rows[0]?.email || '';
+
+    // Get org-level profile (the shared company context set by admin)
+    let orgProfile = null;
+    if (orgId) {
+      const orgProfileResult = await pool.query(
+        'SELECT * FROM company_profiles WHERE org_id=$1 ORDER BY updated_at DESC LIMIT 1', [orgId]
+      );
+      orgProfile = orgProfileResult.rows[0] || null;
+    }
+
+    // Get user's personal profile (name, role, tone)
+    const userProfileResult = await pool.query(
       'SELECT * FROM company_profiles WHERE user_id=$1', [req.userId]
     );
-    if (!profileResult.rows.length) return res.status(400).json({ error: 'No company profile found' });
-    const profile = profileResult.rows[0];
+    const userProfile = userProfileResult.rows[0] || null;
+
+    // Merge: org context is the base, user personal settings override name/role/tone
+    const profile = {
+      ...(orgProfile || {}),
+      ...(userProfile || {}),
+      // Always use the org-level product context if available
+      name: orgProfile?.name || userProfile?.name || 'SumX AI',
+      product: orgProfile?.product || userProfile?.product || '',
+      value_props: orgProfile?.value_props || userProfile?.value_props || '',
+      icp: orgProfile?.icp || userProfile?.icp || '',
+      target_titles: orgProfile?.target_titles || userProfile?.target_titles || '',
+      objections: orgProfile?.objections || userProfile?.objections || '',
+      // User-specific overrides
+      sender_name: userProfile?.sender_name || userResult.rows[0]?.full_name || 'Your rep',
+      sender_role: userProfile?.sender_role || 'AE',
+      tone: userProfile?.tone || orgProfile?.tone || 'direct and confident',
+      custom_tone: userProfile?.custom_tone || orgProfile?.custom_tone || '',
+    };
+
+    if (!orgProfile && !userProfile) return res.status(400).json({ error: 'No company profile found' });
 
     res.json({ message: 'Generation started', total: leads.length });
 
@@ -154,3 +221,4 @@ router.get('/:leadId', auth, async (req, res) => {
 });
 
 module.exports = router;
+
