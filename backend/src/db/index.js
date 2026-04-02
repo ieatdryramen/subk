@@ -122,6 +122,26 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_access_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
+    CREATE TABLE IF NOT EXISTS lead_notes (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      subject TEXT,
+      body TEXT,
+      touchpoint VARCHAR(50),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE;
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS sender_role VARCHAR(50) DEFAULT 'AE';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS custom_tone TEXT;
@@ -154,6 +174,26 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS outlook_email VARCHAR(255);
     CREATE UNIQUE INDEX IF NOT EXISTS sequence_events_lead_touchpoint ON sequence_events(lead_id, touchpoint);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
+    CREATE TABLE IF NOT EXISTS lead_notes (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS email_templates (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL,
+      subject TEXT,
+      body TEXT,
+      touchpoint VARCHAR(50),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `);
   console.log('Database initialized');
 };
