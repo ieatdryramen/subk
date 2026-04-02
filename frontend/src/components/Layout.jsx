@@ -8,6 +8,7 @@ const navItems = [
   { to: '/profile', label: 'Company Profile', icon: '◈' },
   { to: '/lists', label: 'Lead Lists', icon: '◉' },
   { to: '/pipeline', label: 'Pipeline', icon: '▤' },
+  { to: '/templates', label: 'Templates', icon: '◧' },
   { to: '/team', label: 'Team & Integrations', icon: '◎' },
   { to: '/billing', label: 'Billing', icon: '◇' },
   { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
