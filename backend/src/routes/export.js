@@ -33,7 +33,14 @@ const getLeads = async (listId, userId) => {
 };
 
 const escHtml = (str) => String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const escCsv = (str) => `"${String(str || '').replace(/"/g, '""')}"`;
+
+// Proper RFC 4180 CSV escaping: wrap in quotes, escape internal quotes by doubling them
+// Newlines inside fields are allowed and must stay inside the quoted field
+const escCsv = (val) => {
+  const str = String(val == null ? '' : val);
+  // Always wrap in double quotes; escape internal double quotes by doubling
+  return '"' + str.replace(/"/g, '""') + '"';
+};
 
 // HTML export
 router.get('/list/:listId/html', authFromQuery, async (req, res) => {
@@ -114,7 +121,7 @@ ${leads.map(lead => {
   }
 });
 
-// CSV export
+// CSV export — RFC 4180 compliant with \r\n row terminators
 router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
   try {
     const leads = await getLeads(req.params.listId, req.userId);
@@ -122,18 +129,30 @@ router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
     const listResult = await pool.query('SELECT name FROM lead_lists WHERE id=$1', [req.params.listId]);
     const listName = listResult.rows[0]?.name || 'Export';
 
-    const headers = ['Name','Company','Title','Email','LinkedIn','ICP Score','ICP Reason','Research','Email 1 (Day 1)','Email 2 (Day 3)','Email 3 (Day 7)','Email 4 (Day 14)','LinkedIn Messages','Call Opener','Objection Handling','Callbacks'];
+    const headers = [
+      'Name', 'Company', 'Title', 'Email', 'LinkedIn URL',
+      'ICP Score', 'ICP Reason',
+      'Research',
+      'Email 1 (Day 1)', 'Email 2 (Day 3)', 'Email 3 (Day 7)', 'Email 4 (Day 14)',
+      'LinkedIn Messages', 'Call Opener', 'Objection Handling', 'Callbacks'
+    ];
+
     const rows = leads.map(l => [
       l.full_name, l.company, l.title, l.email, l.linkedin,
       l.icp_score, l.icp_reason,
-      l.research, l.email1, l.email2, l.email3, l.email4,
-      l.linkedin_msg, l.call_opener, l.objection_handling, l.callbacks
-    ].map(escCsv));
+      l.research,
+      l.email1, l.email2, l.email3, l.email4,
+      l.linkedin, l.call_opener, l.objection_handling, l.callbacks
+    ].map(escCsv).join(','));
 
-    const csv = [headers.map(escCsv).join(','), ...rows.map(r => r.join(','))].join('\n');
+    // Use \r\n as row separator (RFC 4180 standard) — this prevents
+    // newlines inside quoted fields from being mistaken as row breaks
+    const CRLF = '\r\n';
+    const csv = [headers.map(escCsv).join(','), ...rows].join(CRLF) + CRLF;
+
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${listName.replace(/[^a-z0-9]/gi, '_')}_playbooks.csv"`);
-    res.send(csv);
+    res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
