@@ -12,7 +12,7 @@ const navItems = [
   { to: '/pipeline', label: 'Pipeline', icon: '▤' },
   { to: '/templates', label: 'Templates', icon: '◧' },
   { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
-  { to: '/team', label: 'Integrations', icon: '◎' },
+  { to: '/team', label: 'Team & Integrations', icon: '◎' },
   { to: '/billing', label: 'Billing', icon: '◇' },
   { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
   { to: '/activity', label: 'Activity Board', icon: '📊', adminOnly: true },
@@ -93,5 +93,6 @@ export default function Layout({ children }) {
     </>
   );
 }
+
 
 
