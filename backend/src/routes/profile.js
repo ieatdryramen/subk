@@ -2,11 +2,11 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
 
-// GET — return merged profile (org context + user personal)
 router.get('/', auth, async (req, res) => {
   try {
     const userR = await pool.query('SELECT org_id, role FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
+    const isAdmin = userR.rows[0]?.role === 'admin';
 
     let orgProfile = null;
     if (orgId) {
@@ -33,7 +33,7 @@ router.get('/', auth, async (req, res) => {
       tone: userProfile?.tone || orgProfile?.tone || '',
       custom_tone: userProfile?.custom_tone || '',
       website_url: orgProfile?.website_url || userProfile?.website_url || '',
-      is_admin: userR.rows[0]?.role === 'admin',
+      is_admin: isAdmin,
     };
 
     res.json(merged);
@@ -43,74 +43,79 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST — saves profile. Admins also save org-level context.
 router.post('/', auth, async (req, res) => {
-  const {
-    name, product, value_props, icp, target_titles, tone, objections,
-    sender_name, sender_role, custom_tone, website_url,
-  } = req.body;
-
   try {
     const userR = await pool.query('SELECT org_id, role FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
     const isAdmin = userR.rows[0]?.role === 'admin';
 
-    // Admins save company-level context to the org profile
+    const name = req.body.name || '';
+    const product = req.body.product || '';
+    const value_props = req.body.value_props || '';
+    const icp = req.body.icp || '';
+    const target_titles = req.body.target_titles || '';
+    const objections = req.body.objections || '';
+    const website_url = req.body.website_url || '';
+    const sender_name = req.body.sender_name || '';
+    const sender_role = req.body.sender_role || 'AE';
+    const tone = req.body.tone || '';
+    const custom_tone = req.body.custom_tone || '';
+
+    // Save org-level profile if admin
     if (isAdmin && orgId) {
-      const orgExists = await pool.query(
-        'SELECT id FROM company_profiles WHERE org_id=$1', [orgId]
-      );
-      if (orgExists.rows.length) {
-        await pool.query(
-          `UPDATE company_profiles SET
-            name=$1, product=$2, value_props=$3, icp=$4, target_titles=$5,
-            objections=$6, website_url=$7, updated_at=NOW()
-           WHERE org_id=$8`,
-          [name, product, value_props, icp, target_titles, objections, website_url, orgId]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO company_profiles (org_id, name, product, value_props, icp, target_titles, objections, website_url)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [orgId, name, product, value_props, icp, target_titles, objections, website_url]
-        );
-      }
+      await pool.query(
+        `INSERT INTO company_profiles (org_id, name, product, value_props, icp, target_titles, objections, website_url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+         ON CONFLICT (org_id) DO UPDATE SET
+           name=$2, product=$3, value_props=$4, icp=$5, target_titles=$6,
+           objections=$7, website_url=$8, updated_at=NOW()`,
+        [orgId, name, product, value_props, icp, target_titles, objections, website_url]
+      ).catch(async () => {
+        // org_id unique constraint may not exist yet — try update then insert
+        const exists = await pool.query('SELECT id FROM company_profiles WHERE org_id=$1', [orgId]);
+        if (exists.rows.length) {
+          await pool.query(
+            `UPDATE company_profiles SET name=$1, product=$2, value_props=$3, icp=$4,
+             target_titles=$5, objections=$6, website_url=$7, updated_at=NOW() WHERE org_id=$8`,
+            [name, product, value_props, icp, target_titles, objections, website_url, orgId]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO company_profiles (org_id, name, product, value_props, icp, target_titles, objections, website_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [orgId, name, product, value_props, icp, target_titles, objections, website_url]
+          );
+        }
+      });
     }
 
-    // Everyone saves personal settings
-    const personalExists = await pool.query(
-      'SELECT id FROM company_profiles WHERE user_id=$1', [req.userId]
-    );
-
-    let result;
-    if (personalExists.rows.length) {
-      result = await pool.query(
+    // Save personal profile (upsert by user_id)
+    const existing = await pool.query('SELECT id FROM company_profiles WHERE user_id=$1', [req.userId]);
+    if (existing.rows.length) {
+      await pool.query(
         `UPDATE company_profiles SET
           sender_name=$1, sender_role=$2, tone=$3, custom_tone=$4,
-          name=$5, product=$6, value_props=$7, icp=$8, target_titles=$9,
-          objections=$10, website_url=$11, updated_at=NOW()
-         WHERE user_id=$12 RETURNING *`,
-        [sender_name || '', sender_role || 'AE', tone || '', custom_tone || '',
-         name || '', product || '', value_props || '', icp || '',
-         target_titles || '', objections || '', website_url || '',
-         req.userId]
+          name=$5, product=$6, value_props=$7, icp=$8,
+          target_titles=$9, objections=$10, website_url=$11, updated_at=NOW()
+         WHERE user_id=$12`,
+        [sender_name, sender_role, tone, custom_tone,
+         name, product, value_props, icp,
+         target_titles, objections, website_url, req.userId]
       );
     } else {
-      result = await pool.query(
+      await pool.query(
         `INSERT INTO company_profiles
           (user_id, sender_name, sender_role, tone, custom_tone,
            name, product, value_props, icp, target_titles, objections, website_url)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-        [req.userId,
-         sender_name || '', sender_role || 'AE', tone || '', custom_tone || '',
-         name || '', product || '', value_props || '', icp || '',
-         target_titles || '', objections || '', website_url || '']
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        [req.userId, sender_name, sender_role, tone, custom_tone,
+         name, product, value_props, icp, target_titles, objections, website_url]
       );
     }
 
-    res.json({ success: true, profile: result.rows[0] });
+    res.json({ success: true });
   } catch (err) {
-    console.error('Profile POST error:', err.message, err.stack);
+    console.error('Profile POST error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
