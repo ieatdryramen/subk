@@ -87,7 +87,7 @@ const roleStrategy = {
     emailApproach: 'Short, pattern-interrupting, one question at the end. Never more than 5 sentences. Sounds like a text from a smart person who actually knows GovCon, not a sales email.',
     callApproach: 'Lead with a specific observation about their system or workflow pain, ask for permission, then shut up and listen.',
     linkedinApproach: 'Connect request with a one-liner that shows you know their world. DM should be 2-3 sentences max.',
-    winningMove: 'Show you know what it feels like to live in Costpoint. That earns the next conversation.',
+    winningMove: 'Show you know what GovCon finance teams deal with in legacy ERPs. Do not name their system — ask about the pain instead.',
   },
   AE: {
     mission: 'Get to a business case conversation. Show you understand their ERP pain better than their current vendor does.',
@@ -204,7 +204,7 @@ BANNED STRUCTURES:
 
 HARD RULES:
 1. Every email opens with a specific observation about THEIR world — their title's daily reality, their likely current system's workflow, their industry compliance pressure. Not about SumX. Not about you.
-2. Lead with process pain, not product features. The question "how many screens does it take you to do X in Costpoint right now?" is more powerful than any feature claim.
+2. Lead with process pain, not product features. Ask about their workflow — "how many screens does it take you to do X in your current system?" is more powerful than any feature claim. Do NOT name Costpoint or any specific ERP in emails — you don't know what they use.
 3. Email 1: 4-6 sentences. One observation, one implication, one question. Signed: ${senderName}
 4. Email 2: Completely different angle — a specific workflow scenario, a consequence of the current system, or something their peers are dealing with. No product pitch. Signed: ${senderName}
 5. Email 3: Under 75 words total. One thing. One question. Nothing else. Signed: ${senderName}
@@ -233,7 +233,7 @@ Return ONLY valid JSON (no markdown, no backticks):
   "linkedin": "CONNECTION REQUEST (under 300 chars, no pitch):\\n[One line that shows you know their world — their title, their system, their industry. Not a pitch.]\\n\\nFOLLOW-UP DM (after they accept):\\n[2-3 sentences. A genuine question about their current workflow or system situation. No pitch.]\\n\\nIF NO RESPONSE DM:\\n[Final short message. Adds something genuinely useful about GovCon or their role. Different question.]",
   "call_opener": "OPENING (under 18 seconds):\\n[Name, SumX, one specific reason you're calling THIS person based on their title and likely system. No stats. No pitch. A real observation about their world.]\\n[Natural permission ask]\\n\\nIF THEY HAVE 2 MIN — DISCOVERY:\\n1. [Question about their current system and how they handle a specific workflow]\\n2. [Question that surfaces the real cost of that workflow]\\n3. [Question about what happens when something goes wrong — audit, billing error, key person leaving]\\n\\nWHEN THEY BRUSH YOU OFF:\\n'Not interested' → [2 sentences that earn 30 more seconds without being pushy — reference a specific workflow pain]\\n'Send me an email' → [Validates but keeps the conversation — asks one quick diagnostic question]\\n'We already have something' → [Plants a seed about the specific pain their current system causes — no argument]\\n'Bad timing' → [Acknowledges timing, plants the seed for when it makes sense — asks what would need to change]",
   "objection_handling": "OBJECTION: [exact words] | RESPONSE: [conversational, confident — sounds like someone who has heard this 100 times and still believes in what they are selling]\\n\\n[Cover: migration fear, timing, 'our controller knows all the workarounds', 'we just implemented Costpoint', DCAA compliance concern, cost, 'we're too small']\\n\\nNever start with 'Great question' or 'I understand your concern'.",
-  "callbacks": "CONVERSATION HANDLES — things to say to keep the call alive:\\n\\n1. [Specific Costpoint/legacy system workflow that is genuinely painful — name it specifically]\\n2. [A question about their audit prep or DCAA compliance that makes them think]\\n3. [A scenario: 'what happens when your controller is out and someone else has to figure out where the billing is'] \\n4. [A question about their timesheet process and how long approval takes]\\n5. [A natural next step — 'would it be worth 20 minutes to see what this looks like for your specific setup']\\n6. [If they go quiet — a re-engagement question about a specific pain, not a pitch]\\n7. [A peer reference setup: 'one of your counterparts at a similar-sized GovCon firm said X — does that resonate']\\n8. [A value-add: something genuinely useful about GovCon compliance or billing even if they don't buy]"
+  "callbacks": "CONVERSATION HANDLES — things to say to keep the call alive:\\n\\n1. [A specific ERP workflow pain stated as a question about their experience — do NOT name Costpoint or assume their system]\\n2. [A question about their audit prep or DCAA compliance that makes them think]\\n3. [A scenario: 'what happens when your controller is out and someone else has to figure out where the billing is'] \\n4. [A question about their timesheet process and how long approval takes]\\n5. [A natural next step — 'would it be worth 20 minutes to see what this looks like for your specific setup']\\n6. [If they go quiet — a re-engagement question about a specific pain, not a pitch]\\n7. [A peer reference setup: 'one of your counterparts at a similar-sized GovCon firm said X — does that resonate']\\n8. [A value-add: something genuinely useful about GovCon compliance or billing even if they don't buy]"
 }`;
 
   const message = await withTimeout(
@@ -289,3 +289,4 @@ You have the full playbook. When asked to rewrite something, rewrite it complete
 };
 
 module.exports = { generatePlaybook, chatWithPlaybook };
+
