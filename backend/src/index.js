@@ -25,6 +25,7 @@ app.use('/api/billing', require('./routes/billing'));
 app.use('/api/sequence', require('./routes/sequence'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/outlook', require('./routes/outlook'));
+app.use('/api/cardscan', require('./routes/cardscan'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.2.0' }));
 
