@@ -78,20 +78,19 @@ const generatePlaybook = async (lead, profile) => {
     researchBrief = `${lead.full_name || 'This person'} is a ${lead.title || 'professional'} at ${lead.company || 'their company'}. Use your general knowledge about their role and industry.`;
   }
 
-  const prompt = `You are writing a sales playbook for ${profile.sender_name || 'a rep'} (${role}) at ${profile.name}.
+  const prompt = `You are writing a B2B sales playbook for ${profile.sender_name || 'a rep'} (${role}) at ${profile.name}.
 
 SELLER:
 - Product: ${profile.product}
-- Key value props: ${profile.value_props}
+- Value props: ${profile.value_props}
 - ICP: ${profile.icp}
 - Tone: ${profile.tone}
-- Objections: ${profile.objections}
+- Known objections: ${profile.objections}
 
 PROSPECT:
-- Name: ${lead.full_name}
+- Name: ${lead.full_name || 'this person'}
 - Company: ${lead.company}
 - Title: ${lead.title}
-- Email: ${lead.email || 'unknown'}
 - Notes: ${lead.notes || 'none'}
 
 INTEL:
@@ -99,22 +98,33 @@ ${researchBrief}
 
 ROLE CONTEXT (${role}):
 Goal: ${ctx.goal}
-Email style: ${ctx.emailStyle}
-Call style: ${ctx.callStyle}
+Focus: ${ctx.focus}
+Email approach: ${ctx.emailStyle}
+Call approach: ${ctx.callStyle}
 
-RULES:
-- Never name specific competitor products. Say "your current solution" or "existing tools".
-- Emails must sound human. No "I hope this finds you well." No buzzwords.
-- Each email takes a completely different angle.
-- Ground everything in the intel above.
+WRITING RULES — READ CAREFULLY:
+1. NEVER open with "I've been working with X firms/companies/clients who..." — this is the most overused AI sales email opener and immediately signals automation. Find a different way in.
+2. NEVER stack multiple statistics in one email. One specific, believable number is more powerful than four vague percentages.
+3. NEVER use "hours saved," "time savings," or "efficiency gains" as the lead value prop — these feel generic. Lead with business outcomes: revenue, risk, competitive position, or a problem they haven't solved.
+4. Each email must take a STRUCTURALLY different approach:
+   - Email 1: Lead with a specific observation about THEIR company or situation. Ask one question.
+   - Email 2: Share a short story or insight from a similar company. No pitch. End with curiosity.
+   - Email 3: Ultra short. One sentence observation, one question. Under 75 words total.
+   - Email 4: Honest breakup. Acknowledge the silence. Leave the door open. Under 50 words.
+5. Call opener must be under 20 seconds to say out loud. No statistics in the opener.
+6. Sound like a smart human who did research — not a bot that scraped data.
+7. Never say "I hope this finds you well," "touch base," "circle back," "synergy," or "solution."
+8. No competitor names. Say "your current approach" or "how you do this today."
+9. Sign every email with just the sender's first name on its own line.
+10. Objection responses should feel conversational, not scripted.
 
 Return ONLY a JSON object:
 {
   "research": "The intel brief above, formatted as 3 clean paragraphs",
-  "email1": "SUBJECT: [subject]\\n\\n[Day 1 - ${ctx.emailStyle} Sign: ${profile.sender_name || 'your name'}]",
-  "email2": "SUBJECT: [subject]\\n\\n[Day 3 - different angle entirely. Sign: ${profile.sender_name || 'your name'}]",
-  "email3": "SUBJECT: [subject]\\n\\n[Day 7 - useful insight or perspective. Under 100 words. Sign: ${profile.sender_name || 'your name'}]",
-  "email4": "SUBJECT: [subject]\\n\\n[Day 14 - breakup. Under 60 words. Sign: ${profile.sender_name || 'your name'}]",
+  "email1": "SUBJECT: [subject line — specific, not clever]\\n\\n[Email body. 4-6 sentences max. One question at the end.]\\n\\n${profile.sender_name || 'Your name'}",
+  "email2": "SUBJECT: [different subject — could be a story angle]\\n\\n[Email body. Different structure than email 1. Story or insight, not pitch.]\\n\\n${profile.sender_name || 'Your name'}",
+  "email3": "SUBJECT: [short subject]\\n\\n[Under 75 words. One observation. One question. Nothing else.]\\n\\n${profile.sender_name || 'Your name'}",
+  "email4": "SUBJECT: [subject]\\n\\n[Under 50 words. Honest, human breakup. No guilt trip.]\\n\\n${profile.sender_name || 'Your name'}",
   "linkedin": "CONNECTION REQUEST:\\n[under 300 chars, peer tone]\\n\\nDM 1 (after connecting):\\n[conversational]\\n\\nDM 2 (4 days later):\\n[value-add]",
   "call_opener": "OPENING (20 sec):\\n[${ctx.callStyle}]\\n\\nIF THEY HAVE 2 MIN:\\n[tight pitch]\\n\\nDISCOVERY QUESTIONS:\\n1. [situation]\\n2. [pain]\\n3. [impact]\\n4. [qualify]\\n\\nBRUSH-OFF RESPONSES:\\n[3 common ones with natural responses]",
   "objection_handling": "OBJECTION: [their words] | RESPONSE: [natural confident rebound]\\n\\n[Cover each of: ${profile.objections}\\nPlus 2 specific to this prospect]",
