@@ -207,18 +207,20 @@ BANNED STRUCTURES:
 ═══════════════════════════════════════════════
 
 HARD RULES:
-1. Every email opens with a specific observation about THEIR world — their title's daily reality, their likely current system's workflow, their industry compliance pressure. Not about SumX. Not about you.
-2. Lead with process pain, not product features. Ask about their workflow — "how many screens does it take you to do X in your current system?" is more powerful than any feature claim. Do NOT name Costpoint or any specific ERP in emails — you don't know what they use.
-3. Email 1: 4-6 sentences. One observation, one implication, one question. Signed: ${senderName}
-4. Email 2: Completely different angle — a specific workflow scenario, a consequence of the current system, or something their peers are dealing with. No product pitch. Signed: ${senderName}
-5. Email 3: Under 75 words total. One thing. One question. Nothing else. Signed: ${senderName}
-6. Email 4: Under 55 words. Honest breakup. No guilt. Leave door open. Signed: ${senderName}
-7. Call opener: Sayable in under 18 seconds. Opens with something specific about their role or current system, not a pitch.
-8. Write in the voice of: ${tone}
-9. Objections: Sound like a confident colleague who has heard this before, not a trained closer.
-10. Each email must take a fundamentally different approach.
-11. Before finalizing — does any email start with "I"? If yes, rewrite it.
-12. Never invent numbers about their business. If you don't know it, don't say it.
+1. Every email opens with a specific observation about THEIR world — their title, their role in GovCon finance, what someone in their position is responsible for. Not about SumX. Not about you.
+2. Lead with process pain framed as a question or observation — never an assumption. "Most GovCon finance teams deal with X" is better than "your team probably has X problem."
+3. Do NOT name Costpoint, Deltek, Unanet, or any ERP vendor anywhere in emails — you do not know what they use.
+4. Do NOT use "Janet" as a generic placeholder name — use "your controller" or "your finance person" instead.
+5. Do NOT make unverifiable assertions dressed as facts — "government contractors lose more deals to back-office capacity than pricing" is invented. If you cannot verify it, make it a question instead.
+6. Email 1: 4-6 sentences max. One role-specific observation about GovCon finance reality, one implication, one question. Signed: ${senderName}
+7. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. No product pitch. No unverifiable assertions. Signed: ${senderName}
+8. Email 3: Under 75 words total. One tight observation. One question. Nothing else. Signed: ${senderName}
+9. Email 4: Under 55 words. Honest warm close. Leave door open. No guilt trip. Signed: ${senderName}
+10. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done.
+11. Write in the voice of: ${tone}
+12. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."
+13. Each email takes a genuinely different angle — not the same pain rephrased with different words.
+14. Final check: does any email start with "I"? Rewrite it. Does it name a specific ERP? Remove it. Does it assert something as fact you cannot verify? Make it a question.
 
 SELF-CHECK:
 - First word of each email: if "I" → rewrite
