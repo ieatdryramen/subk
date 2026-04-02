@@ -53,7 +53,7 @@ const TONES = [
   { value: 'conversational and human, like a trusted colleague who has been in the GovCon world a long time', label: 'Conversational', desc: 'Human, low pressure' },
   { value: 'challenger style, leading with a provocative observation about their current system that reframes their thinking', label: 'Challenger', desc: 'Reframe their thinking' },
   { value: 'formal and precise, with careful business language appropriate for CFO and executive audiences', label: 'Formal & executive', desc: 'C-suite ready' },
-  { value: 'like someone who has sat in enough Costpoint demos to know exactly where the bodies are buried — direct, no fluff, genuinely believes this is better, not trying to sell you something you do not need. Peer energy. If it is not a fit I will tell you. If it is, I will show you exactly why.', label: 'Founder energy', desc: 'High conviction' },
+  { value: 'like someone who has sat in enough Costpoint demos to know exactly where the bodies are buried. Direct, no fluff, genuinely believes this is better, not trying to sell you something you do not need. Peer energy. If it is not a fit, say so. If it is, show exactly why.', label: 'Founder energy', desc: 'High conviction' },
 ];
 
 export default function ProfilePage() {
@@ -213,7 +213,7 @@ export default function ProfilePage() {
         {/* Built-in GovCon context */}
         <div style={s.card}>
           <div style={s.cardTitle}>🔒 Built-in GovCon intelligence</div>
-          <div style={s.cardSub}>This knowledge is locked into the AI — it doesn't need to live in a form.</div>
+          <div style={s.cardSub}>This knowledge is locked into the AI — it does not need to live in a form.</div>
           <div style={s.divider} />
           <div style={s.contextBox}>
             <div style={{ marginBottom: 8 }}><strong style={{ color: 'var(--text)' }}>Positioning against:</strong> Costpoint, Deltek Vision/Vantagepoint, Unanet, QuickBooks</div>
@@ -263,3 +263,4 @@ export default function ProfilePage() {
     </Layout>
   );
 }
+
