@@ -136,7 +136,7 @@ export default function AdminDashboard() {
               <div key={i} style={s.activityItem}>
                 <div style={s.activityDot(a.type)} />
                 <div style={s.activityText}>
-                  <strong>{a.user_name || 'Someone'}</strong> {a.type === 'playbook' ? 'generated a playbook for' : 'completed a touchpoint with'} <strong>{a.lead_name}</strong> at {a.company}
+                  <strong>{a.user_name || 'Someone'}</strong> {a.type === 'playbook' ? 'generated a playbook for' : 'completed a touchpoint with'} <strong>{[a.lead_name, a.company].filter(Boolean).join(' at ') || 'a lead'}</strong>
                 </div>
                 <div style={s.activityTime}>{timeAgo(a.timestamp)}</div>
               </div>
