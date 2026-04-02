@@ -241,7 +241,17 @@ const initDb = async () => {
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
+    CREATE TABLE IF NOT EXISTS org_sequence_config (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE UNIQUE,
+      config JSONB,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_stage VARCHAR(50) DEFAULT 'not_started';
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
   console.log('Database initialized');
 };
 
 module.exports = { pool, initDb };
+
