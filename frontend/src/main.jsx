@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import CardScanPage from './pages/CardScanPage';
 import PipelinePage from './pages/PipelinePage';
 import TemplatesPage from './pages/TemplatesPage';
+import RemindersPage from './pages/RemindersPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -44,6 +45,7 @@ const App = () => (
         <Route path="/cardscan" element={<Protected><CardScanPage /></Protected>} />
         <Route path="/pipeline" element={<Protected><PipelinePage /></Protected>} />
         <Route path="/templates" element={<Protected><TemplatesPage /></Protected>} />
+        <Route path="/reminders" element={<Protected><RemindersPage /></Protected>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
