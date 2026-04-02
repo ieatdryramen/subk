@@ -188,4 +188,19 @@ router.get('/status', auth, async (req, res) => {
   }
 });
 
+router.post('/disconnect', auth, async (req, res) => {
+  try {
+    const userResult = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userResult.rows[0]?.org_id;
+    await pool.query(
+      `UPDATE company_profiles SET zoho_refresh_token=NULL WHERE user_id=$1 OR org_id=$2`,
+      [req.userId, orgId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
+
