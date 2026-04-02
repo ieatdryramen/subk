@@ -113,33 +113,77 @@ Call approach: ${strategy.callApproach}
 LinkedIn approach: ${strategy.linkedinApproach}
 Winning move: ${strategy.winningMove}
 
-HARD RULES — THESE ARE NON-NEGOTIABLE:
-1. BANNED OPENER: Never start any email with "I've been working with X companies/firms/clients who..." — this is the most overused AI sales opener. It will be rejected.
-2. BANNED METRICS STYLE: Never stack multiple statistics. One concrete, believable number per email if needed. "15-20 hours saved" type language is weak — it's vague and everyone says it.
-3. BANNED PHRASES: "touch base," "circle back," "synergies," "solution," "hope this finds you well," "I wanted to reach out," "just following up," "I know you're busy," "game-changing," "best-in-class"
-4. BANNED APPROACH: Don't lead with your product. Lead with their situation.
-5. EMAIL STRUCTURE RULES:
-   - Email 1: Start with a specific observation about THEIR company or role. One question at the end. 4-6 sentences. Signed: ${senderName}
-   - Email 2: Completely different angle. Could be a short story, a provocative insight, or a contrarian take. No pitch. End with curiosity or a question. Signed: ${senderName}
-   - Email 3: Ultra short. Under 75 words. One thing you noticed or learned. One question. Nothing else. Signed: ${senderName}
-   - Email 4: Honest 3-4 sentence breakup. Don't guilt-trip. Leave the door open genuinely. Under 55 words. Signed: ${senderName}
-6. CALL OPENER: Must be sayable in under 18 seconds. No stats in the opener. Specific reason why you're calling them specifically.
-7. VOICE: Write in a voice that sounds like ${tone}. This is ${senderName}'s personality coming through — not generic "sales rep" energy.
-8. OBJECTIONS: Sound like a confident, smart person talking — not a script. Natural pushback, not rehearsed rebuttals.
-9. CALLBACKS: These are actual things to SAY in a conversation — not bullet points summarizing the pitch. Specific hooks, questions, or angles that keep a conversation going.
-10. Each section must be genuinely different from the others — don't just rephrase the same point.
+═══════════════════════════════════════════════
+ABSOLUTE BANNED LIST — INSTANT DISQUALIFICATION
+If ANY of the following appear anywhere in your output, the entire playbook is rejected and must be rewritten from scratch:
 
-Return ONLY valid JSON (no markdown, no backticks):
+BANNED OPENERS (first sentence of any email CANNOT start with or contain):
+✗ "I've been working with"
+✗ "I've been helping"  
+✗ "I work with [X] companies/firms/clients who..."
+✗ "I noticed that"
+✗ "I came across your"
+✗ "I wanted to reach out"
+✗ "Hope this finds you"
+✗ "I know you're busy"
+✗ "Just following up"
+✗ "Quick question"
+✗ "Touching base"
+✗ "Checking in"
+✗ "I recently came across"
+✗ "I was doing some research and"
+
+BANNED PHRASES (cannot appear anywhere):
+✗ "touch base" / "circle back" / "loop back"
+✗ "synergies" / "game-changing" / "best-in-class" / "world-class"
+✗ "solution" (use specific product name instead)
+✗ "leverage" (as a verb)
+✗ "utilize" (say "use")
+✗ "pain points" (say what the actual problem is)
+✗ "value proposition" (show it, don't name it)
+✗ "low-hanging fruit"
+✗ "move the needle"
+✗ "at the end of the day"
+✗ Stacked statistics ("15-20% improvement... 40% reduction... 3x faster...")
+
+BANNED STRUCTURES:
+✗ Starting Email 1 by talking about yourself or your company
+✗ More than ONE statistic in any single email
+✗ Any email that reads like a pitch deck summary
+✗ Objection responses that start with "Great question!" or "I understand your concern"
+✗ Generic subjects like "Quick question," "Following up," "Checking in," "Introduction"
+═══════════════════════════════════════════════
+
+HARD RULES:
+1. Every email must open with a specific, verifiable observation about THEIR company, THEIR role, or THEIR industry — not about you, not about your other clients.
+2. Email 1: 4-6 sentences max. Signed: ${senderName}
+3. Email 2: Completely different angle — short story, contrarian take, or provocative insight. No pitch. Signed: ${senderName}
+4. Email 3: Under 75 words total. One thing. One question. Nothing else. Signed: ${senderName}
+5. Email 4: Under 55 words. Honest breakup. No guilt. Leave door open. Signed: ${senderName}
+6. Call opener: Sayable in under 18 seconds. No stats in opening line. Specific reason for calling THIS person.
+7. Write in the voice of: ${tone}. Not generic sales rep energy — ${senderName}'s actual personality.
+8. Objections: Sound like a confident colleague, not a trained closer. Natural, not scripted.
+9. Each of the 4 emails must take a fundamentally different approach — not the same point rephrased.
+10. Before finalizing, mentally check: does any email start with "I"? If yes, rewrite it.
+
+SELF-CHECK BEFORE OUTPUTTING:
+- Read the first word of each email. If it's "I" — rewrite.
+- Scan for any banned phrase. If found — rewrite that section.
+- Does Email 3 exceed 75 words? If yes — cut it down.
+- Does Email 4 exceed 55 words? If yes — cut it down.
+- Are there multiple statistics in one email? Remove all but the strongest one.
+
+Return ONLY valid JSON (no markdown, no backticks, no commentary before or after):
 {
   "research": "The research brief reformatted as 3 clean readable paragraphs for the rep",
-  "email1": "SUBJECT: [specific subject — not a question, not clever, just clear]\\n\\n[email body — starts with specific observation, ends with one question]\\n\\n${senderName}",
+  "email1": "SUBJECT: [specific subject — not a question, not clever, just clear and specific to them]\\n\\n[email body — opens with observation about THEIR world, ends with one question]\\n\\n${senderName}",
   "email2": "SUBJECT: [different approach subject]\\n\\n[email body — completely different angle, story or insight, no feature pitch]\\n\\n${senderName}",
-  "email3": "SUBJECT: [short subject]\\n\\n[Under 75 words. One thing. One question.]\\n\\n${senderName}",
-  "email4": "SUBJECT: [subject]\\n\\n[Under 55 words. Honest breakup. No guilt trip. Leave door open.]\\n\\n${senderName}",
-  "linkedin": "CONNECTION REQUEST (under 300 chars, no pitch):\\n[specific reason to connect]\\n\\nFOLLOW-UP DM (after they accept):\\n[2-3 sentences, genuine question, no pitch]\\n\\nIF NO RESPONSE DM:\\n[final short message, adds value or asks a different question]",
-  "call_opener": "OPENING (say this in under 18 seconds):\\n[Your name, company, one specific reason you're calling THEM — tied to something about their company or role]\\n[Natural permission ask or question]\\n\\nIF THEY HAVE 2 MINUTES — REAL DISCOVERY QUESTIONS:\\n1. [Open question about their current situation]\\n2. [Question that surfaces a real problem]\\n3. [Question about impact or cost of that problem]\\n\\nWHEN THEY BRUSH YOU OFF:\\n'Not interested' → [Natural 2-sentence response that earns 30 more seconds without being pushy]\\n'Send me an email' → [Response that validates but keeps the conversation]\\n'We already have something' → [Response that plants doubt without being combative]",
-  "objection_handling": "OBJECTION: [exact words they'd use] | RESPONSE: [conversational, confident response that doesn't sound scripted]\\n\\n[Cover: ${profile.objections}\\nPlus 2-3 objections specific to this person's title/company/situation]\\n\\nNote: every response should sound like a smart colleague talking, not a trained closer.",
-  "callbacks": "CONVERSATION HANDLES — specific things to say to keep a call alive:\\n\\n1. [Specific observation about their company/market that creates conversation]\\n2. [A question that makes them think — not a leading question, a genuine one]\\n3. [A provocation or contrarian view relevant to their industry]\\n4. [A 'have you tried...' or 'I've noticed companies like yours...' angle that's genuinely insightful]\\n5. [A reason to follow up — something that creates a natural next step]\\n6. [If they go quiet — a question that re-engages without being pushy]\\n7. [A story setup: 'One of your competitors did X and saw Y — curious if that resonates']\\n8. [A value-add: something you can offer even if they don't buy — a resource, insight, or intro]"
+  "email3": "SUBJECT: [short subject]\\n\\n[Under 75 words TOTAL including subject. One thing. One question.]\\n\\n${senderName}",
+  "email4": "SUBJECT: [subject]\\n\\n[Under 55 words TOTAL. Honest breakup. No guilt trip. Leave door open.]\\n\\n${senderName}",
+  "linkedin": "CONNECTION REQUEST (under 300 chars, no pitch):\\n[specific one-line reason to connect — references something real about them]\\n\\nFOLLOW-UP DM (after they accept):\\n[2-3 sentences, genuine question, no pitch]\\n\\nIF NO RESPONSE DM:\\n[final short message, adds value or asks a genuinely different question]",
+  "call_opener": "OPENING (say this in under 18 seconds):\\n[Name, company, ONE specific reason you're calling THIS person — tied to something real about their company or role. No stats in the opener.]\\n[Natural permission ask]\\n\\nIF THEY HAVE 2 MIN — DISCOVERY QUESTIONS:\\n1. [Open question about their current situation]\\n2. [Question that surfaces a real problem]\\n3. [Question about impact or cost of that problem]\\n\\nWHEN THEY BRUSH YOU OFF:\\n'Not interested' → [Natural 2-sentence response that earns 30 more seconds without being pushy]\\n'Send me an email' → [Response that validates but keeps the conversation]\\n'We already have something' → [Response that plants doubt without being combative]",
+  "objection_handling": "OBJECTION: [exact words they'd use] | RESPONSE: [conversational, confident — sounds like a smart colleague, not a script]\\n\\n[Cover the objections from the profile PLUS 2-3 specific to this person's title/company/situation]\\n\\nNever start a response with 'Great question' or 'I understand your concern'.",
+  "callbacks": "CONVERSATION HANDLES — specific things to say to keep a call alive:\\n\\n1. [Specific observation about their company or market that creates real conversation]\\n2. [A question that makes them actually think — not leading, genuinely curious]\\n3. [A provocation or contrarian view relevant to their specific industry]\\n4. [A 'companies at your stage typically...' angle with a specific, genuine insight]\\n5. [A reason to follow up — something that creates a natural next step]\\n6. [If they go quiet — a re-engagement question that isn't pushy]\\n7. [A story setup: 'One of your competitors did X — curious if that dynamic is playing out for you']\\n8. [A value-add: something genuinely useful to them even if they don't buy]"
 }`;
 
   const message = await withTimeout(
