@@ -313,15 +313,12 @@ const initDb = async () => {
 
     -- Clean up backfill activity_log pollution
     DELETE FROM activity_log al
-    WHERE al.lead_id IS NOT NULL
-      AND EXISTS (
-        SELECT 1 FROM sequence_events se
-        WHERE se.lead_id = al.lead_id
-          AND se.touchpoint = al.touchpoint
-          AND se.status = 'done'
-          AND DATE(se.completed_at) != DATE(al.logged_at)
-          AND al.logged_at::date = (SELECT MIN(logged_at)::date FROM activity_log WHERE user_id = al.user_id)
-      );
+    USING sequence_events se
+    WHERE al.lead_id = se.lead_id
+      AND al.touchpoint = se.touchpoint
+      AND se.status = 'done'
+      AND al.lead_id IS NOT NULL
+      AND DATE(al.logged_at) != DATE(se.completed_at);
   `);
   console.log('Database initialized');
 };
