@@ -31,21 +31,20 @@ export default function Dashboard() {
 
   useEffect(() => {
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
-    Promise.all([
-      api.get('/lists'),
-      api.get('/admin/dashboard').catch(() => null),
-      api.get('/billing/status').catch(() => null),
-    ]).then(([listsRes, adminRes, billingRes]) => {
-      setLists(listsRes.data || []);
-      if (adminRes?.data) {
-        const me = adminRes.data.members?.find(m => m.email === user?.email);
-        setStats(me);
-        setTopLeads(adminRes.data.topLeads?.slice(0, 6) || []);
-        setActivity(adminRes.data.activity?.slice(0, 10) || []);
-      }
-      if (billingRes?.data) setBilling(billingRes.data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    // Load lists fast, then dashboard separately so lists show immediately
+    api.get('/lists').then(r => setLists(r.data || [])).catch(() => {});
+    api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
+    api.get('/admin/dashboard')
+      .then(r => {
+        if (r.data?.stats) {
+          // Backend returns aggregate stats directly
+          setStats(r.data.stats);
+          setTopLeads(r.data.topLeads?.slice(0, 6) || []);
+          setActivity(r.data.activity?.slice(0, 10) || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [user]);
 
   const totalLeads = lists.reduce((a, l) => a + parseInt(l.lead_count || 0), 0);
@@ -53,10 +52,10 @@ export default function Dashboard() {
   const firstName = user?.full_name?.split(' ')[0] || 'there';
 
   const statCards = [
-    { n: stats?.playbooks_generated || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)' },
-    { n: totalLeads, label: 'Total leads', sub: `${readyLeads} playbooks ready`, color: 'var(--text)' },
+    { n: stats?.total_playbooks || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)' },
+    { n: stats?.total_leads || totalLeads, label: 'Total leads', sub: `${readyLeads} playbooks ready`, color: 'var(--text)' },
     { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'Across all sequences', color: 'var(--success)' },
-    { n: lists.length, label: 'Lead lists', sub: 'Active lists', color: 'var(--text2)' },
+    { n: stats?.total_lists || lists.length, label: 'Lead lists', sub: 'Active lists', color: 'var(--text2)' },
   ];
 
   return (

@@ -11,6 +11,9 @@ const adminOnly = async (req, res, next) => {
 // Get team overview dashboard - fast version, no joins
 router.get('/dashboard', auth, async (req, res) => {
   try {
+    // Set 4 second timeout so dashboard never hangs the UI
+    await pool.query("SET statement_timeout = '4000'").catch(() => {});
+
     const userR = await pool.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
     const u = userR.rows[0];
     const userId = parseInt(u.id);
@@ -31,10 +34,16 @@ router.get('/dashboard', auth, async (req, res) => {
       pool.query("SELECT COUNT(*) as n FROM sequence_events WHERE user_id = ANY($1) AND status='done' AND touchpoint!='zoho_note_added'", [userIds]),
       pool.query(`
         SELECT u.id, u.email, u.full_name, u.role,
-          (SELECT COUNT(*) FROM leads WHERE user_id=u.id) as leads_created,
-          (SELECT COUNT(*) FROM playbooks WHERE user_id=u.id) as playbooks_generated,
-          (SELECT COUNT(*) FROM sequence_events WHERE user_id=u.id AND status='done' AND touchpoint!='zoho_note_added') as touchpoints_completed
-        FROM users u WHERE u.id = ANY($1) ORDER BY u.created_at
+          COUNT(DISTINCT l.id) as leads_created,
+          COUNT(DISTINCT p.id) as playbooks_generated,
+          COUNT(DISTINCT se.id) FILTER (WHERE se.status='done' AND se.touchpoint!='zoho_note_added') as touchpoints_completed
+        FROM users u
+        LEFT JOIN leads l ON l.user_id = u.id
+        LEFT JOIN playbooks p ON p.user_id = u.id
+        LEFT JOIN sequence_events se ON se.user_id = u.id
+        WHERE u.id = ANY($1)
+        GROUP BY u.id, u.email, u.full_name, u.role
+        ORDER BY u.created_at
       `, [userIds]),
       pool.query(`
         (SELECT 'playbook' as type, u.full_name as user_name, l.full_name as lead_name, l.company, p.generated_at as timestamp
