@@ -207,6 +207,8 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     setContentDraft(localPlaybook[activeTab] || '');
     setEditingContent(true);
   };
+
+  const startEditInfo = () => {
     setInfoForm({
       full_name: localLead.full_name || '',
       company: localLead.company || '',
