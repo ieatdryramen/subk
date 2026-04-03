@@ -63,7 +63,7 @@ export default function PipelinePage() {
   const [icpFilter, setIcpFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkStage, setBulkStage] = useState('');
-  const [bulkMoving, setBulkMoving] = useState(false);
+  const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
   const navigate = useNavigate();
 
   const currentView = VIEW_MODES.find(v => v.key === viewMode);
@@ -96,13 +96,25 @@ export default function PipelinePage() {
   const bulkMove = async () => {
     if (!bulkStage || !selectedIds.size) return;
     setBulkMoving(true);
+    setBulkMoveProgress(0);
+    const ids = [...selectedIds];
+    const total = ids.length;
+    // Optimistic update
     setLeads(ls => ls.map(l => selectedIds.has(l.id) ? { ...l, [stageField]: bulkStage, sequence_stage: viewMode === 'all' ? bulkStage : l.sequence_stage } : l));
     try {
-      await Promise.all([...selectedIds].map(id =>
-        api.post(`/sequence/${id}/stage`, { stage: bulkStage, field: stageField })
-      ));
+      const batchSize = 10;
+      let done = 0;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        await Promise.all(batch.map(id =>
+          api.post(`/sequence/${id}/stage`, { stage: bulkStage, field: stageField })
+        ));
+        done += batch.length;
+        setBulkMoveProgress(Math.round((done / total) * 100));
+      }
     } catch (err) { console.error(err); }
     setBulkMoving(false);
+    setBulkMoveProgress(0);
     setSelectedIds(new Set());
     setBulkStage('');
   };
@@ -226,7 +238,7 @@ export default function PipelinePage() {
             <button
               style={{ ...btnBase, background: bulkStage ? 'var(--accent)' : 'var(--bg3)', color: bulkStage ? '#fff' : 'var(--text3)', borderColor: bulkStage ? 'var(--accent)' : 'var(--border)', padding: '5px 14px', fontSize: 12 }}
               onClick={bulkMove} disabled={!bulkStage || bulkMoving}>
-              {bulkMoving ? 'Moving...' : '→ Move'}
+              {bulkMoving ? `Moving... ${bulkMoveProgress}%` : '→ Move'}
             </button>
             <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
               ✕ Clear
