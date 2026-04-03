@@ -1,4 +1,5 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const axios = require('axios');
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const withTimeout = (promise, ms, label) => {
@@ -66,24 +67,92 @@ BUYER PERSONAS IN GOVCON:
 - Program Managers: Care about timesheet approval, project visibility, and not getting surprised by billing issues at the end of the month
 `;
 
+// Pull real company data from USASpending + web search
+const webResearch = async (company, personName) => {
+  const facts = [];
+
+  // 1. USASpending — recent federal awards
+  try {
+    const spending = await axios.post('https://api.usaspending.gov/api/v2/search/spending_by_award/', {
+      filters: {
+        time_period: [{ start_date: '2022-01-01', end_date: new Date().toISOString().split('T')[0] }],
+        award_type_codes: ['A','B','C','D'],
+        recipient_search_text: [company],
+      },
+      fields: ['Award ID','Recipient Name','Award Amount','Awarding Agency Name','Award Type','Description','Period of Performance Start Date'],
+      sort: 'Award Amount',
+      order: 'desc',
+      limit: 5,
+      page: 1,
+    }, { timeout: 8000 });
+
+    const awards = spending.data?.results || [];
+    if (awards.length) {
+      const total = awards.reduce((s, a) => s + (a['Award Amount'] || 0), 0);
+      facts.push(`Federal contract awards found: ${awards.length} recent awards totaling $${(total/1000000).toFixed(1)}M`);
+      awards.slice(0, 3).forEach(a => {
+        facts.push(`- Award: ${a['Description'] || 'N/A'} | Agency: ${a['Awarding Agency Name']} | $${((a['Award Amount']||0)/1000000).toFixed(2)}M | ${a['Period of Performance Start Date'] || ''}`);
+      });
+    } else {
+      facts.push('No federal contract awards found in USASpending for this company name.');
+    }
+  } catch (e) {
+    facts.push('USASpending data unavailable.');
+  }
+
+  // 2. Web search via Brave Search API if key available
+  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
+  if (braveKey) {
+    try {
+      const query = `"${company}" government contractor site:linkedin.com OR site:govwin.com OR site:bloomberg.com OR site:washingtontechnology.com`;
+      const search = await axios.get('https://api.search.brave.com/res/v1/web/search', {
+        headers: { 'Accept': 'application/json', 'X-Subscription-Token': braveKey },
+        params: { q: query, count: 5 },
+        timeout: 6000
+      });
+      const results = search.data?.web?.results || [];
+      if (results.length) {
+        facts.push('Web search results:');
+        results.slice(0, 4).forEach(r => facts.push(`- ${r.title}: ${r.description?.substring(0, 150) || ''}`));
+      }
+    } catch (e) {}
+  }
+
+  return facts.join('\n');
+};
+
 // Research that actually synthesizes rather than hallucinating
 const researchLead = async (lead, profile) => {
   const legacySystem = profile.legacy_system || 'Costpoint or a similar legacy ERP';
-  const prompt = `You are preparing a GovCon sales rep for outreach to this prospect. Do NOT invent statistics or percentages about their specific business. Only state things you can reasonably infer from their title, company, and the GovCon world they operate in.
+
+  // Pull real data first
+  let realData = '';
+  if (lead.company) {
+    try {
+      realData = await withTimeout(webResearch(lead.company, lead.full_name), 10000, 'web research');
+    } catch (e) {
+      realData = 'Real-time research unavailable.';
+    }
+  }
+
+  const prompt = `You are preparing a GovCon sales rep for outreach to this prospect. Use the REAL DATA below where available. Do NOT invent statistics not supported by the data.
 
 PROSPECT: ${lead.full_name || 'Unknown'}, ${lead.title || 'Unknown'} at ${lead.company || 'Unknown'}
 NOTES: ${lead.notes || 'none'}
 THEY LIKELY USE: ${legacySystem}
 
+REAL RESEARCH DATA:
+${realData || 'No real data available — infer from company name only.'}
+
 ${SUMX_CONTEXT}
 
-Write exactly 3 paragraphs — under 200 words total. Be direct, no hedging words like "probably" or "likely" more than once per paragraph:
+Write exactly 3 paragraphs — under 250 words total. Be direct and specific. Use the REAL DATA above where available:
 
-1. COMPANY REALITY: What does this company do based on their name and what you can reasonably infer? What kind of GovCon work — prime, sub, T&M, fixed price? Be honest about what you don't know. Do NOT invent revenue numbers, headcount, or contract counts. Do NOT name any specific ERP system they use — you don't know what they run.
+1. COMPANY REALITY: What does this company actually do? Reference real contract awards, agencies they work with, and contract types if data is available. If no real data, infer from the name honestly. Do NOT invent numbers not in the data.
 
-2. THIS PERSON'S WORLD: What does someone with this exact title actually do every day in a GovCon company? What are they responsible for and what keeps them up at night — compliance, audit risk, cash flow, billing accuracy, key-person dependency? Focus on role-based reality, not invented specifics.
+2. THIS PERSON'S WORLD: What does someone with this exact title actually do every day in a GovCon company of this type? What keeps them up at night — compliance, audit risk, cash flow, billing accuracy, key-person dependency? Be specific to their actual company size and contract mix if known.
 
-3. THE ANGLE: What is the single most credible opening question or observation for this person? Frame it around a workflow pain that is genuinely common in GovCon finance — NOT naming a specific ERP system. Do NOT mention Costpoint, Deltek, or any vendor. What should the rep absolutely NOT assume or bring up first?
+3. THE ANGLE: Given what you know about this specific company and person, what is the single most credible opening? Reference a specific pain — their agency focus, contract type, or scale — if you have real data to back it. What should the rep NOT assume?
 
 HARD RULES FOR THIS OUTPUT:
 - Never mention Costpoint, Deltek, Unanet, or any ERP by name — you don't know what they use
@@ -151,7 +220,7 @@ const generatePlaybook = async (lead, profile) => {
 
   let researchBrief = '';
   try {
-    researchBrief = await withTimeout(researchLead(lead, profile), 12000, 'research');
+    researchBrief = await withTimeout(researchLead(lead, profile), 25000, 'research');
   } catch (err) {
     console.log('Research skipped:', err.message);
     researchBrief = `${lead.full_name || 'This person'} is a ${lead.title || 'professional'} at ${lead.company || 'their company'}.`;
