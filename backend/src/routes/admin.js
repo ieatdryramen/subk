@@ -14,11 +14,15 @@ router.get('/dashboard', auth, async (req, res) => {
   try {
     const user = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
     const u = user.rows[0];
+    const userId = u.id;
+    const orgId = u.org_id;
 
-    // If no org, return single-user stats for this user only
-    const scopeWhere = u.org_id ? `u.org_id = ${u.org_id}` : `u.id = ${u.id}`;
-    const scopeParam = u.org_id || u.id;
-    const scopeField = u.org_id ? 'u.org_id' : 'u.id';
+    // Get all user IDs in scope (org members or just this user)
+    let scopeUserIds = [userId];
+    if (orgId) {
+      const orgUsers = await pool.query('SELECT id FROM users WHERE org_id=$1', [orgId]);
+      scopeUserIds = orgUsers.rows.map(r => r.id);
+    }
 
     const members = await pool.query(`
       SELECT 
@@ -27,15 +31,15 @@ router.get('/dashboard', auth, async (req, res) => {
         COUNT(DISTINCT p.id) as playbooks_generated,
         COUNT(DISTINCT CASE WHEN l.created_at > NOW() - INTERVAL '7 days' THEN l.id END) as leads_this_week,
         COUNT(DISTINCT CASE WHEN p.generated_at > NOW() - INTERVAL '7 days' THEN p.id END) as playbooks_this_week,
-        COUNT(DISTINCT se.id) FILTER (WHERE se.status = 'done') as touchpoints_completed
+        COUNT(DISTINCT se.id) FILTER (WHERE se.status = 'done' AND se.touchpoint != 'zoho_note_added') as touchpoints_completed
       FROM users u
       LEFT JOIN leads l ON l.user_id = u.id
       LEFT JOIN playbooks p ON p.user_id = u.id
       LEFT JOIN sequence_events se ON se.user_id = u.id
-      WHERE ${scopeField} = $1
+      WHERE u.id = ANY($1)
       GROUP BY u.id
       ORDER BY playbooks_generated DESC
-    `, [scopeParam]);
+    `, [scopeUserIds]);
 
     const stats = await pool.query(`
       SELECT
@@ -46,61 +50,42 @@ router.get('/dashboard', auth, async (req, res) => {
         COUNT(DISTINCT CASE WHEN p.generated_at > NOW() - INTERVAL '7 days' THEN p.id END) as playbooks_this_week,
         COUNT(DISTINCT CASE WHEN l.icp_score >= 70 THEN l.id END) as high_score_leads,
         ROUND(AVG(l.icp_score)) as avg_icp_score,
-        COUNT(DISTINCT CASE WHEN se.status = 'done' THEN se.id END) as touchpoints_completed
+        COUNT(DISTINCT se.id) FILTER (WHERE se.status = 'done' AND se.touchpoint != 'zoho_note_added') as touchpoints_completed
       FROM users u
       LEFT JOIN leads l ON l.user_id = u.id
       LEFT JOIN playbooks p ON p.user_id = u.id
       LEFT JOIN lead_lists ll ON ll.user_id = u.id
       LEFT JOIN sequence_events se ON se.user_id = u.id
-      WHERE ${scopeField} = $1
-    `, [scopeParam]);
+      WHERE u.id = ANY($1)
+    `, [scopeUserIds]);
 
-    // Recent activity feed
     const activity = await pool.query(`
-      SELECT 
-        'playbook' as type,
-        u.full_name as user_name,
-        l.full_name as lead_name,
-        l.company,
-        p.generated_at as timestamp
+      SELECT 'playbook' as type, u.full_name as user_name, l.full_name as lead_name, l.company, p.generated_at as timestamp
       FROM playbooks p
       JOIN leads l ON l.id = p.lead_id
       JOIN users u ON u.id = p.user_id
-      WHERE ${scopeField} = $1
+      WHERE u.id = ANY($1)
       UNION ALL
-      SELECT
-        'sequence' as type,
-        u.full_name as user_name,
-        l.full_name as lead_name,
-        l.company,
-        se.completed_at as timestamp
+      SELECT 'sequence' as type, u.full_name as user_name, l.full_name as lead_name, l.company, se.completed_at as timestamp
       FROM sequence_events se
       JOIN leads l ON l.id = se.lead_id
       JOIN users u ON u.id = se.user_id
-      WHERE ${scopeField} = $1 AND se.status = 'done' AND se.completed_at IS NOT NULL
+      WHERE u.id = ANY($1) AND se.status = 'done' AND se.completed_at IS NOT NULL AND se.touchpoint != 'zoho_note_added'
       ORDER BY timestamp DESC
       LIMIT 20
-    `, [scopeParam]);
+    `, [scopeUserIds]);
 
-    // Top leads by ICP score
     const topLeads = await pool.query(`
-      SELECT l.full_name, l.company, l.title, l.icp_score, l.icp_reason,
-             l.status, u.full_name as owner
+      SELECT l.full_name, l.company, l.title, l.icp_score, l.icp_reason, l.status, u.full_name as owner
       FROM leads l
       JOIN users u ON u.id = l.user_id
-      WHERE ${scopeField} = $1 AND l.icp_score IS NOT NULL
-      ORDER BY l.icp_score DESC
-      LIMIT 10
-    `, [scopeParam]);
+      WHERE u.id = ANY($1) AND l.icp_score IS NOT NULL
+      ORDER BY l.icp_score DESC LIMIT 10
+    `, [scopeUserIds]);
 
-    res.json({
-      stats: stats.rows[0],
-      members: members.rows,
-      activity: activity.rows,
-      topLeads: topLeads.rows,
-    });
+    res.json({ stats: stats.rows[0], members: members.rows, activity: activity.rows, topLeads: topLeads.rows });
   } catch (err) {
-    console.error(err);
+    console.error('Dashboard error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
