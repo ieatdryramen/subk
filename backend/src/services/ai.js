@@ -67,7 +67,7 @@ BUYER PERSONAS IN GOVCON:
 - Program Managers: Care about timesheet approval, project visibility, and not getting surprised by billing issues at the end of the month
 `;
 
-// Pull real company data from USASpending + web search
+// Pull real company data from USASpending + Anthropic web search
 const webResearch = async (company, personName) => {
   const facts = [];
 
@@ -89,33 +89,33 @@ const webResearch = async (company, personName) => {
     const awards = spending.data?.results || [];
     if (awards.length) {
       const total = awards.reduce((s, a) => s + (a['Award Amount'] || 0), 0);
-      facts.push(`Federal contract awards found: ${awards.length} recent awards totaling $${(total/1000000).toFixed(1)}M`);
-      awards.slice(0, 3).forEach(a => {
-        facts.push(`- Award: ${a['Description'] || 'N/A'} | Agency: ${a['Awarding Agency Name']} | $${((a['Award Amount']||0)/1000000).toFixed(2)}M | ${a['Period of Performance Start Date'] || ''}`);
+      facts.push(`USASpending federal contract awards: ${awards.length} found, totaling $${(total/1000000).toFixed(1)}M`);
+      awards.slice(0, 4).forEach(a => {
+        facts.push(`- ${a['Description']?.substring(0, 80) || 'N/A'} | ${a['Awarding Agency Name']} | $${((a['Award Amount']||0)/1000000).toFixed(2)}M`);
       });
     } else {
-      facts.push('No federal contract awards found in USASpending for this company name.');
+      facts.push('No federal contract awards found in USASpending.');
     }
   } catch (e) {
-    facts.push('USASpending data unavailable.');
+    facts.push('USASpending lookup failed.');
   }
 
-  // 2. Web search via Brave Search API if key available
-  const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-  if (braveKey) {
-    try {
-      const query = `"${company}" government contractor site:linkedin.com OR site:govwin.com OR site:bloomberg.com OR site:washingtontechnology.com`;
-      const search = await axios.get('https://api.search.brave.com/res/v1/web/search', {
-        headers: { 'Accept': 'application/json', 'X-Subscription-Token': braveKey },
-        params: { q: query, count: 5 },
-        timeout: 6000
-      });
-      const results = search.data?.web?.results || [];
-      if (results.length) {
-        facts.push('Web search results:');
-        results.slice(0, 4).forEach(r => facts.push(`- ${r.title}: ${r.description?.substring(0, 150) || ''}`));
-      }
-    } catch (e) {}
+  // 2. Anthropic web search for company + person intel
+  try {
+    const searchResult = await withTimeout(client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+      messages: [{
+        role: 'user',
+        content: `Search for "${company}" government contractor. Find: what agencies they work with, their size/revenue if available, any recent news or contract wins, and anything about ${personName || 'their leadership'}. Return only factual findings in bullet points, no speculation.`
+      }]
+    }), 15000, 'web search');
+
+    const textBlocks = searchResult.content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+    if (textBlocks.trim()) facts.push('Web search findings:\n' + textBlocks.substring(0, 800));
+  } catch (e) {
+    // Web search optional — continue without it
   }
 
   return facts.join('\n');
@@ -298,15 +298,16 @@ HARD RULES:
 3. Do NOT name Costpoint, Deltek, Unanet, or any ERP vendor anywhere in emails — you do not know what they use.
 4. Do NOT use "Janet" or ANY placeholder first name as a generic stand-in anywhere in the output — in emails, brush-offs, callbacks, or objection handling. Always say "your controller" or "your finance person" or "that person."
 5. Do NOT make unverifiable assertions dressed as facts — "government contractors lose more deals to back-office capacity than pricing" is invented. If you cannot verify it, make it a question instead.
-6. Email 1: 4-6 sentences max. One role-specific observation about GovCon finance reality, one implication, one question. Signed: ${senderName}${emailSignature}
-7. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. No product pitch. No unverifiable assertions. Signed: ${senderName}${emailSignature}
-8. Email 3: Under 75 words total. One tight observation. One question. Nothing else. Signed: ${senderName}${emailSignature}
-9. Email 4: Under 55 words. Honest warm close. Leave door open. No guilt trip. Signed: ${senderName}${emailSignature}
-10. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done.
-11. Write in the voice of: ${tone}
-12. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."
-13. Each email takes a genuinely different angle — use the FIVE DISTINCT PAIN ANGLES defined in SUMX_CONTEXT. Email 1 picks the single most credible angle for this prospect's title. Email 2 picks a DIFFERENT named angle. Email 3 picks yet another. Never use the same angle twice in one sequence. Key person risk is ONE of five options — do not make it the default for every email. Angle 5 (SSO/Azure) should only be used when the prospect's company name or notes suggest IT/systems work or CMMC pursuit.
-14. Final check: does any email start with "I"? Rewrite it. Does it name a specific ERP? Remove it. Does it assert something as fact you cannot verify? Make it a question.
+6. USE THE RESEARCH DATA: If the research brief contains real contract amounts, agencies, or contract types — USE them. A specific dollar amount or agency name in an email is 10x more compelling than a generic observation. "Managing $47M across DHS and DoD contracts" beats "running a GovCon firm" every time.
+7. Email 1: 4-6 sentences max. One role-specific observation grounded in real research data if available, one implication, one question. Signed: ${senderName}${emailSignature}
+8. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. Reference their specific agency mix or contract type if known. No product pitch. Signed: ${senderName}${emailSignature}
+9. Email 3: Under 75 words total. One tight observation using a specific data point if available. One question. Nothing else. Signed: ${senderName}${emailSignature}
+10. Email 4: Under 55 words. Honest warm close. Leave door open. No guilt trip. Signed: ${senderName}${emailSignature}
+11. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done. Reference their contract scale or agency focus if known.
+12. Write in the voice of: ${tone}
+13. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."
+14. Each email takes a genuinely different angle — use the FIVE DISTINCT PAIN ANGLES defined in SUMX_CONTEXT. Email 1 picks the single most credible angle for this prospect's title. Email 2 picks a DIFFERENT named angle. Email 3 picks yet another. Never use the same angle twice in one sequence. Key person risk is ONE of five options — do not make it the default for every email. Angle 5 (SSO/Azure) should only be used when the prospect's company name or notes suggest IT/systems work or CMMC pursuit.
+15. Final check: does any email start with "I"? Rewrite it. Does it name a specific ERP? Remove it. Does it assert something as fact you cannot verify? Make it a question. Did you use any specific data from the research brief? If not — rewrite using it.
 
 SELF-CHECK:
 - First word of each email: if "I" → rewrite
@@ -331,7 +332,7 @@ Return ONLY valid JSON (no markdown, no backticks):
   const message = await withTimeout(
     client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 3000,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: prompt }],
     }),
     50000,
