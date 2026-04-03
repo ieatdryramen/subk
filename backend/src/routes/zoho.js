@@ -186,11 +186,12 @@ router.get('/callback', async (req, res) => {
     // Zoho only returns refresh_token on first auth — on re-auth, keep existing one
     if (refresh_token) {
       if (userId) {
-        await pool.query(`
-          INSERT INTO company_profiles (user_id, zoho_refresh_token)
-          VALUES ($2, $1)
-          ON CONFLICT (user_id) DO UPDATE SET zoho_refresh_token=$1
-        `, [refresh_token, userId]);
+        const existing = await pool.query('SELECT id FROM company_profiles WHERE user_id=$1', [userId]);
+        if (existing.rows.length) {
+          await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1 WHERE user_id=$2', [refresh_token, userId]);
+        } else {
+          await pool.query('INSERT INTO company_profiles (user_id, zoho_refresh_token) VALUES ($1, $2)', [userId, refresh_token]);
+        }
       } else {
         await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
       }
