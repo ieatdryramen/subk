@@ -42,7 +42,7 @@ router.get('/dashboard', auth, async (req, res) => {
         SELECT 'sequence', u.full_name, l.full_name, l.company, se.completed_at
         FROM sequence_events se JOIN leads l ON l.id=se.lead_id JOIN users u ON u.id=se.user_id
         WHERE se.user_id = ANY($1) AND se.status='done' AND se.completed_at IS NOT NULL AND se.touchpoint!='zoho_note_added'
-        ORDER BY timestamp DESC LIMIT 15`, [userIds, userIds]),
+        ORDER BY timestamp DESC LIMIT 15`, [userIds]),
       pool.query(`SELECT l.full_name, l.company, l.title, l.icp_score, l.status FROM leads l WHERE l.user_id = ANY($1) AND l.icp_score IS NOT NULL ORDER BY l.icp_score DESC LIMIT 8`, [userIds]),
     ]);
 
