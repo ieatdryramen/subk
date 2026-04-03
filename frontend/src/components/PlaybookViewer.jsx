@@ -113,6 +113,9 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   useEffect(() => {
     setEditingContent(false);
     setContentDraft('');
+    setCopied(false);
+    setSending(false);
+    setGeneratingTab(false);
   }, [activeTab]);
 
   useEffect(() => {
@@ -382,7 +385,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                     {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
                   </button>
                 )}
-                {isEmailTab && zohoConnected && (
+                {isEmailTab && zohoConnected && localLead?.email && (
                   <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => sendViaZoho(activeTab)} disabled={sending}>
                     {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
                   </button>

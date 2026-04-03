@@ -141,7 +141,13 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
     res.json({ success: true, message: `Email sent to ${lead.email} via Zoho CRM with tracking` });
   } catch (err) {
     console.error('Zoho send error:', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.message || err.message });
+    const zohoError = err.response?.data?.message || err.message || '';
+    const isScope = zohoError.toLowerCase().includes('scope') || zohoError.toLowerCase().includes('oauth');
+    res.status(500).json({ 
+      error: isScope 
+        ? 'Zoho email permission missing. Go to Team & Integrations and reconnect Zoho to enable email sending.' 
+        : zohoError 
+    });
   }
 });
 
