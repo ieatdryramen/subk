@@ -72,7 +72,7 @@ router.post('/push/:leadId', auth, async (req, res) => {
         data: [{ Note_Title: `ProspectForge Playbook - ${new Date().toLocaleDateString()}`, Note_Content: noteContent, Parent_Id: contactId, $se_module: 'Contacts' }]
       }, { headers });
     }
-    res.json({ success: true, contactId, message: `Pushed to Zoho${playbook ? ' with playbook note' : ''}` });
+    res.json({ success: true, contactId, zoho_contact_id: contactId, message: `Pushed to Zoho${playbook ? ' with playbook note' : ''}` });
   } catch (err) {
     console.error('Zoho push error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });

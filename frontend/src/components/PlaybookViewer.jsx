@@ -143,24 +143,26 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
     const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
 
-    // Copy email to clipboard so they can paste it in Zoho
-    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`).catch(() => {});
-
     let contactId = localLead?.zoho_contact_id;
 
-    // If no contact ID yet, push to Zoho first to create it
-    if (!contactId && localLead?.email) {
+    // If no contact ID yet, push to Zoho first to find or create the contact
+    if (!contactId) {
       try {
         const r = await api.post(`/zoho/push/${leadId}`);
-        contactId = r.data?.zoho_contact_id || localLead?.zoho_contact_id;
+        contactId = r.data?.contactId || r.data?.zoho_contact_id;
+        if (contactId) setLocalLead(prev => ({ ...prev, zoho_contact_id: contactId }));
       } catch (e) {}
     }
 
+    // Copy email to clipboard so they can paste if needed
+    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`).catch(() => {});
+
     if (contactId) {
-      // Open directly to the contact's Send Email page in Zoho CRM
-      window.open(`https://crm.zoho.com/crm/EntityInfo.do?module=Contacts&id=${contactId}`, '_blank');
+      // Open Zoho CRM compose window pre-filled with this contact, subject, and body
+      const zohoComposeUrl = `https://crm.zoho.com/crm/SendMail.do?module=Contacts&id=${contactId}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(zohoComposeUrl, '_blank');
     } else if (localLead?.email) {
-      // Fallback: open mailto with pre-filled subject and body
+      // Fallback: mailto with pre-filled subject and body
       window.open(`mailto:${localLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
     }
   };
