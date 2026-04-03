@@ -247,7 +247,7 @@ export default function PipelinePage() {
         )}
 
         {/* Kanban board */}
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, minmax(180px, 1fr))`, gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
+        <div className="pf-kanban" style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, minmax(180px, 1fr))`, gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
           {STAGES.map(stage => {
             const stageLeads = getStageLeads(stage.key);
             const isOver = dragOverStage === stage.key;

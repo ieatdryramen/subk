@@ -255,7 +255,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
 
   return (
     <div style={s.wrap}>
-      <div style={s.tabs}>
+      <div style={s.tabs} className="pf-tabs">
         {tabs.map(t => (
           <button key={t.key} style={s.tab(activeTab === t.key)} onClick={() => setActiveTab(t.key)}>
             {t.label}
@@ -281,7 +281,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
           </div>
           {!editingInfo ? (
             <div>
-            <div style={s.infoGrid}>
+            <div style={s.infoGrid} className="pf-info-grid">
               {[
                 { label: 'Full Name', value: displayLead.full_name },
                 { label: 'Company', value: displayLead.company },
@@ -440,7 +440,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       {/* Text content tabs */}
       {!SPECIAL_TABS.includes(activeTab) && (
         <div style={s.content}>
-          <div style={s.actionRow}>
+          <div style={s.actionRow} className="pf-action-row">
             {!editingContent ? (
               <>
                 <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>

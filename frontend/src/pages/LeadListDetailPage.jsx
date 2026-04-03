@@ -535,7 +535,8 @@ export default function LeadListDetailPage() {
             <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
           </div>
         ) : (
-          <table style={s.table}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={s.table} className="pf-lead-table">
             <thead>
               <tr>
                 <th style={{ ...s.th, width: 36 }}>
@@ -641,6 +642,7 @@ export default function LeadListDetailPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

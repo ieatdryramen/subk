@@ -76,7 +76,7 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 768px) {
-  /* Page padding */
+  /* Page padding - tight on mobile */
   .pf-page { padding: 1rem !important; }
   
   /* Tables scroll horizontally */
@@ -99,6 +99,143 @@ a:hover { text-decoration: underline; }
 
   /* Action buttons wrap */
   [style*="display: flex"][style*="gap"] { flex-wrap: wrap !important; }
+
+  /* Stats cards */
+  [style*="grid-template-columns: repeat(3, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ============================================
+   COMPREHENSIVE MOBILE STYLES
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* ---- Global page padding ---- */
+  main > div {
+    padding: 1rem !important;
+    max-width: 100% !important;
+  }
+
+  /* ---- Dashboard ---- */
+  /* Stat cards stack 2x2 */
+  .pf-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* ---- Lead List page ---- */
+  /* Hide columns that don't matter on mobile - keep name + status + actions */
+  .pf-lead-table th:nth-child(3),
+  .pf-lead-table td:nth-child(3),
+  .pf-lead-table th:nth-child(4),
+  .pf-lead-table td:nth-child(4),
+  .pf-lead-table th:nth-child(5),
+  .pf-lead-table td:nth-child(5) {
+    display: none !important;
+  }
+
+  /* Header buttons - only show essential ones */
+  .pf-list-actions {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* ---- PlaybookViewer tabs - scrollable row instead of wrapping ---- */
+  .pf-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 4px !important;
+    padding-bottom: 8px !important;
+    scrollbar-width: none !important;
+    margin: 0 -1rem !important;
+    padding: 0 1rem 8px !important;
+  }
+  .pf-tabs::-webkit-scrollbar { display: none !important; }
+  .pf-tabs > * { flex-shrink: 0 !important; }
+
+  /* Action row - wrap and smaller */
+  .pf-action-row {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .pf-action-row button {
+    font-size: 11px !important;
+    padding: 5px 10px !important;
+  }
+
+  /* ---- Pipeline - horizontal scroll ---- */
+  .pf-kanban {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    margin: 0 -1rem !important;
+    padding: 0 1rem 1rem !important;
+  }
+  .pf-kanban > div {
+    min-width: 200px !important;
+  }
+
+  /* ---- Modals - full screen on mobile ---- */
+  .pf-modal-card {
+    max-width: 100% !important;
+    width: calc(100vw - 2rem) !important;
+    max-height: 85vh !important;
+    margin: 0 1rem !important;
+  }
+
+  /* ---- Today's Touches - compact rows ---- */
+  .pf-touch-row {
+    padding: 10px 12px !important;
+  }
+
+  /* ---- Profile page - single column ---- */
+  .pf-profile-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---- Engagement status buttons - wrap ---- */
+  .pf-engagement-buttons {
+    flex-wrap: wrap !important;
+    gap: 5px !important;
+  }
+  .pf-engagement-buttons button {
+    font-size: 11px !important;
+    padding: 4px 10px !important;
+  }
+
+  /* ---- Lead Info grid in PlaybookViewer ---- */
+  .pf-info-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ---- Sequence tracker - stack note input above buttons ---- */
+  .pf-sequence-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+  .pf-sequence-actions input {
+    width: 100% !important;
+  }
+
+  /* ---- Bottom safe area for mobile browsers ---- */
+  main {
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+  }
+}
+
+/* Extra small - iPhone SE etc */
+@media (max-width: 390px) {
+  main > div {
+    padding: 0.75rem !important;
+  }
+  .pf-stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 
   /* Stats cards */
   [style*="grid-template-columns: repeat(3, 1fr)"] {
