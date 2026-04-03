@@ -181,17 +181,21 @@ module.exports = router;
 // POST /goals/cleanup — one-time cleanup of backfill pollution in activity_log
 router.post('/cleanup', auth, async (req, res) => {
   try {
+    // The backfill ran on April 1 2026 and stamped all 157 leads × multiple touches
+    // These are identifiable because: same user, same day, >50 entries, lead_id is set
+    // Strategy: delete activity_log entries where we have >50 lead-based entries on any single day
     const result = await pool.query(`
       DELETE FROM activity_log
-      WHERE id IN (
-        SELECT al.id FROM activity_log al
-        JOIN sequence_events se ON se.lead_id = al.lead_id AND se.touchpoint = al.touchpoint
-        WHERE al.lead_id IS NOT NULL
-          AND al.touchpoint IS NOT NULL
-          AND se.status = 'done'
-          AND DATE(al.logged_at) != DATE(se.completed_at)
-      )
-    `);
+      WHERE user_id = $1
+        AND lead_id IS NOT NULL
+        AND DATE(logged_at) IN (
+          SELECT DATE(logged_at) as log_date
+          FROM activity_log
+          WHERE user_id = $1 AND lead_id IS NOT NULL
+          GROUP BY DATE(logged_at)
+          HAVING COUNT(*) > 50
+        )
+    `, [req.userId]);
     res.json({ success: true, deleted: result.rowCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
