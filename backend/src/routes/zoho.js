@@ -10,7 +10,10 @@ const REDIRECT_URI = 'https://prospectforge-production-1f99.up.railway.app/api/z
 const getZohoToken = async (userId) => {
   const result = await pool.query(`
     SELECT cp.zoho_refresh_token FROM company_profiles cp
-    JOIN users u ON (cp.user_id = u.id OR cp.org_id = u.org_id)
+    WHERE cp.user_id = $1 AND cp.zoho_refresh_token IS NOT NULL
+    UNION
+    SELECT cp.zoho_refresh_token FROM company_profiles cp
+    JOIN users u ON (cp.org_id = u.org_id)
     WHERE u.id = $1 AND cp.zoho_refresh_token IS NOT NULL
     LIMIT 1
   `, [userId]);
@@ -183,7 +186,11 @@ router.get('/callback', async (req, res) => {
     // Zoho only returns refresh_token on first auth — on re-auth, keep existing one
     if (refresh_token) {
       if (userId) {
-        await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1 WHERE user_id=$2', [refresh_token, userId]);
+        await pool.query(`
+          INSERT INTO company_profiles (user_id, zoho_refresh_token)
+          VALUES ($2, $1)
+          ON CONFLICT (user_id) DO UPDATE SET zoho_refresh_token=$1
+        `, [refresh_token, userId]);
       } else {
         await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
       }
