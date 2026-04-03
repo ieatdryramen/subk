@@ -69,6 +69,7 @@ export default function ProfilePage() {
     sender_role: 'AE',
     custom_tone: '',
     website_url: 'https://sumx.ai',
+    email_signature: '',
   });
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -250,6 +251,14 @@ export default function ProfilePage() {
                 style={{ minHeight: 80 }} />
             )}
           </div>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={s.cardTitle}>Email Signature</div>
+          <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>Appended to every email generated. Include your name, title, phone, LinkedIn — whatever you want prospects to see.</div>
+          <textarea value={form.email_signature} onChange={set('email_signature')}
+            placeholder={`Jack Beaver\nAccount Executive — SumX AI\n(434) 555-0100\nlinkedin.com/in/jackbeaver`}
+            style={{ minHeight: 100, fontFamily: 'monospace', fontSize: 13, width: '100%' }} />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', paddingBottom: '2rem' }}>
