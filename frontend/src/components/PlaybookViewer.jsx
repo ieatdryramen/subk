@@ -79,7 +79,7 @@ const msgStyle = (role) => ({
 export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPlaybookUpdate }) {
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] = useState(false); // kept for future use
   const [sent, setSent] = useState({});
   const [savedTemplate, setSavedTemplate] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);

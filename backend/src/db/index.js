@@ -293,6 +293,19 @@ const initDb = async () => {
     CREATE INDEX IF NOT EXISTS idx_activity_log_user_date ON activity_log(user_id, logged_at);
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email_signature TEXT DEFAULT '';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS zoho_org_id VARCHAR(50) DEFAULT NULL;
+
+    -- Clean up activity_log entries created by the bulk backfill (they all have logged_at = same timestamp)
+    -- These are entries where the sequence_event completed_at doesn't match logged_at date
+    DELETE FROM activity_log al
+    WHERE al.lead_id IS NOT NULL
+      AND EXISTS (
+        SELECT 1 FROM sequence_events se
+        WHERE se.lead_id = al.lead_id
+          AND se.touchpoint = al.touchpoint
+          AND se.status = 'done'
+          AND DATE(se.completed_at) != DATE(al.logged_at)
+          AND al.logged_at::date = (SELECT MIN(logged_at)::date FROM activity_log WHERE user_id = al.user_id)
+      );
   `);
   console.log('Database initialized');
 };

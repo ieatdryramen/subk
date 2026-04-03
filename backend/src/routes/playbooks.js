@@ -5,6 +5,7 @@ const { generatePlaybook } = require('../services/ai');
 
 // Generate playbook for a single lead
 router.post('/generate/:leadId', auth, async (req, res) => {
+  const { sections } = req.body; // optional: { email1: true, email2: true, ... }
   try {
     const leadResult = await pool.query(
       'SELECT * FROM leads WHERE id=$1 AND user_id=$2',
@@ -77,22 +78,48 @@ router.post('/generate/:leadId', auth, async (req, res) => {
 
     let playbook;
     try {
-      playbook = await generatePlaybook(lead, profile);
+      playbook = await generatePlaybook(lead, profile, sections);
     } catch (genErr) {
       await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['error', lead.id]);
       return res.status(500).json({ error: genErr.message });
     }
 
-    await pool.query('DELETE FROM playbooks WHERE lead_id=$1', [lead.id]);
-    const result = await pool.query(
-      `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, email4, linkedin, call_opener, objection_handling, callbacks)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [lead.id, req.userId, playbook.research, playbook.email1, playbook.email2, playbook.email3,
-       playbook.email4, playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
-    );
+    // If sections specified, only update those fields; otherwise replace entire playbook
+    const allFields = ['research','email1','email2','email3','email4','linkedin','call_opener','objection_handling','callbacks'];
+    const fieldsToUpdate = sections ? allFields.filter(f => sections[f]) : allFields;
 
-    await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['done', lead.id]);
-    res.json(result.rows[0]);
+    if (fieldsToUpdate.length === allFields.length || !sections) {
+      // Full replace
+      await pool.query('DELETE FROM playbooks WHERE lead_id=$1', [lead.id]);
+      const result = await pool.query(
+        `INSERT INTO playbooks (lead_id, user_id, research, email1, email2, email3, email4, linkedin, call_opener, objection_handling, callbacks)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [lead.id, req.userId, playbook.research, playbook.email1, playbook.email2, playbook.email3,
+         playbook.email4, playbook.linkedin, playbook.call_opener, playbook.objection_handling, playbook.callbacks]
+      );
+      await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['done', lead.id]);
+      return res.json(result.rows[0]);
+    } else {
+      // Partial update — upsert existing, update only requested fields
+      const setClauses = fieldsToUpdate.map((f, i) => `${f}=$${i+2}`).join(', ');
+      const values = fieldsToUpdate.map(f => playbook[f]);
+      const existing = await pool.query('SELECT id FROM playbooks WHERE lead_id=$1', [lead.id]);
+      if (existing.rows.length) {
+        await pool.query(
+          `UPDATE playbooks SET ${setClauses}, updated_at=NOW() WHERE lead_id=$1`,
+          [lead.id, ...values]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO playbooks (lead_id, user_id, ${fieldsToUpdate.join(',')})
+           VALUES ($1,$2,${fieldsToUpdate.map((_,i) => `$${i+3}`).join(',')})`,
+          [lead.id, req.userId, ...values]
+        );
+      }
+      await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['done', lead.id]);
+      const updated = await pool.query('SELECT * FROM playbooks WHERE lead_id=$1', [lead.id]);
+      return res.json(updated.rows[0]);
+    }
   } catch (err) {
     console.error(err);
     await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['error', req.params.leadId]).catch(()=>{});
