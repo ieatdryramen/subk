@@ -229,6 +229,7 @@ router.get('/:leadId', auth, async (req, res) => {
         event_id: event?.id || null,
         opened_at: event?.opened_at || null,
         clicked_at: event?.clicked_at || null,
+        call_outcome: event?.call_outcome || null,
         due_date,
         urgency,
       };
