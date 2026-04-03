@@ -147,7 +147,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
 
     if (!contactId) {
       try {
-        const r = await api.post(`/zoho/push/${leadId}`);
+        const r = await api.post(`/zoho/push/${leadId}`, { addNote: false });
         contactId = r.data?.contactId || r.data?.zoho_contact_id;
         if (contactId) setLocalLead(prev => ({ ...prev, zoho_contact_id: contactId }));
       } catch (e) {}

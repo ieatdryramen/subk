@@ -42,37 +42,59 @@ router.post('/push/:leadId', auth, async (req, res) => {
     const headers = { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' };
 
     let contactId = lead.zoho_contact_id;
+    let isNewContact = false;
+
+    // Search by email if no contact ID stored
     if (!contactId && lead.email) {
       try {
         const search = await axios.get(`https://www.zohoapis.com/crm/v2/Contacts/search?email=${encodeURIComponent(lead.email)}`, { headers });
-        if (search.data?.data?.length) contactId = search.data.data[0].id;
+        if (search.data?.data?.length) {
+          contactId = search.data.data[0].id;
+          // Save it so we don't search again
+          await pool.query('UPDATE leads SET zoho_contact_id=$1 WHERE id=$2', [contactId, lead.id]);
+        }
       } catch (e) {}
     }
 
-    const nameParts = (lead.full_name || '').split(' ');
-    const contactData = {
-      First_Name: nameParts[0] || '',
-      Last_Name: nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown',
-      Email: lead.email || '',
-      Title: lead.title || '',
-      Account_Name: lead.company || '',
-    };
-
-    if (contactId) {
-      await axios.put(`https://www.zohoapis.com/crm/v2/Contacts/${contactId}`, { data: [contactData] }, { headers });
-    } else {
-      const createRes = await axios.post('https://www.zohoapis.com/crm/v2/Contacts', { data: [contactData] }, { headers });
+    // Only create if genuinely not in Zoho
+    if (!contactId) {
+      isNewContact = true;
+      const nameParts = (lead.full_name || '').split(' ');
+      const createRes = await axios.post('https://www.zohoapis.com/crm/v2/Contacts', {
+        data: [{
+          First_Name: nameParts[0] || '',
+          Last_Name: nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown',
+          Email: lead.email || '',
+          Title: lead.title || '',
+          Account_Name: lead.company || '',
+        }]
+      }, { headers });
       contactId = createRes.data?.data?.[0]?.details?.id;
       if (contactId) await pool.query('UPDATE leads SET zoho_contact_id=$1 WHERE id=$2', [contactId, lead.id]);
     }
 
-    if (playbook && contactId) {
-      const noteContent = `=== PROSPECTFORGE PLAYBOOK ===\nGenerated: ${new Date(playbook.generated_at).toLocaleDateString()}\n\n--- RESEARCH BRIEF ---\n${playbook.research || ''}\n\n--- EMAIL 1 (Day 1) ---\n${playbook.email1 || ''}\n\n--- EMAIL 2 (Day 3) ---\n${playbook.email2 || ''}\n\n--- EMAIL 3 (Day 7) ---\n${playbook.email3 || ''}\n\n--- EMAIL 4 (Day 14) ---\n${playbook.email4 || ''}\n\n--- LINKEDIN ---\n${playbook.linkedin || ''}\n\n--- CALL OPENER ---\n${playbook.call_opener || ''}\n\n--- OBJECTION HANDLING ---\n${playbook.objection_handling || ''}\n\n--- CALLBACKS ---\n${playbook.callbacks || ''}`.trim();
-      await axios.post('https://www.zohoapis.com/crm/v2/Notes', {
-        data: [{ Note_Title: `ProspectForge Playbook - ${new Date().toLocaleDateString()}`, Note_Content: noteContent, Parent_Id: contactId, $se_module: 'Contacts' }]
-      }, { headers });
+    // Only add playbook note on first push (new contact or explicit push from lead list button)
+    const isExplicitPush = req.body?.addNote !== false;
+    if (playbook && contactId && (isNewContact || isExplicitPush)) {
+      // Check if we already added a note for this lead
+      const alreadyNoted = await pool.query(
+        "SELECT 1 FROM sequence_events WHERE lead_id=$1 AND touchpoint='zoho_note_added' LIMIT 1",
+        [lead.id]
+      );
+      if (!alreadyNoted.rows.length) {
+        const noteContent = `=== PROSPECTFORGE PLAYBOOK ===\nGenerated: ${new Date(playbook.generated_at).toLocaleDateString()}\n\n--- RESEARCH BRIEF ---\n${playbook.research || ''}\n\n--- EMAIL 1 (Day 1) ---\n${playbook.email1 || ''}\n\n--- EMAIL 2 (Day 3) ---\n${playbook.email2 || ''}\n\n--- EMAIL 3 (Day 7) ---\n${playbook.email3 || ''}\n\n--- EMAIL 4 (Day 14) ---\n${playbook.email4 || ''}\n\n--- LINKEDIN ---\n${playbook.linkedin || ''}\n\n--- CALL OPENER ---\n${playbook.call_opener || ''}\n\n--- OBJECTION HANDLING ---\n${playbook.objection_handling || ''}`.trim();
+        await axios.post('https://www.zohoapis.com/crm/v2/Notes', {
+          data: [{ Note_Title: `ProspectForge Playbook - ${new Date().toLocaleDateString()}`, Note_Content: noteContent, Parent_Id: contactId, $se_module: 'Contacts' }]
+        }, { headers });
+        // Mark as noted so we don't add again
+        await pool.query(
+          `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, completed_at) VALUES ($1,$2,'zoho_note_added','done',NOW()) ON CONFLICT DO NOTHING`,
+          [lead.id, req.userId]
+        ).catch(() => {});
+      }
     }
-    res.json({ success: true, contactId, zoho_contact_id: contactId, message: `Pushed to Zoho${playbook ? ' with playbook note' : ''}` });
+
+    res.json({ success: true, contactId, zoho_contact_id: contactId, isNewContact, message: `${isNewContact ? 'Created' : 'Found'} in Zoho` });
   } catch (err) {
     console.error('Zoho push error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
