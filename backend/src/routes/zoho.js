@@ -179,13 +179,27 @@ router.get('/callback', async (req, res) => {
   }
 });
 
-// Debug: check what Zoho Mail accounts look like
+// Debug: check what Zoho Mail accounts look like across regions
 router.get('/mail-debug', auth, async (req, res) => {
   try {
     const token = await getZohoToken(req.userId);
     const headers = { Authorization: `Zoho-oauthtoken ${token}` };
-    const r = await axios.get('https://mail.zoho.com/api/accounts', { headers });
-    res.json(r.data);
+    const regions = [
+      'https://mail.zoho.com/api/accounts',
+      'https://mail.zoho.eu/api/accounts',
+      'https://mail.zoho.com.au/api/accounts',
+      'https://mail.zoho.in/api/accounts',
+    ];
+    const results = {};
+    for (const url of regions) {
+      try {
+        const r = await axios.get(url, { headers, timeout: 5000 });
+        results[url] = { status: r.status, data: r.data };
+      } catch (e) {
+        results[url] = { error: e.response?.status, data: e.response?.data };
+      }
+    }
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message, raw: err.response?.data });
   }
