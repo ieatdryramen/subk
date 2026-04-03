@@ -76,7 +76,7 @@ router.post('/push/:leadId', auth, async (req, res) => {
   }
 });
 
-// Send email via Zoho CRM (with open/click tracking)
+// Send email via Zoho Mail API
 router.post('/send-email/:leadId', auth, async (req, res) => {
   const { subject, body, touchpoint } = req.body;
   try {
@@ -87,73 +87,58 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
       ))`, [req.params.leadId, req.userId]);
     if (!leadResult.rows.length) return res.status(404).json({ error: 'Lead not found' });
     const lead = leadResult.rows[0];
-
     if (!lead.email) return res.status(400).json({ error: 'Lead has no email address' });
 
     const token = await getZohoToken(req.userId);
     const headers = { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' };
 
-    // Ensure contact exists in Zoho first
-    let contactId = lead.zoho_contact_id;
-    if (!contactId) {
-      const nameParts = (lead.full_name || '').split(' ');
-      const createRes = await axios.post('https://www.zohoapis.com/crm/v2/Contacts', {
-        data: [{
-          First_Name: nameParts[0] || '',
-          Last_Name: nameParts.slice(1).join(' ') || nameParts[0] || 'Unknown',
-          Email: lead.email,
-          Title: lead.title || '',
-          Account_Name: lead.company || '',
-        }]
-      }, { headers });
-      contactId = createRes.data?.data?.[0]?.details?.id;
-      if (contactId) await pool.query('UPDATE leads SET zoho_contact_id=$1 WHERE id=$2', [contactId, lead.id]);
-    }
+    // Get the user's Zoho Mail account ID
+    const accountsRes = await axios.get('https://mail.zoho.com/api/accounts', { headers });
+    const mailAccount = accountsRes.data?.data?.[0];
+    if (!mailAccount) return res.status(400).json({ error: 'No Zoho Mail account found. Make sure Zoho Mail is enabled on your account.' });
 
-    if (!contactId) return res.status(400).json({ error: 'Could not find or create Zoho contact' });
+    const accountId = mailAccount.accountId;
+    const fromEmail = mailAccount.sendMailDetails?.[0]?.fromAddress || mailAccount.primaryEmailAddress;
 
-    // Inject tracking pixel for open tracking
+    // Build HTML body with tracking pixel
     const appUrl = process.env.APP_URL || 'https://prospectforge-production-1f99.up.railway.app';
-    const trackingPixel = `\n\n<img src="${appUrl}/api/tracking/open/${lead.id}/${req.body.touchpoint || 'email'}" width="1" height="1" style="display:none" />`;
-    const htmlBody = body.replace(/\n/g, '<br>') + trackingPixel;
+    const trackingPixel = `<img src="${appUrl}/api/tracking/open/${lead.id}/${touchpoint || 'email'}" width="1" height="1" style="display:none" />`;
+    const htmlBody = body.replace(/\n/g, '<br>') + '<br><br>' + trackingPixel;
 
-    // Send via Zoho CRM email (tracks opens and clicks)
-    await axios.post(`https://www.zohoapis.com/crm/v2/Contacts/${contactId}/actions/send_mail`, {
-      data: [{
-        from: { user_name: null, email: null },
-        to: [{ user_name: lead.full_name || '', email: lead.email }],
-        subject,
-        content: htmlBody,
-        mail_format: 'html',
-        org_email: false,
-      }]
+    // Send via Zoho Mail API
+    await axios.post(`https://mail.zoho.com/api/accounts/${accountId}/messages`, {
+      fromAddress: fromEmail,
+      toAddress: lead.email,
+      subject,
+      content: htmlBody,
+      mailFormat: 'html',
     }, { headers });
 
-    // Mark touchpoint as done in sequence tracker
+    // Mark touchpoint as done
     if (touchpoint) {
       await pool.query(`
         INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, notes, completed_at)
         VALUES ($1,$2,$3,'done',$4,NOW())
         ON CONFLICT (lead_id, touchpoint) DO UPDATE SET status='done', notes=$4, completed_at=NOW()
-      `, [lead.id, req.userId, touchpoint, `Sent via Zoho CRM to ${lead.email}`]);
+      `, [lead.id, req.userId, touchpoint, `Sent via Zoho Mail to ${lead.email}`]);
     }
 
-    res.json({ success: true, message: `Email sent to ${lead.email} via Zoho CRM with tracking` });
+    res.json({ success: true, message: `Email sent to ${lead.email} via Zoho Mail` });
   } catch (err) {
     console.error('Zoho send error:', err.response?.data || err.message);
-    const zohoError = err.response?.data?.message || err.message || '';
-    const isScope = zohoError.toLowerCase().includes('scope') || zohoError.toLowerCase().includes('oauth');
-    res.status(500).json({ 
-      error: isScope 
-        ? 'Zoho email permission missing. Go to Team & Integrations and reconnect Zoho to enable email sending.' 
-        : zohoError 
+    const zohoError = JSON.stringify(err.response?.data || err.message || '');
+    const isScope = zohoError.toLowerCase().includes('scope') || zohoError.toLowerCase().includes('oauth') || zohoError.toLowerCase().includes('invalid_token');
+    res.status(500).json({
+      error: isScope
+        ? 'Zoho permission issue. Go to Team & Integrations, disconnect Zoho, and reconnect to grant email permissions.'
+        : (err.response?.data?.data?.moreDetails || err.response?.data?.message || err.message)
     });
   }
 });
 
 router.get('/connect', auth, async (req, res) => {
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
-  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.modules.Emails.CREATE,ZohoCRM.settings.ALL';
+  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.settings.ALL,ZohoMail.messages.CREATE,ZohoMail.accounts.READ';
   const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
 });
