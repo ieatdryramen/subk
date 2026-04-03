@@ -179,6 +179,18 @@ router.get('/callback', async (req, res) => {
   }
 });
 
+// Debug: check what Zoho Mail accounts look like
+router.get('/mail-debug', auth, async (req, res) => {
+  try {
+    const token = await getZohoToken(req.userId);
+    const headers = { Authorization: `Zoho-oauthtoken ${token}` };
+    const r = await axios.get('https://mail.zoho.com/api/accounts', { headers });
+    res.json(r.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message, raw: err.response?.data });
+  }
+});
+
 router.get('/status', auth, async (req, res) => {
   try {
     const result = await pool.query(`
