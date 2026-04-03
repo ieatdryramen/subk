@@ -128,6 +128,7 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
     const htmlBody = body.replace(/\n/g, '<br>') + '<br><br>' + trackingPixel;
 
     // Send via Zoho CRM send_mail
+    console.log(`Zoho send_mail: contact=${contactId} from=${fromEmail} to=${lead.email}`);
     await axios.post(`https://www.zohoapis.com/crm/v2/Contacts/${contactId}/actions/send_mail`, {
       data: [{
         from: { user_name: fromName, email: fromEmail },
@@ -163,7 +164,7 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 
 router.get('/connect', auth, async (req, res) => {
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
-  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.settings.ALL';
+  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.modules.Emails.CREATE,ZohoCRM.settings.ALL';
   const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&prompt=consent&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
 });
