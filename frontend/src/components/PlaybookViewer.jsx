@@ -145,7 +145,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
 
     let contactId = localLead?.zoho_contact_id;
 
-    // If no contact ID yet, push to Zoho first to find or create the contact
     if (!contactId) {
       try {
         const r = await api.post(`/zoho/push/${leadId}`);
@@ -154,15 +153,15 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       } catch (e) {}
     }
 
-    // Copy email to clipboard so they can paste if needed
-    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`).catch(() => {});
+    // Copy email to clipboard
+    const fullEmail = `Subject: ${subject}\n\n${body}`;
+    navigator.clipboard.writeText(fullEmail).catch(() => {});
+    setSent(s => ({ ...s, [tabKey]: true }));
+    setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
 
     if (contactId) {
-      // Open Zoho CRM compose window pre-filled with this contact, subject, and body
-      const zohoComposeUrl = `https://crm.zoho.com/crm/SendMail.do?module=Contacts&id=${contactId}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(zohoComposeUrl, '_blank');
+      window.open(`https://crm.zoho.com/crm/tab/Contacts/${contactId}`, '_blank');
     } else if (localLead?.email) {
-      // Fallback: mailto with pre-filled subject and body
       window.open(`mailto:${localLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
     }
   };
@@ -401,8 +400,8 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                   </button>
                 )}
                 {isEmailTab && zohoConnected && localLead?.email && (
-                  <button style={s.btn('send')} onClick={() => openInZoho(activeTab)}>
-                    ↗ Open in Zoho
+                  <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => openInZoho(activeTab)}>
+                    {sent[activeTab] ? '✓ Copied — paste in Zoho' : '↗ Open in Zoho'}
                   </button>
                 )}
               </>
