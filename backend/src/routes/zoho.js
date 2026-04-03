@@ -125,14 +125,14 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 
     res.json({ success: true, message: `Email sent to ${lead.email} via Zoho Mail` });
   } catch (err) {
-    console.error('Zoho send error:', err.response?.data || err.message);
-    const zohoError = JSON.stringify(err.response?.data || err.message || '');
+    const zohoData = err.response?.data;
+    console.error('Zoho send error:', JSON.stringify(zohoData || err.message));
+    const zohoError = JSON.stringify(zohoData || err.message || '');
     const isScope = zohoError.toLowerCase().includes('scope') || zohoError.toLowerCase().includes('oauth') || zohoError.toLowerCase().includes('invalid_token');
-    res.status(500).json({
-      error: isScope
-        ? 'Zoho permission issue. Go to Team & Integrations, disconnect Zoho, and reconnect to grant email permissions.'
-        : (err.response?.data?.data?.moreDetails || err.response?.data?.message || err.message)
-    });
+    const friendlyError = isScope
+      ? 'Zoho permission issue. Disconnect and reconnect Zoho in Team & Integrations.'
+      : (zohoData?.data?.moreDetails || zohoData?.message || zohoData?.error || err.message || 'Unknown error');
+    res.status(500).json({ error: friendlyError, raw: zohoData });
   }
 });
 
