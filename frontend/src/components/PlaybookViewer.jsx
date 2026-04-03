@@ -95,6 +95,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   const [generatingTab, setGeneratingTab] = useState(false);
   const [localPlaybook, setLocalPlaybook] = useState(playbook || {});
   const chatBottomRef = useRef(null);
+  const cancelEditRef = useRef(false);
 
   useEffect(() => {
     if (leadProp) setLocalLead(leadProp);
@@ -164,11 +165,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   };
 
   const saveContent = async (e) => {
-    // If blur was triggered by clicking Cancel button, don't save
-    if (e?.relatedTarget?.textContent === 'Cancel') {
-      setEditingContent(false);
-      return;
-    }
+    if (cancelEditRef.current) { cancelEditRef.current = false; return; }
     if (savingContent) return;
     setSavingContent(true);
     try {
@@ -178,6 +175,12 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     } catch (err) {
       alert('Failed to save');
     } finally { setSavingContent(false); }
+  };
+
+  const cancelContent = () => {
+    cancelEditRef.current = true;
+    setEditingContent(false);
+    setContentDraft('');
   };
 
   const generateTab = async () => {
@@ -374,7 +377,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
             ) : (
               <>
                 <button style={s.btn('send')} onClick={saveContent} disabled={savingContent}>{savingContent ? 'Saving...' : '✓ Save'}</button>
-                <button style={s.btn('copy')} onClick={() => setEditingContent(false)}>Cancel</button>
+                <button style={s.btn('copy')} onMouseDown={() => { cancelEditRef.current = true; }} onClick={cancelContent}>Cancel</button>
                 <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 4 }}>Click outside to save</span>
               </>
             )}
