@@ -141,6 +141,7 @@ export default function LeadListDetailPage() {
     const ids = [...selectedIds];
     if (!ids.length) return;
     setShowGenerateModal(false);
+    setGenerateSituation('');
     setBulkGenerating(true);
     for (const leadId of ids) {
       try {
@@ -728,7 +729,7 @@ export default function LeadListDetailPage() {
 
       {/* Generate Section Picker Modal */}
       {showGenerateModal && (
-        <div style={s.modal} onClick={() => setShowGenerateModal(false)}>
+        <div style={s.modal} onClick={() => { setShowGenerateModal(false); setGenerateSituation(''); }}>
           <div style={{ ...s.modalCard, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>⚡ Generate for {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}</div>
 
@@ -776,7 +777,7 @@ export default function LeadListDetailPage() {
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button style={{ ...s.btn('default'), padding: '8px 16px' }} onClick={() => setGenerateSections({ email1: true, email2: true, email3: true, email4: true, linkedin: true, call_opener: true, objection_handling: true, research: true })}>Select all</button>
-              <button style={s.cancelBtn} onClick={() => setShowGenerateModal(false)}>Cancel</button>
+              <button style={s.cancelBtn} onClick={() => { setShowGenerateModal(false); setGenerateSituation(''); }}>Cancel</button>
               <button style={{ ...s.saveBtn, flex: 'unset', padding: '9px 22px' }}
                 disabled={!Object.values(generateSections).some(Boolean)}
                 onClick={() => bulkGenerate(generateSections)}>
