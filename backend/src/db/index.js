@@ -292,6 +292,7 @@ const initDb = async () => {
     );
     CREATE INDEX IF NOT EXISTS idx_activity_log_user_date ON activity_log(user_id, logged_at);
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email_signature TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS zoho_org_id VARCHAR(50) DEFAULT NULL;
   `);
   console.log('Database initialized');
 };

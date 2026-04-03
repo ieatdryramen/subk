@@ -150,6 +150,13 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
         const r = await api.post(`/zoho/push/${leadId}`, { addNote: false });
         contactId = r.data?.contactId || r.data?.zoho_contact_id;
         if (contactId) setLocalLead(prev => ({ ...prev, zoho_contact_id: contactId }));
+        if (r.data?.contactUrl) {
+          navigator.clipboard.writeText(fullEmail).catch(() => {});
+          setSent(s => ({ ...s, [tabKey]: true }));
+          setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
+          window.open(r.data.contactUrl, '_blank');
+          return;
+        }
       } catch (e) {}
     }
 
@@ -160,7 +167,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
 
     if (contactId) {
-      window.open(`https://crm.zoho.com/crm/tab/Contacts/${contactId}`, '_blank');
+      window.open(`https://crm.zoho.com/crm/org880813688/tab/Contacts/${contactId}`, '_blank');
     } else if (localLead?.email) {
       window.open(`mailto:${localLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
     }

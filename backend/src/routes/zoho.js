@@ -94,7 +94,25 @@ router.post('/push/:leadId', auth, async (req, res) => {
       }
     }
 
-    res.json({ success: true, contactId, zoho_contact_id: contactId, isNewContact, message: `${isNewContact ? 'Created' : 'Found'} in Zoho` });
+    // Extract org ID from contact ID and build direct URL
+    // Zoho contact IDs contain the org ID as the first 13 digits after the prefix
+    let zohoOrgId = null;
+    try {
+      const orgRes = await axios.get('https://www.zohoapis.com/crm/v2/org', { headers });
+      zohoOrgId = orgRes.data?.org?.[0]?.zgid;
+      if (zohoOrgId) {
+        await pool.query(
+          'UPDATE company_profiles SET zoho_org_id=$1 WHERE user_id=$2',
+          [zohoOrgId, req.userId]
+        ).catch(() => {});
+      }
+    } catch (e) {}
+
+    const contactUrl = zohoOrgId
+      ? `https://crm.zoho.com/crm/org${zohoOrgId}/tab/Contacts/${contactId}`
+      : `https://crm.zoho.com/crm/tab/Contacts/${contactId}`;
+
+    res.json({ success: true, contactId, zoho_contact_id: contactId, zohoOrgId, contactUrl, isNewContact, message: `${isNewContact ? 'Created' : 'Found'} in Zoho` });
   } catch (err) {
     console.error('Zoho push error:', err.response?.data || err.message);
     res.status(500).json({ error: err.message });
