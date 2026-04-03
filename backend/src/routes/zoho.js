@@ -92,12 +92,11 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
     const token = await getZohoToken(req.userId);
     const headers = { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' };
 
-    // Get current user's email from Zoho CRM
-    const userRes = await axios.get('https://www.zohoapis.com/crm/v2/users?type=CurrentUser', { headers });
-    const zohoUser = userRes.data?.users?.[0];
-    const fromEmail = zohoUser?.email;
-    const fromName = zohoUser?.full_name || zohoUser?.first_name || '';
-    if (!fromEmail) return res.status(400).json({ error: 'Could not get your Zoho user email.' });
+    // Get sender email from our own DB — no extra Zoho scope needed
+    const userRow = await pool.query('SELECT email, full_name FROM users WHERE id=$1', [req.userId]);
+    const fromEmail = userRow.rows[0]?.email;
+    const fromName = userRow.rows[0]?.full_name || '';
+    if (!fromEmail) return res.status(400).json({ error: 'Could not determine your email address.' });
 
     // Ensure contact exists in Zoho CRM
     let contactId = lead.zoho_contact_id;
@@ -164,7 +163,7 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 
 router.get('/connect', auth, async (req, res) => {
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
-  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.settings.ALL,ZohoCRM.users.READ';
+  const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.settings.ALL';
   const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&prompt=consent&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
 });

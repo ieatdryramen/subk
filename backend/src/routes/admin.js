@@ -14,9 +14,12 @@ router.get('/dashboard', auth, async (req, res) => {
   try {
     const user = await pool.query('SELECT * FROM users WHERE id=$1', [req.userId]);
     const u = user.rows[0];
-    if (!u.org_id) return res.status(400).json({ error: 'No organization' });
 
-    // Team members with their activity
+    // If no org, return single-user stats for this user only
+    const scopeWhere = u.org_id ? `u.org_id = ${u.org_id}` : `u.id = ${u.id}`;
+    const scopeParam = u.org_id || u.id;
+    const scopeField = u.org_id ? 'u.org_id' : 'u.id';
+
     const members = await pool.query(`
       SELECT 
         u.id, u.email, u.full_name, u.role, u.created_at,
@@ -29,12 +32,11 @@ router.get('/dashboard', auth, async (req, res) => {
       LEFT JOIN leads l ON l.user_id = u.id
       LEFT JOIN playbooks p ON p.user_id = u.id
       LEFT JOIN sequence_events se ON se.user_id = u.id
-      WHERE u.org_id = $1
+      WHERE ${scopeField} = $1
       GROUP BY u.id
       ORDER BY playbooks_generated DESC
-    `, [u.org_id]);
+    `, [scopeParam]);
 
-    // Overall org stats
     const stats = await pool.query(`
       SELECT
         COUNT(DISTINCT l.id) as total_leads,
@@ -50,8 +52,8 @@ router.get('/dashboard', auth, async (req, res) => {
       LEFT JOIN playbooks p ON p.user_id = u.id
       LEFT JOIN lead_lists ll ON ll.user_id = u.id
       LEFT JOIN sequence_events se ON se.user_id = u.id
-      WHERE u.org_id = $1
-    `, [u.org_id]);
+      WHERE ${scopeField} = $1
+    `, [scopeParam]);
 
     // Recent activity feed
     const activity = await pool.query(`
@@ -64,7 +66,7 @@ router.get('/dashboard', auth, async (req, res) => {
       FROM playbooks p
       JOIN leads l ON l.id = p.lead_id
       JOIN users u ON u.id = p.user_id
-      WHERE u.org_id = $1
+      WHERE ${scopeField} = $1
       UNION ALL
       SELECT
         'sequence' as type,
@@ -75,10 +77,10 @@ router.get('/dashboard', auth, async (req, res) => {
       FROM sequence_events se
       JOIN leads l ON l.id = se.lead_id
       JOIN users u ON u.id = se.user_id
-      WHERE u.org_id = $1 AND se.status = 'done' AND se.completed_at IS NOT NULL
+      WHERE ${scopeField} = $1 AND se.status = 'done' AND se.completed_at IS NOT NULL
       ORDER BY timestamp DESC
       LIMIT 20
-    `, [u.org_id]);
+    `, [scopeParam]);
 
     // Top leads by ICP score
     const topLeads = await pool.query(`
@@ -86,10 +88,10 @@ router.get('/dashboard', auth, async (req, res) => {
              l.status, u.full_name as owner
       FROM leads l
       JOIN users u ON u.id = l.user_id
-      WHERE u.org_id = $1 AND l.icp_score IS NOT NULL
+      WHERE ${scopeField} = $1 AND l.icp_score IS NOT NULL
       ORDER BY l.icp_score DESC
       LIMIT 10
-    `, [u.org_id]);
+    `, [scopeParam]);
 
     res.json({
       stats: stats.rows[0],
