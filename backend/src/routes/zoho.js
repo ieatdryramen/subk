@@ -139,7 +139,7 @@ router.post('/send-email/:leadId', auth, async (req, res) => {
 router.get('/connect', auth, async (req, res) => {
   const state = Buffer.from(JSON.stringify({ userId: req.userId })).toString('base64');
   const scope = 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.notes.ALL,ZohoCRM.settings.ALL,ZohoMail.messages.CREATE,ZohoMail.accounts.READ';
-  const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
+  const authUrl = `https://accounts.zoho.com/oauth/v2/auth?scope=${scope}&client_id=${ZOHO_CLIENT_ID}&response_type=code&access_type=offline&prompt=consent&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${state}`;
   res.json({ url: authUrl });
 });
 
@@ -152,13 +152,26 @@ router.get('/callback', async (req, res) => {
     const tokenRes = await axios.post('https://accounts.zoho.com/oauth/v2/token', null, {
       params: { code, client_id: ZOHO_CLIENT_ID, client_secret: ZOHO_CLIENT_SECRET, redirect_uri: REDIRECT_URI, grant_type: 'authorization_code' }
     });
-    const { refresh_token } = tokenRes.data;
-    if (!refresh_token) return res.redirect('/team?zoho=error&reason=no_refresh_token');
-    if (userId) {
-      await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1 WHERE user_id=$2', [refresh_token, userId]);
+    const { refresh_token, access_token } = tokenRes.data;
+
+    // Zoho only returns refresh_token on first auth — on re-auth, keep existing one
+    if (refresh_token) {
+      if (userId) {
+        await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1 WHERE user_id=$2', [refresh_token, userId]);
+      } else {
+        await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
+      }
+    } else if (!userId) {
+      return res.redirect('/team?zoho=error&reason=no_refresh_token');
     } else {
-      await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
+      // Check if we already have a refresh token — re-auth just updates scopes
+      const existing = await pool.query('SELECT zoho_refresh_token FROM company_profiles WHERE user_id=$1', [userId]);
+      if (!existing.rows[0]?.zoho_refresh_token) {
+        return res.redirect('/team?zoho=error&reason=no_refresh_token');
+      }
+      // Already have a token, scopes updated — we're good
     }
+
     res.redirect('/team?zoho=connected');
   } catch (err) {
     console.error('Zoho callback error:', err.response?.data || err.message);
