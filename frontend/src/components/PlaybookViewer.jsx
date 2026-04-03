@@ -135,21 +135,34 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const sendViaZoho = async (tabKey) => {
-    const emailText = playbook?.[tabKey];
+  const openInZoho = async (tabKey) => {
+    const emailText = localPlaybook?.[tabKey];
     if (!emailText) return;
     const lines = emailText.split('\n');
     const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
     const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
     const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
-    setSending(true);
-    try {
-      await api.post(`/zoho/send-email/${leadId}`, { subject, body, touchpoint: tabKey });
-      setSent(s => ({ ...s, [tabKey]: true }));
-      setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Zoho send failed. Check connection in Team & Integrations.');
-    } finally { setSending(false); }
+
+    // Copy email to clipboard so they can paste it in Zoho
+    navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`).catch(() => {});
+
+    let contactId = localLead?.zoho_contact_id;
+
+    // If no contact ID yet, push to Zoho first to create it
+    if (!contactId && localLead?.email) {
+      try {
+        const r = await api.post(`/zoho/push/${leadId}`);
+        contactId = r.data?.zoho_contact_id || localLead?.zoho_contact_id;
+      } catch (e) {}
+    }
+
+    if (contactId) {
+      // Open directly to the contact's Send Email page in Zoho CRM
+      window.open(`https://crm.zoho.com/crm/EntityInfo.do?module=Contacts&id=${contactId}`, '_blank');
+    } else if (localLead?.email) {
+      // Fallback: open mailto with pre-filled subject and body
+      window.open(`mailto:${localLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+    }
   };
 
   const saveAsTemplate = async (tabKey) => {
@@ -386,8 +399,8 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                   </button>
                 )}
                 {isEmailTab && zohoConnected && localLead?.email && (
-                  <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => sendViaZoho(activeTab)} disabled={sending}>
-                    {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
+                  <button style={s.btn('send')} onClick={() => openInZoho(activeTab)}>
+                    ↗ Open in Zoho
                   </button>
                 )}
               </>
