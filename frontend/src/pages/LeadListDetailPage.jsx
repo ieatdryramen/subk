@@ -165,13 +165,6 @@ export default function LeadListDetailPage() {
     if (!lead.title) missing.push('title');
     return missing;
   };
-    const missing = [];
-    if (!lead.email) missing.push('email');
-    if (!lead.full_name) missing.push('name');
-    if (!lead.company) missing.push('company');
-    if (!lead.title) missing.push('title');
-    return missing;
-  };
 
   const bulkDelete = async () => {
     if (!selectedIds.size || !confirm(`Delete ${selectedIds.size} leads?`)) return;

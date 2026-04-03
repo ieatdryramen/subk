@@ -280,6 +280,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
             )}
           </div>
           {!editingInfo ? (
+            <div>
             <div style={s.infoGrid}>
               {[
                 { label: 'Full Name', value: displayLead.full_name },
@@ -324,13 +325,13 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                   { key: 'meeting_booked', label: '🗓 Meeting Booked', color: 'var(--success)' },
                   { key: 'nurture', label: '🌱 Nurture', color: '#f59e0b' },
                   { key: 'not_interested', label: '🚫 Not Interested', color: 'var(--danger)' },
-                ].map(s2 => (
-                  <button key={s2.key} onClick={() => setEngagement(s2.key)}
-                    style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', fontWeight: engagementStatus === s2.key ? 600 : 400,
-                      background: engagementStatus === s2.key ? s2.color : 'var(--bg3)',
-                      color: engagementStatus === s2.key ? '#fff' : 'var(--text2)',
-                      border: `1px solid ${engagementStatus === s2.key ? s2.color : 'var(--border)'}` }}>
-                    {s2.label}
+                ].map(st => (
+                  <button key={st.key} onClick={() => setEngagement(st.key)}
+                    style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', fontWeight: engagementStatus === st.key ? 600 : 400,
+                      background: engagementStatus === st.key ? st.color : 'var(--bg3)',
+                      color: engagementStatus === st.key ? '#fff' : 'var(--text2)',
+                      border: `1px solid ${engagementStatus === st.key ? st.color : 'var(--border)'}` }}>
+                    {st.label}
                   </button>
                 ))}
               </div>
@@ -365,6 +366,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                   ))}
                 </div>
               )}
+            </div>
             </div>
           ) : (
             <div>
