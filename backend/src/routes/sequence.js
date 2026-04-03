@@ -91,16 +91,18 @@ router.get('/due/today', auth, async (req, res) => {
     const orgId = userR.rows[0]?.org_id;
     const TOUCHPOINTS = await getOrgTouchpoints(orgId);
 
-    // Get all active leads for this user's org
+    // Get all active leads for this user's org — exclude snoozed, not_interested, meeting_booked
     const leadsR = await pool.query(`
-      SELECT l.id, l.full_name, l.company, l.list_id, l.icp_score, l.sequence_stage
+      SELECT l.id, l.full_name, l.company, l.list_id, l.icp_score, l.sequence_stage, l.engagement_status, l.snoozed_until
       FROM leads l
       JOIN users u ON u.id = $1
       WHERE l.status = 'done'
         AND (l.user_id = $1 OR (u.org_id IS NOT NULL AND EXISTS (
           SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id
         )))
-        AND (l.sequence_stage IS NULL OR l.sequence_stage != 'completed')
+        AND (l.sequence_stage IS NULL OR l.sequence_stage NOT IN ('completed', 'meeting_booked'))
+        AND (l.engagement_status IS NULL OR l.engagement_status NOT IN ('not_interested', 'meeting_booked'))
+        AND (l.snoozed_until IS NULL OR l.snoozed_until < NOW())
       ORDER BY l.icp_score DESC NULLS LAST
     `, [req.userId]);
 
@@ -267,7 +269,7 @@ router.get('/:leadId', auth, async (req, res) => {
 
 // POST /sequence/:leadId/touch
 router.post('/:leadId/touch', auth, async (req, res) => {
-  const { touchpoint, status, notes } = req.body;
+  const { touchpoint, status, notes, call_outcome } = req.body;
   try {
     const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
@@ -320,14 +322,22 @@ router.post('/:leadId/touch', auth, async (req, res) => {
     let result;
     if (existing.rows.length) {
       result = await pool.query(
-        `UPDATE sequence_events SET status=$1, notes=$2, completed_at=$3 WHERE id=$4 RETURNING *`,
-        [status, notes, status === 'done' ? new Date() : null, existing.rows[0].id]
+        `UPDATE sequence_events SET status=$1, notes=$2, completed_at=$3, call_outcome=$4 WHERE id=$5 RETURNING *`,
+        [status, notes, status === 'done' ? new Date() : null, call_outcome || null, existing.rows[0].id]
       );
     } else {
       result = await pool.query(
-        `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, notes, completed_at)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [req.params.leadId, req.userId, touchpoint, status, notes, status === 'done' ? new Date() : null]
+        `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, notes, completed_at, call_outcome)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [req.params.leadId, req.userId, touchpoint, status, notes, status === 'done' ? new Date() : null, call_outcome || null]
+      );
+    }
+
+    // If meeting booked via call, update engagement status
+    if (call_outcome === 'meeting_booked') {
+      await pool.query(
+        `UPDATE leads SET engagement_status='meeting_booked', meeting_booked_at=NOW(), sequence_stage='meeting_booked' WHERE id=$1`,
+        [req.params.leadId]
       );
     }
 

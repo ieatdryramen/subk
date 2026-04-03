@@ -294,8 +294,24 @@ const initDb = async () => {
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email_signature TEXT DEFAULT '';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS zoho_org_id VARCHAR(50) DEFAULT NULL;
 
-    -- Clean up activity_log entries created by the bulk backfill (they all have logged_at = same timestamp)
-    -- These are entries where the sequence_event completed_at doesn't match logged_at date
+    -- Lead engagement status and snooze
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS engagement_status VARCHAR(50) DEFAULT 'active';
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP DEFAULT NULL;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS meeting_booked_at TIMESTAMP DEFAULT NULL;
+
+    -- Conversation notes (timestamped log separate from lead notes field)
+    CREATE TABLE IF NOT EXISTS conversation_notes (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Call outcomes on sequence events
+    ALTER TABLE sequence_events ADD COLUMN IF NOT EXISTS call_outcome VARCHAR(50) DEFAULT NULL;
+
+    -- Clean up backfill activity_log pollution
     DELETE FROM activity_log al
     WHERE al.lead_id IS NOT NULL
       AND EXISTS (

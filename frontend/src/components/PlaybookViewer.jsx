@@ -4,9 +4,11 @@ import SequenceTracker from './SequenceTracker';
 import LeadNotes from './LeadNotes';
 import Battlecard from './Battlecard';
 import CallLogger from './CallLogger';
+import ConversationNotes from './ConversationNotes';
 
 const tabs = [
   { key: 'lead_info', label: '👤 Lead Info' },
+  { key: 'conversation', label: '💬 Conversation' },
   { key: 'sequence', label: '📋 Sequence' },
   { key: 'research', label: 'Research' },
   { key: 'email1', label: 'Email 1' },
@@ -17,7 +19,7 @@ const tabs = [
   { key: 'call_opener', label: 'Call Opener' },
   { key: 'objection_handling', label: 'Objections' },
   { key: 'notes', label: '📝 Notes' },
-  { key: 'chat', label: '💬 AI Coach' },
+  { key: 'chat', label: '🤖 AI Coach' },
 ];
 
 const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
