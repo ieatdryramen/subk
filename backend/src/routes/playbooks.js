@@ -5,7 +5,7 @@ const { generatePlaybook } = require('../services/ai');
 
 // Generate playbook for a single lead
 router.post('/generate/:leadId', auth, async (req, res) => {
-  const { sections } = req.body; // optional: { email1: true, email2: true, ... }
+  const { sections, situation } = req.body; // optional params
   try {
     const leadResult = await pool.query(
       'SELECT * FROM leads WHERE id=$1 AND user_id=$2',
@@ -78,7 +78,7 @@ router.post('/generate/:leadId', auth, async (req, res) => {
 
     let playbook;
     try {
-      playbook = await generatePlaybook(lead, profile, sections);
+      playbook = await generatePlaybook(lead, profile, sections, situation);
     } catch (genErr) {
       await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['error', lead.id]);
       return res.status(500).json({ error: genErr.message });

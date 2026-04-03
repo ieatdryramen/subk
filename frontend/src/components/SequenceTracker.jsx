@@ -51,6 +51,8 @@ const s = {
 export default function SequenceTracker({ leadId }) {
   const [sequence, setSequence] = useState([]);
   const [notes, setNotes] = useState({});
+  const [callOutcomes, setCallOutcomes] = useState({});
+  const [showOutcomePicker, setShowOutcomePicker] = useState({});
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState(null);
@@ -72,12 +74,15 @@ export default function SequenceTracker({ leadId }) {
 
   useEffect(() => { load(); loadConfig(); }, [leadId]);
 
-  const mark = async (touchpoint, status) => {
+  const mark = async (touchpoint, status, call_outcome) => {
     try {
-      await api.post(`/sequence/${leadId}/touch`, { touchpoint, status, notes: notes[touchpoint] || '' });
+      await api.post(`/sequence/${leadId}/touch`, { touchpoint, status, notes: notes[touchpoint] || '', call_outcome });
+      setShowOutcomePicker(p => ({ ...p, [touchpoint]: false }));
       load();
     } catch (err) { console.error(err); }
   };
+
+  const isCallTouchpoint = (key) => key.startsWith('call') || key === 'mefu';
 
   // Drag handlers for reorder
   const onDragStart = (e, idx) => {
@@ -159,6 +164,9 @@ export default function SequenceTracker({ leadId }) {
                 {tp.status === 'done' && tp.completed_at
                   ? <div style={s.completedAt}>
                       ✓ {new Date(tp.completed_at).toLocaleDateString()}{tp.notes ? ` — ${tp.notes}` : ''}
+                      {tp.call_outcome && <span style={{ marginLeft: 8, fontSize: 10, padding: '1px 6px', borderRadius: 8, background: tp.call_outcome === 'meeting_booked' ? 'var(--success-bg)' : 'var(--bg3)', color: tp.call_outcome === 'meeting_booked' ? 'var(--success)' : 'var(--text3)', border: '1px solid currentColor' }}>
+                        {tp.call_outcome === 'voicemail' ? '📨 Voicemail' : tp.call_outcome === 'connected_followup' ? '📞 Connected' : tp.call_outcome === 'meeting_booked' ? '🗓 Meeting Booked!' : tp.call_outcome === 'not_interested' ? '🚫 Not interested' : tp.call_outcome}
+                      </span>}
                       {tp.opened_at && <span style={{ marginLeft: 8, color: 'var(--success)', fontSize: 10 }}>👁 Opened</span>}
                       {tp.clicked_at && <span style={{ marginLeft: 6, color: 'var(--accent2)', fontSize: 10 }}>🔗 Clicked</span>}
                     </div>
@@ -173,9 +181,31 @@ export default function SequenceTracker({ leadId }) {
                         placeholder="Add note (optional)"
                         value={notes[tp.key] || ''}
                         onChange={e => setNotes(n => ({ ...n, [tp.key]: e.target.value }))}
-                        onKeyDown={e => e.key === 'Enter' && mark(tp.key, 'done')}
+                        onKeyDown={e => e.key === 'Enter' && !isCallTouchpoint(tp.key) && mark(tp.key, 'done')}
                       />
-                      <button style={s.btn('done')} onClick={() => mark(tp.key, 'done')}>✓ Done</button>
+                      {isCallTouchpoint(tp.key) ? (
+                        showOutcomePicker[tp.key] ? (
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                            {[
+                              { key: 'voicemail', label: '📨 Voicemail' },
+                              { key: 'connected_followup', label: '📞 Connected' },
+                              { key: 'meeting_booked', label: '🗓 Meeting!' },
+                              { key: 'not_interested', label: '🚫 No' },
+                            ].map(o => (
+                              <button key={o.key} style={{ ...s.btn(o.key === 'meeting_booked' ? 'done' : 'skip'), fontSize: 10, padding: '3px 8px' }}
+                                onClick={() => mark(tp.key, 'done', o.key)}>
+                                {o.label}
+                              </button>
+                            ))}
+                            <button style={{ ...s.btn('skip'), fontSize: 10, padding: '3px 8px' }}
+                              onClick={() => setShowOutcomePicker(p => ({ ...p, [tp.key]: false }))}>✕</button>
+                          </div>
+                        ) : (
+                          <button style={s.btn('done')} onClick={() => setShowOutcomePicker(p => ({ ...p, [tp.key]: true }))}>✓ Done</button>
+                        )
+                      ) : (
+                        <button style={s.btn('done')} onClick={() => mark(tp.key, 'done')}>✓ Done</button>
+                      )}
                       <button style={s.btn('skip')} onClick={() => mark(tp.key, 'skipped')}>Skip</button>
                     </>
                   )}

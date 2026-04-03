@@ -23,7 +23,7 @@ const tabs = [
 ];
 
 const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
-const SPECIAL_TABS = ['lead_info', 'sequence', 'notes', 'chat'];
+const SPECIAL_TABS = ['lead_info', 'conversation', 'sequence', 'notes', 'chat'];
 const CHAT_HINTS = [
   'Rewrite email 1 — shorter, punchier',
   'Tighten the call opener to 12 seconds',
@@ -96,6 +96,9 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   const [savingContent, setSavingContent] = useState(false);
   const [generatingTab, setGeneratingTab] = useState(false);
   const [localPlaybook, setLocalPlaybook] = useState(playbook || {});
+  const [engagementStatus, setEngagementStatus] = useState(leadProp?.engagement_status || 'active');
+  const [snoozedUntil, setSnoozedUntil] = useState(leadProp?.snoozed_until || null);
+  const [showSnooze, setShowSnooze] = useState(false);
   const chatBottomRef = useRef(null);
   const cancelEditRef = useRef(false);
 
@@ -183,6 +186,21 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     cancelEditRef.current = true;
     setEditingContent(false);
     setContentDraft('');
+  };
+
+  const setEngagement = async (status) => {
+    try {
+      await api.post(`/engagement/${leadId}/status`, { status });
+      setEngagementStatus(status);
+    } catch (e) { alert('Failed to update status'); }
+  };
+
+  const snooze = async (days) => {
+    try {
+      const r = await api.post(`/engagement/${leadId}/snooze`, { days });
+      setSnoozedUntil(r.data.snoozed_until);
+      setShowSnooze(false);
+    } catch (e) { alert('Failed to snooze'); }
   };
 
   const generateTab = async () => {
@@ -295,6 +313,59 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                 </div>
               )}
             </div>
+
+            {/* Engagement Status */}
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <div style={{ ...s.infoLabel, marginBottom: 8 }}>Engagement Status</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[
+                  { key: 'active', label: '🔵 Active', color: 'var(--accent)' },
+                  { key: 'responded', label: '💬 Responded', color: '#0077b5' },
+                  { key: 'meeting_booked', label: '🗓 Meeting Booked', color: 'var(--success)' },
+                  { key: 'nurture', label: '🌱 Nurture', color: '#f59e0b' },
+                  { key: 'not_interested', label: '🚫 Not Interested', color: 'var(--danger)' },
+                ].map(s2 => (
+                  <button key={s2.key} onClick={() => setEngagement(s2.key)}
+                    style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', fontWeight: engagementStatus === s2.key ? 600 : 400,
+                      background: engagementStatus === s2.key ? s2.color : 'var(--bg3)',
+                      color: engagementStatus === s2.key ? '#fff' : 'var(--text2)',
+                      border: `1px solid ${engagementStatus === s2.key ? s2.color : 'var(--border)'}` }}>
+                    {s2.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Snooze */}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {snoozedUntil && new Date(snoozedUntil) > new Date() ? (
+                  <div style={{ fontSize: 12, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 20, padding: '3px 10px' }}>
+                    😴 Snoozed until {new Date(snoozedUntil).toLocaleDateString()}
+                    <button onClick={async () => { await api.delete(`/engagement/${leadId}/snooze`); setSnoozedUntil(null); }}
+                      style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--warning)', cursor: 'pointer', fontSize: 11 }}>✕ Unsnooze</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowSnooze(v => !v)}
+                    style={{ padding: '4px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)' }}>
+                    😴 Snooze
+                  </button>
+                )}
+              </div>
+              {showSnooze && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                  {[
+                    { label: '2 days', days: 2 }, { label: '1 week', days: 7 },
+                    { label: '2 weeks', days: 14 }, { label: '1 month', days: 30 },
+                  ].map(opt => (
+                    <button key={opt.days} onClick={() => snooze(opt.days)}
+                      style={{ padding: '4px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
@@ -326,6 +397,12 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       {/* Special tabs with their own components */}
       {activeTab === 'sequence' && (
         <div style={s.content}><SequenceTracker leadId={leadId} /></div>
+      )}
+      {activeTab === 'conversation' && (
+        <div style={s.content}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Conversation Log</div>
+          <ConversationNotes leadId={leadId} />
+        </div>
       )}
       {activeTab === 'notes' && (
         <div style={s.content}><LeadNotes leadId={leadId} /></div>

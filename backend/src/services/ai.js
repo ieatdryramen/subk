@@ -206,7 +206,7 @@ const roleStrategy = {
   },
 };
 
-const generatePlaybook = async (lead, profile) => {
+const generatePlaybook = async (lead, profile, sections, situation) => {
   const role = profile.sender_role || 'AE';
   const strategy = roleStrategy[role] || roleStrategy.AE;
   const senderName = profile.sender_name || 'Jack';
@@ -217,6 +217,15 @@ const generatePlaybook = async (lead, profile) => {
   const workflowPains = profile.workflow_pains || '';
   const buyerPersonaContext = profile.buyer_personas || '';
   const migrationContext = profile.migration_notes || '';
+
+  // Situation context — changes the email architecture
+  const situationMap = {
+    just_won_contract: `SITUATION: This prospect just won a new government contract. Open Email 1 by acknowledging the win specifically — congratulate them, then pivot to the fact that new contracts mean new billing complexity, new CLIN structures, more audit exposure. Don't lead with pain — lead with momentum and then introduce the risk.`,
+    mid_audit: `SITUATION: This prospect is currently in the middle of a DCAA audit. Do NOT congratulate or open with good news. Open with empathy for the audit crunch — the document hunt, the pressure, the distraction from actual work. Position SumX as what prevents this from happening again after the audit is over.`,
+    referred: `SITUATION: The rep was referred to this prospect by someone they know. Open Email 1 by mentioning the referral directly — "I was speaking with [mutual connection] and your name came up." Make it warm and specific, not generic. The referral is the hook — use it.`,
+    responded_before: `SITUATION: This prospect responded to outreach before but didn't convert. Don't rehash the previous conversation. Open with something new — a different angle, a new data point, or a changed circumstance. Acknowledge implicitly that they've heard from you before by being fresher and more specific this time.`,
+  };
+  const situationContext = situation && situationMap[situation] ? situationMap[situation] : '';
 
   let researchBrief = '';
   try {
@@ -254,6 +263,7 @@ Notes: ${lead.notes || 'none'}
 RESEARCH BRIEF:
 ${researchBrief}
 
+${situationContext ? `OUTREACH SITUATION — READ THIS FIRST:\n${situationContext}\n` : ''}
 ${senderName.toUpperCase()}'S ROLE AS ${role}:
 Mission: ${strategy.mission}
 Email approach: ${strategy.emailApproach}

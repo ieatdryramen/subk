@@ -89,6 +89,7 @@ export default function LeadListDetailPage() {
   const [bulkScoring, setBulkScoring] = useState(false);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [generateSections, setGenerateSections] = useState({ email1: true, email2: true, email3: true, email4: true, linkedin: true, call_opener: true, objection_handling: true, research: true });
+  const [generateSituation, setGenerateSituation] = useState('');
   const fileRef = useRef();
   const pollRef = useRef();
 
@@ -144,7 +145,7 @@ export default function LeadListDetailPage() {
     for (const leadId of ids) {
       try {
         setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'generating' } : l));
-        await api.post(`/playbooks/generate/${leadId}`, { sections });
+        await api.post(`/playbooks/generate/${leadId}`, { sections, situation: generateSituation || undefined });
         setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'done' } : l));
       } catch (err) {
         if (err.response?.data?.upgrade) { setShowUpgradeModal(true); break; }
@@ -575,6 +576,19 @@ export default function LeadListDetailPage() {
                           ⚠ missing {missingFields(lead).join(', ')}
                         </div>
                       )}
+                      {lead.engagement_status && lead.engagement_status !== 'active' && (
+                        <div style={{ fontSize: 10, borderRadius: 10, padding: '1px 7px', display: 'inline-block', marginTop: 3, marginLeft: missingFields(lead).length > 0 ? 4 : 0,
+                          background: lead.engagement_status === 'meeting_booked' ? 'rgba(34,197,94,0.1)' : lead.engagement_status === 'responded' ? 'rgba(0,119,181,0.1)' : lead.engagement_status === 'not_interested' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                          color: lead.engagement_status === 'meeting_booked' ? 'var(--success)' : lead.engagement_status === 'responded' ? '#0077b5' : lead.engagement_status === 'not_interested' ? 'var(--danger)' : '#f59e0b',
+                          border: `1px solid currentColor` }}>
+                          {lead.engagement_status === 'meeting_booked' ? '🗓 Meeting' : lead.engagement_status === 'responded' ? '💬 Responded' : lead.engagement_status === 'not_interested' ? '🚫 Not interested' : '🌱 Nurture'}
+                        </div>
+                      )}
+                      {lead.snoozed_until && new Date(lead.snoozed_until) > new Date() && (
+                        <div style={{ fontSize: 10, color: 'var(--text3)', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '1px 7px', display: 'inline-block', marginTop: 3, marginLeft: 4 }}>
+                          😴 {new Date(lead.snoozed_until).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      )}
                     </td>
                     <td style={s.td}>{lead.company || '—'}</td>
                     <td style={s.td}>{lead.title || '—'}</td>
@@ -722,9 +736,32 @@ export default function LeadListDetailPage() {
       {/* Generate Section Picker Modal */}
       {showGenerateModal && (
         <div style={s.modal} onClick={() => setShowGenerateModal(false)}>
-          <div style={{ ...s.modalCard, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalCard, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>⚡ Generate for {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}</div>
-            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 14 }}>Choose which sections to generate:</div>
+
+            {/* Situation picker */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ ...s.label, marginBottom: 6 }}>Situation — improves email relevance</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[
+                  { key: '', label: 'Cold outreach' },
+                  { key: 'just_won_contract', label: '🏆 Just won a contract' },
+                  { key: 'mid_audit', label: '🔍 Mid-DCAA audit' },
+                  { key: 'referred', label: '🤝 Was referred' },
+                  { key: 'responded_before', label: '💬 Responded before' },
+                ].map(sit => (
+                  <button key={sit.key} onClick={() => setGenerateSituation(sit.key)}
+                    style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: 'none',
+                      background: generateSituation === sit.key ? 'var(--accent)' : 'var(--bg3)',
+                      color: generateSituation === sit.key ? '#fff' : 'var(--text2)',
+                      outline: generateSituation === sit.key ? '1px solid var(--accent)' : '1px solid var(--border)' }}>
+                    {sit.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ ...s.label, marginBottom: 6 }}>Sections to generate</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
               {[
                 { key: 'research', label: 'Research Brief' },

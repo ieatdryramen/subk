@@ -40,6 +40,7 @@ const ALL_STAGES = [
   { key: 'in_progress_9', label: 'Touch 9 ✉', color: '#6c63ff', bg: 'rgba(108,99,255,0.1)' },
   { key: 'in_progress_10', label: 'Touch 10 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
   { key: 'mefu', label: 'MEFU 📅', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { key: 'meeting_booked', label: '🗓 Meeting Booked', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
   { key: 'completed', label: 'Completed ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 ];
 
