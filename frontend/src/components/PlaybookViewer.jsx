@@ -82,7 +82,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState({});
   const [savedTemplate, setSavedTemplate] = useState(false);
-  const [zohoConnected, setZohoConnected] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -96,10 +95,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   const [generatingTab, setGeneratingTab] = useState(false);
   const [localPlaybook, setLocalPlaybook] = useState(playbook || {});
   const chatBottomRef = useRef(null);
-
-  useEffect(() => {
-    api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (leadProp) setLocalLead(leadProp);
@@ -135,43 +130,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const openInZoho = async (tabKey) => {
-    const emailText = localPlaybook?.[tabKey];
-    if (!emailText) return;
-    const lines = emailText.split('\n');
-    const subjectLine = lines.find(l => l.toUpperCase().startsWith('SUBJECT:'));
-    const subject = subjectLine ? subjectLine.replace(/^SUBJECT:\s*/i, '').trim() : 'Following up';
-    const body = lines.filter(l => !l.toUpperCase().startsWith('SUBJECT:')).join('\n').trim();
-
-    let contactId = localLead?.zoho_contact_id;
-
-    if (!contactId) {
-      try {
-        const r = await api.post(`/zoho/push/${leadId}`, { addNote: false });
-        contactId = r.data?.contactId || r.data?.zoho_contact_id;
-        if (contactId) setLocalLead(prev => ({ ...prev, zoho_contact_id: contactId }));
-        if (r.data?.contactUrl) {
-          navigator.clipboard.writeText(fullEmail).catch(() => {});
-          setSent(s => ({ ...s, [tabKey]: true }));
-          setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
-          window.open(r.data.contactUrl, '_blank');
-          return;
-        }
-      } catch (e) {}
-    }
-
-    // Copy email to clipboard
-    const fullEmail = `Subject: ${subject}\n\n${body}`;
-    navigator.clipboard.writeText(fullEmail).catch(() => {});
-    setSent(s => ({ ...s, [tabKey]: true }));
-    setTimeout(() => setSent(s => ({ ...s, [tabKey]: false })), 3000);
-
-    if (contactId) {
-      window.open(`https://crm.zoho.com/crm/org880813688/tab/Contacts/${contactId}`, '_blank');
-    } else if (localLead?.email) {
-      window.open(`mailto:${localLead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-    }
-  };
+  const openInZoho = null; // removed - use → Zoho button in lead list to push contact
 
   const saveAsTemplate = async (tabKey) => {
     const emailText = playbook?.[tabKey];
@@ -404,11 +363,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
                 {isEmailTab && (
                   <button style={s.btn(savedTemplate ? 'saved' : 'template')} onClick={() => saveAsTemplate(activeTab)}>
                     {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
-                  </button>
-                )}
-                {isEmailTab && zohoConnected && localLead?.email && (
-                  <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => openInZoho(activeTab)}>
-                    {sent[activeTab] ? '✓ Copied — paste in Zoho' : '↗ Open in Zoho'}
                   </button>
                 )}
               </>
