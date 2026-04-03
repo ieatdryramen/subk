@@ -264,7 +264,7 @@ export default function PipelinePage() {
                             checked={isSelected}
                             onChange={e => toggleSelect(e, lead.id)}
                             onClick={e => e.stopPropagation()}
-                            style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer' }}
+                            style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
                           />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
