@@ -36,7 +36,7 @@ app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/cardscan', require('./routes/cardscan'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.2.0' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.3.0' }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
