@@ -291,6 +291,11 @@ const initDb = async () => {
       logged_at TIMESTAMP DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_activity_log_user_date ON activity_log(user_id, logged_at);
+    CREATE INDEX IF NOT EXISTS idx_leads_user_id ON leads(user_id);
+    CREATE INDEX IF NOT EXISTS idx_playbooks_user_id ON playbooks(user_id);
+    CREATE INDEX IF NOT EXISTS idx_sequence_events_user_id ON sequence_events(user_id);
+    CREATE INDEX IF NOT EXISTS idx_leads_list_id ON leads(list_id);
+    CREATE INDEX IF NOT EXISTS idx_sequence_events_lead_id ON sequence_events(lead_id);
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email_signature TEXT DEFAULT '';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS zoho_org_id VARCHAR(50) DEFAULT NULL;
 
