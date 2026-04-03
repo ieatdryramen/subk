@@ -269,6 +269,49 @@ router.get('/:leadId', auth, async (req, res) => {
 router.post('/:leadId/touch', auth, async (req, res) => {
   const { touchpoint, status, notes } = req.body;
   try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    const TOUCHPOINTS = await getOrgTouchpoints(orgId);
+
+    // If marking done, backfill all prior pending touches first
+    if (status === 'done') {
+      const touchIdx = TOUCHPOINTS.findIndex(t => t.key === touchpoint);
+      if (touchIdx > 0) {
+        const priorTouches = TOUCHPOINTS.slice(0, touchIdx);
+        for (let i = 0; i < priorTouches.length; i++) {
+          const prior = priorTouches[i];
+          const exists = await pool.query(
+            "SELECT id, status FROM sequence_events WHERE lead_id=$1 AND touchpoint=$2",
+            [req.params.leadId, prior.key]
+          );
+          if (!exists.rows.length || exists.rows[0].status !== 'done') {
+            // Timestamp them sequentially, a minute apart, ending just before now
+            const ts = new Date(Date.now() - ((touchIdx - i) * 60000));
+            if (exists.rows.length) {
+              await pool.query(
+                `UPDATE sequence_events SET status='done', completed_at=$1 WHERE id=$2`,
+                [ts, exists.rows[0].id]
+              );
+            } else {
+              await pool.query(
+                `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, notes, completed_at)
+                 VALUES ($1,$2,$3,'done','',$4)`,
+                [req.params.leadId, req.userId, prior.key, ts]
+              );
+            }
+            // Log activity for each backfilled touch
+            const actType = prior.type || 'email';
+            await pool.query(
+              `INSERT INTO activity_log (user_id, lead_id, activity_type, touchpoint, logged_at)
+               VALUES ($1,$2,$3,$4,$5)
+               ON CONFLICT DO NOTHING`,
+              [req.userId, req.params.leadId, actType, prior.key, ts]
+            ).catch(() => {});
+          }
+        }
+      }
+    }
+
     const existing = await pool.query(
       'SELECT id FROM sequence_events WHERE lead_id=$1 AND touchpoint=$2',
       [req.params.leadId, touchpoint]
