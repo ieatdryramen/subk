@@ -173,7 +173,7 @@ export default function SequenceTracker({ leadId }) {
                   : <div style={s.day}>{tp.day}</div>}
               </div>
               {!editMode && (
-                <div style={s.actions}>
+                <div style={s.actions} className="pf-sequence-actions">
                   {tp.status === 'pending' && (
                     <>
                       <input

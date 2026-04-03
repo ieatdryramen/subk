@@ -370,7 +370,7 @@ export default function LeadListDetailPage() {
           {filteredLeads.length !== leads.length ? ` · ${filteredLeads.length} shown` : ''}
         </div>
 
-        <div style={s.actions}>
+        <div style={s.actions} className="pf-list-actions">
           <button style={s.btn('primary')} onClick={() => setModal('add')}>+ Add Lead</button>
           <button style={s.btn('default')} onClick={() => setModal('csv')}>↑ Import CSV</button>
           {leads.length > 0 && (
@@ -649,7 +649,7 @@ export default function LeadListDetailPage() {
       {/* Add Lead Modal */}
       {modal === 'add' && (
         <div style={s.modal} onClick={() => setModal(null)}>
-          <div style={s.modalCard} onClick={e => e.stopPropagation()}>
+          <div style={s.modalCard} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>Add lead</div>
             <div style={s.row2}>
               <div style={s.field}><label style={s.label}>Full name</label><input autoFocus value={addForm.full_name} onChange={e => setAddForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Sarah Chen" /></div>
@@ -675,7 +675,7 @@ export default function LeadListDetailPage() {
       {/* Edit Lead Modal */}
       {editingLead && (
         <div style={s.modal} onClick={() => setEditingLead(null)}>
-          <div style={{ ...s.modalCard, maxWidth: 520 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalCard, maxWidth: 520 }} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: '1.25rem' }}>Edit lead</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div><label style={s.label}>Full name</label><input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} /></div>
@@ -701,7 +701,7 @@ export default function LeadListDetailPage() {
       {/* Upgrade Modal */}
       {showUpgradeModal && (
         <div style={s.modal} onClick={() => setShowUpgradeModal(false)}>
-          <div style={{ ...s.modalCard, maxWidth: 460, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalCard, maxWidth: 460, textAlign: "center" }} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
             <div style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>Playbook limit reached</div>
             <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: '1.5rem', lineHeight: 1.6 }}>
@@ -732,7 +732,7 @@ export default function LeadListDetailPage() {
       {/* Generate Section Picker Modal */}
       {showGenerateModal && (
         <div style={s.modal} onClick={() => { setShowGenerateModal(false); setGenerateSituation(''); }}>
-          <div style={{ ...s.modalCard, maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...s.modalCard, maxWidth: 480 }} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>⚡ Generate for {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}</div>
 
             {/* Situation picker */}
@@ -793,7 +793,7 @@ export default function LeadListDetailPage() {
       {/* CSV Modal */}
       {modal === 'csv' && (
         <div style={s.modal} onClick={() => setModal(null)}>
-          <div style={s.modalCard} onClick={e => e.stopPropagation()}>
+          <div style={s.modalCard} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>Import from CSV</div>
             <div style={s.dropZone} onClick={() => fileRef.current.click()}
               onDragOver={e => e.preventDefault()}

@@ -318,7 +318,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
             {/* Engagement Status */}
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <div style={{ ...s.infoLabel, marginBottom: 8 }}>Engagement Status</div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div className="pf-engagement-buttons" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {[
                   { key: 'active', label: '🔵 Active', color: 'var(--accent)' },
                   { key: 'responded', label: '💬 Responded', color: '#0077b5' },

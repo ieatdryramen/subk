@@ -84,6 +84,60 @@ export default function Layout({ children }) {
         <button onClick={() => setMobileOpen(true)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 10px', borderRadius: 'var(--radius)', fontSize: 13, cursor: 'pointer' }}>☰ Menu</button>
       </div>
 
+      {/* Mobile bottom nav */}
+      <style>{`
+        .pf-bottom-nav { display: none; }
+        @media (max-width: 768px) {
+          .pf-bottom-nav {
+            display: flex !important;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg2);
+            border-top: 1px solid var(--border);
+            z-index: 150;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+          .pf-bottom-nav a {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 4px;
+            font-size: 10px;
+            color: var(--text3);
+            text-decoration: none;
+            gap: 3px;
+            border-top: 2px solid transparent;
+            transition: all 0.15s;
+          }
+          .pf-bottom-nav a.active {
+            color: var(--accent2);
+            border-top-color: var(--accent);
+          }
+          .pf-bottom-nav a span.icon { font-size: 18px; }
+          /* Add padding to main content so it clears the bottom nav */
+          main { padding-bottom: 60px !important; }
+        }
+      `}</style>
+      <nav className="pf-bottom-nav">
+        {[
+          { to: '/dashboard',  icon: '▦', label: 'Home' },
+          { to: '/reminders',  icon: '🎯', label: 'Touches' },
+          { to: '/lists',      icon: '◉', label: 'Leads' },
+          { to: '/pipeline',   icon: '▤', label: 'Pipeline' },
+          { to: '/profile',    icon: '◈', label: 'Profile' },
+        ].map(item => (
+          <NavLink key={item.to} to={item.to}
+            className={({ isActive }) => isActive ? 'active' : ''}>
+            <span className="icon">{item.icon}</span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
       <div className="pf-shell" style={{ display: 'flex', minHeight: '100vh' }}>
         <div className={`pf-sidebar ${mobileOpen ? 'open' : ''}`}>
           {sidebar}
