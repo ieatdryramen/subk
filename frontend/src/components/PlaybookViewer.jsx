@@ -163,7 +163,13 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     } finally { setChatLoading(false); }
   };
 
-  const saveContent = async () => {
+  const saveContent = async (e) => {
+    // If blur was triggered by clicking Cancel button, don't save
+    if (e?.relatedTarget?.textContent === 'Cancel') {
+      setEditingContent(false);
+      return;
+    }
+    if (savingContent) return;
     setSavingContent(true);
     try {
       await api.put(`/playbooks/${leadId}/field`, { field: activeTab, value: contentDraft });
@@ -353,7 +359,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
           <div style={s.actionRow}>
             {!editingContent ? (
               <>
-                <button style={s.btn('copy')} onClick={startEditContent}>✏️ Edit</button>
                 <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
                 <button style={{ ...s.btn('copy'), background: generatingTab ? 'var(--bg3)' : 'var(--accent-bg)', color: generatingTab ? 'var(--text3)' : 'var(--accent2)', border: '1px solid var(--accent)' }} onClick={generateTab} disabled={generatingTab}>
                   {generatingTab ? '⚡ Generating...' : '⚡ Regenerate'}
@@ -370,17 +375,26 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
               <>
                 <button style={s.btn('send')} onClick={saveContent} disabled={savingContent}>{savingContent ? 'Saving...' : '✓ Save'}</button>
                 <button style={s.btn('copy')} onClick={() => setEditingContent(false)}>Cancel</button>
+                <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 4 }}>Click outside to save</span>
               </>
             )}
           </div>
           {editingContent ? (
             <textarea
+              autoFocus
               value={contentDraft}
               onChange={e => setContentDraft(e.target.value)}
+              onBlur={saveContent}
               style={{ width: '100%', minHeight: 320, fontFamily: 'Inter, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '1rem', resize: 'vertical', boxSizing: 'border-box' }}
             />
           ) : (
-            <pre style={s.pre}>{localPlaybook[activeTab] || 'Click ⚡ Regenerate to generate this section.'}</pre>
+            <pre
+              style={{ ...s.pre, cursor: 'text', borderRadius: 'var(--radius)', padding: '0.5rem', margin: '-0.5rem', transition: 'background 0.1s' }}
+              onClick={startEditContent}
+              title="Click to edit"
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'}
+              onMouseLeave={e => e.currentTarget.style.background = ''}
+            >{localPlaybook[activeTab] || <span style={{ color: 'var(--text3)' }}>Click ⚡ Regenerate to generate this section.</span>}</pre>
           )}
           {localPlaybook.generated_at && !editingContent && (
             <div style={s.genTime}>Generated {new Date(localPlaybook.generated_at).toLocaleString()}</div>
