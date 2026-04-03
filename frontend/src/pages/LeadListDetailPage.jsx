@@ -87,6 +87,8 @@ export default function LeadListDetailPage() {
   const [bulkGenerating, setBulkGenerating] = useState(false);
   const [bulkZohoing, setBulkZohoing] = useState(false);
   const [bulkScoring, setBulkScoring] = useState(false);
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [generateSections, setGenerateSections] = useState({ email1: true, email2: true, email3: true, email4: true, linkedin: true, call_opener: true, objection_handling: true, research: true });
   const fileRef = useRef();
   const pollRef = useRef();
 
@@ -134,17 +136,15 @@ export default function LeadListDetailPage() {
     catch (err) { alert(err.response?.data?.error || 'Generation failed. Check your company profile.'); setGenerating(false); }
   };
 
-  const bulkGenerate = async () => {
-    const toGenerate = [...selectedIds].filter(lid => {
-      const lead = leads.find(l => l.id === lid);
-      return lead && lead.status !== 'done' && lead.status !== 'generating';
-    });
-    if (!toGenerate.length) return;
+  const bulkGenerate = async (sections) => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setShowGenerateModal(false);
     setBulkGenerating(true);
-    for (const leadId of toGenerate) {
+    for (const leadId of ids) {
       try {
         setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'generating' } : l));
-        await api.post(`/playbooks/generate/${leadId}`);
+        await api.post(`/playbooks/generate/${leadId}`, { sections });
         setLeads(ls => ls.map(l => l.id === leadId ? { ...l, status: 'done' } : l));
       } catch (err) {
         if (err.response?.data?.upgrade) { setShowUpgradeModal(true); break; }
@@ -154,6 +154,15 @@ export default function LeadListDetailPage() {
     setBulkGenerating(false);
     setSelectedIds(new Set());
     await loadLeads();
+  };
+
+  const missingFields = (lead) => {
+    const missing = [];
+    if (!lead.email) missing.push('email');
+    if (!lead.full_name) missing.push('name');
+    if (!lead.company) missing.push('company');
+    if (!lead.title) missing.push('title');
+    return missing;
   };
 
   const bulkDelete = async () => {
@@ -449,7 +458,7 @@ export default function LeadListDetailPage() {
               {selectedIds.size > 0 ? (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ fontSize: 12, color: 'var(--text2)' }}>{selectedIds.size} selected</span>
-                  <button style={s.btn('success')} onClick={bulkGenerate} disabled={bulkGenerating}>
+                  <button style={s.btn('success')} onClick={() => setShowGenerateModal(true)} disabled={bulkGenerating}>
                     {bulkGenerating ? 'Generating...' : `⚡ Generate (${selectedIds.size})`}
                   </button>
                   <button style={s.btn('warning')} onClick={bulkScore} disabled={bulkScoring}>
@@ -552,7 +561,14 @@ export default function LeadListDetailPage() {
                           checked={selectedIds.has(lead.id)} onChange={() => {}} />
                       </div>
                     </td>
-                    <td style={s.td}><div style={{ fontWeight: 500 }}>{lead.full_name || '—'}</div></td>
+                    <td style={s.td}>
+                      <div style={{ fontWeight: 500 }}>{lead.full_name || '—'}</div>
+                      {missingFields(lead).length > 0 && (
+                        <div title={`Missing: ${missingFields(lead).join(', ')}`} style={{ fontSize: 10, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 10, padding: '1px 7px', display: 'inline-block', marginTop: 3 }}>
+                          ⚠ missing {missingFields(lead).join(', ')}
+                        </div>
+                      )}
+                    </td>
                     <td style={s.td}>{lead.company || '—'}</td>
                     <td style={s.td}>{lead.title || '—'}</td>
                     <td style={s.td}>
@@ -692,6 +708,44 @@ export default function LeadListDetailPage() {
               View plans & upgrade →
             </button>
             <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 10, cursor: 'pointer' }} onClick={() => setShowUpgradeModal(false)}>Maybe later</div>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Section Picker Modal */}
+      {showGenerateModal && (
+        <div style={s.modal} onClick={() => setShowGenerateModal(false)}>
+          <div style={{ ...s.modalCard, maxWidth: 460 }} onClick={e => e.stopPropagation()}>
+            <div style={s.modalTitle}>⚡ Generate for {selectedIds.size} lead{selectedIds.size !== 1 ? 's' : ''}</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 14 }}>Choose which sections to generate:</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
+              {[
+                { key: 'research', label: 'Research Brief' },
+                { key: 'email1', label: 'Email 1' },
+                { key: 'email2', label: 'Email 2' },
+                { key: 'email3', label: 'Email 3' },
+                { key: 'email4', label: 'Email 4' },
+                { key: 'linkedin', label: 'LinkedIn' },
+                { key: 'call_opener', label: 'Call Opener' },
+                { key: 'objection_handling', label: 'Objections' },
+              ].map(sec => (
+                <label key={sec.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '7px 10px', borderRadius: 'var(--radius)', border: `1px solid ${generateSections[sec.key] ? 'var(--accent)' : 'var(--border)'}`, background: generateSections[sec.key] ? 'var(--accent-bg)' : 'var(--bg3)' }}>
+                  <input type="checkbox" checked={!!generateSections[sec.key]}
+                    onChange={e => setGenerateSections(p => ({ ...p, [sec.key]: e.target.checked }))}
+                    style={{ accentColor: 'var(--accent)' }} />
+                  {sec.label}
+                </label>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={{ ...s.btn('default'), padding: '8px 16px' }} onClick={() => setGenerateSections({ email1: true, email2: true, email3: true, email4: true, linkedin: true, call_opener: true, objection_handling: true, research: true })}>Select all</button>
+              <button style={s.cancelBtn} onClick={() => setShowGenerateModal(false)}>Cancel</button>
+              <button style={{ ...s.saveBtn, flex: 'unset', padding: '9px 22px' }}
+                disabled={!Object.values(generateSections).some(Boolean)}
+                onClick={() => bulkGenerate(generateSections)}>
+                Generate →
+              </button>
+            </div>
           </div>
         </div>
       )}

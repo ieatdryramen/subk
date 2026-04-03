@@ -16,15 +16,12 @@ const tabs = [
   { key: 'linkedin', label: 'LinkedIn' },
   { key: 'call_opener', label: 'Call Opener' },
   { key: 'objection_handling', label: 'Objections' },
-  { key: 'callbacks', label: 'Callbacks' },
-  { key: 'call_log', label: '📞 Calls' },
-  { key: 'battlecard', label: '⚔️ Battlecard' },
   { key: 'notes', label: '📝 Notes' },
   { key: 'chat', label: '💬 AI Coach' },
 ];
 
 const EMAIL_KEYS = ['email1', 'email2', 'email3', 'email4'];
-const SPECIAL_TABS = ['lead_info', 'sequence', 'call_log', 'battlecard', 'notes', 'chat'];
+const SPECIAL_TABS = ['lead_info', 'sequence', 'notes', 'chat'];
 const CHAT_HINTS = [
   'Rewrite email 1 — shorter, punchier',
   'Tighten the call opener to 12 seconds',
@@ -292,12 +289,6 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
       {/* Special tabs with their own components */}
       {activeTab === 'sequence' && (
         <div style={s.content}><SequenceTracker leadId={leadId} /></div>
-      )}
-      {activeTab === 'call_log' && (
-        <div style={s.content}><CallLogger leadId={leadId} lead={displayLead} /></div>
-      )}
-      {activeTab === 'battlecard' && (
-        <div style={s.content}><Battlecard leadId={leadId} /></div>
       )}
       {activeTab === 'notes' && (
         <div style={s.content}><LeadNotes leadId={leadId} /></div>
