@@ -141,6 +141,7 @@ const generatePlaybook = async (lead, profile) => {
   const role = profile.sender_role || 'AE';
   const strategy = roleStrategy[role] || roleStrategy.AE;
   const senderName = profile.sender_name || 'Jack';
+  const emailSignature = profile.email_signature ? `\n${profile.email_signature}` : '';
   const tone = profile.tone === 'custom' && profile.custom_tone ? profile.custom_tone : (profile.tone || 'direct and confident, like a peer in the GovCon industry');
   const legacySystem = profile.legacy_system || 'Costpoint';
   const complianceContext = profile.compliance_focus || '';
@@ -228,10 +229,10 @@ HARD RULES:
 3. Do NOT name Costpoint, Deltek, Unanet, or any ERP vendor anywhere in emails — you do not know what they use.
 4. Do NOT use "Janet" or ANY placeholder first name as a generic stand-in anywhere in the output — in emails, brush-offs, callbacks, or objection handling. Always say "your controller" or "your finance person" or "that person."
 5. Do NOT make unverifiable assertions dressed as facts — "government contractors lose more deals to back-office capacity than pricing" is invented. If you cannot verify it, make it a question instead.
-6. Email 1: 4-6 sentences max. One role-specific observation about GovCon finance reality, one implication, one question. Signed: ${senderName}
-7. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. No product pitch. No unverifiable assertions. Signed: ${senderName}
-8. Email 3: Under 75 words total. One tight observation. One question. Nothing else. Signed: ${senderName}
-9. Email 4: Under 55 words. Honest warm close. Leave door open. No guilt trip. Signed: ${senderName}
+6. Email 1: 4-6 sentences max. One role-specific observation about GovCon finance reality, one implication, one question. Signed: ${senderName}${emailSignature}
+7. Email 2: Completely different angle — key-person risk, a specific workflow scenario, or a peer observation. No product pitch. No unverifiable assertions. Signed: ${senderName}${emailSignature}
+8. Email 3: Under 75 words total. One tight observation. One question. Nothing else. Signed: ${senderName}${emailSignature}
+9. Email 4: Under 55 words. Honest warm close. Leave door open. No guilt trip. Signed: ${senderName}${emailSignature}
 10. Call opener: 15 seconds MAX when read aloud at a natural pace. One role-based observation, permission ask, done.
 11. Write in the voice of: ${tone}
 12. Objections: Sound like a confident peer who has heard this before. Never start a response with "That makes sense" or "I understand your concern."

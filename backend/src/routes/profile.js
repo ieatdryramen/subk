@@ -33,6 +33,7 @@ router.get('/', auth, async (req, res) => {
       tone: userProfile?.tone || orgProfile?.tone || '',
       custom_tone: userProfile?.custom_tone || '',
       website_url: orgProfile?.website_url || userProfile?.website_url || '',
+      email_signature: userProfile?.email_signature || '',
       is_admin: isAdmin,
     };
 
@@ -60,6 +61,7 @@ router.post('/', auth, async (req, res) => {
     const sender_role = req.body.sender_role || 'AE';
     const tone = req.body.tone || '';
     const custom_tone = req.body.custom_tone || '';
+    const email_signature = req.body.email_signature || '';
 
     // Save org-level profile if admin
     if (isAdmin && orgId) {
@@ -96,20 +98,20 @@ router.post('/', auth, async (req, res) => {
         `UPDATE company_profiles SET
           sender_name=$1, sender_role=$2, tone=$3, custom_tone=$4,
           name=$5, product=$6, value_props=$7, icp=$8,
-          target_titles=$9, objections=$10, website_url=$11, updated_at=NOW()
-         WHERE user_id=$12`,
+          target_titles=$9, objections=$10, website_url=$11, email_signature=$12, updated_at=NOW()
+         WHERE user_id=$13`,
         [sender_name, sender_role, tone, custom_tone,
          name, product, value_props, icp,
-         target_titles, objections, website_url, req.userId]
+         target_titles, objections, website_url, email_signature, req.userId]
       );
     } else {
       await pool.query(
         `INSERT INTO company_profiles
           (user_id, sender_name, sender_role, tone, custom_tone,
-           name, product, value_props, icp, target_titles, objections, website_url)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+           name, product, value_props, icp, target_titles, objections, website_url, email_signature)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [req.userId, sender_name, sender_role, tone, custom_tone,
-         name, product, value_props, icp, target_titles, objections, website_url]
+         name, product, value_props, icp, target_titles, objections, website_url, email_signature]
       );
     }
 

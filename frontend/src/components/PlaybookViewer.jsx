@@ -76,7 +76,7 @@ const msgStyle = (role) => ({
   border: role === 'user' ? 'none' : '1px solid var(--border)',
 });
 
-export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
+export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPlaybookUpdate }) {
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false);
@@ -90,6 +90,11 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
   const [infoForm, setInfoForm] = useState({});
   const [savingInfo, setSavingInfo] = useState(false);
   const [localLead, setLocalLead] = useState(leadProp || {});
+  const [editingContent, setEditingContent] = useState(false);
+  const [contentDraft, setContentDraft] = useState('');
+  const [savingContent, setSavingContent] = useState(false);
+  const [generatingTab, setGeneratingTab] = useState(false);
+  const [localPlaybook, setLocalPlaybook] = useState(playbook || {});
   const chatBottomRef = useRef(null);
 
   useEffect(() => {
@@ -99,6 +104,16 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
   useEffect(() => {
     if (leadProp) setLocalLead(leadProp);
   }, [leadProp]);
+
+  useEffect(() => {
+    if (playbook) setLocalPlaybook(playbook);
+  }, [playbook]);
+
+  // Reset edit state when switching tabs
+  useEffect(() => {
+    setEditingContent(false);
+    setContentDraft('');
+  }, [activeTab]);
 
   useEffect(() => {
     if (chatBottomRef.current) {
@@ -165,7 +180,33 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
     } finally { setChatLoading(false); }
   };
 
-  const startEditInfo = () => {
+  const saveContent = async () => {
+    setSavingContent(true);
+    try {
+      await api.put(`/playbooks/${leadId}/field`, { field: activeTab, value: contentDraft });
+      setLocalPlaybook(p => ({ ...p, [activeTab]: contentDraft }));
+      setEditingContent(false);
+    } catch (err) {
+      alert('Failed to save');
+    } finally { setSavingContent(false); }
+  };
+
+  const generateTab = async () => {
+    setGeneratingTab(true);
+    try {
+      const r = await api.post(`/playbooks/generate/${leadId}`, { sections: { [activeTab]: true } });
+      if (r.data[activeTab]) {
+        setLocalPlaybook(p => ({ ...p, [activeTab]: r.data[activeTab] }));
+      }
+    } catch (err) {
+      alert('Generation failed');
+    } finally { setGeneratingTab(false); }
+  };
+
+  const startEditContent = () => {
+    setContentDraft(localPlaybook[activeTab] || '');
+    setEditingContent(true);
+  };
     setInfoForm({
       full_name: localLead.full_name || '',
       company: localLead.company || '',
@@ -325,23 +366,44 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp }) {
       {!SPECIAL_TABS.includes(activeTab) && (
         <div style={s.content}>
           <div style={s.actionRow}>
-            <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
-            <button style={s.btn('copy')} onClick={() => exportLead('html')}>⬇ Export PDF</button>
-            <button style={s.btn('copy')} onClick={() => exportLead('csv')}>⬇ Export CSV</button>
-            {isEmailTab && (
-              <button style={s.btn(savedTemplate ? 'saved' : 'template')} onClick={() => saveAsTemplate(activeTab)}>
-                {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
-              </button>
-            )}
-            {isEmailTab && zohoConnected && (
-              <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => sendViaZoho(activeTab)} disabled={sending}>
-                {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
-              </button>
+            {!editingContent ? (
+              <>
+                <button style={s.btn('copy')} onClick={startEditContent}>✏️ Edit</button>
+                <button style={s.btn('copy')} onClick={copy}>{copied ? '✓ Copied' : 'Copy'}</button>
+                <button style={{ ...s.btn('copy'), background: generatingTab ? 'var(--bg3)' : 'var(--accent-bg)', color: generatingTab ? 'var(--text3)' : 'var(--accent2)', border: '1px solid var(--accent)' }} onClick={generateTab} disabled={generatingTab}>
+                  {generatingTab ? '⚡ Generating...' : '⚡ Regenerate'}
+                </button>
+                <button style={s.btn('copy')} onClick={() => exportLead('html')}>⬇ Export PDF</button>
+                <button style={s.btn('copy')} onClick={() => exportLead('csv')}>⬇ Export CSV</button>
+                {isEmailTab && (
+                  <button style={s.btn(savedTemplate ? 'saved' : 'template')} onClick={() => saveAsTemplate(activeTab)}>
+                    {savedTemplate ? '✓ Saved as template' : '⊕ Save as template'}
+                  </button>
+                )}
+                {isEmailTab && zohoConnected && (
+                  <button style={s.btn(sent[activeTab] ? 'saved' : 'send')} onClick={() => sendViaZoho(activeTab)} disabled={sending}>
+                    {sent[activeTab] ? '✓ Sent via Zoho' : sending ? 'Sending...' : '✉ Send via Zoho'}
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button style={s.btn('send')} onClick={saveContent} disabled={savingContent}>{savingContent ? 'Saving...' : '✓ Save'}</button>
+                <button style={s.btn('copy')} onClick={() => setEditingContent(false)}>Cancel</button>
+              </>
             )}
           </div>
-          <pre style={s.pre}>{playbook[activeTab] || 'Regenerate this playbook to get this section.'}</pre>
-          {playbook.generated_at && (
-            <div style={s.genTime}>Generated {new Date(playbook.generated_at).toLocaleString()}</div>
+          {editingContent ? (
+            <textarea
+              value={contentDraft}
+              onChange={e => setContentDraft(e.target.value)}
+              style={{ width: '100%', minHeight: 320, fontFamily: 'Inter, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '1rem', resize: 'vertical', boxSizing: 'border-box' }}
+            />
+          ) : (
+            <pre style={s.pre}>{localPlaybook[activeTab] || 'Click ⚡ Regenerate to generate this section.'}</pre>
+          )}
+          {localPlaybook.generated_at && !editingContent && (
+            <div style={s.genTime}>Generated {new Date(localPlaybook.generated_at).toLocaleString()}</div>
           )}
         </div>
       )}

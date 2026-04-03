@@ -220,5 +220,21 @@ router.get('/:leadId', auth, async (req, res) => {
   }
 });
 
+// PUT /playbooks/:leadId/field — save a single field edit
+router.put('/:leadId/field', auth, async (req, res) => {
+  const { field, value } = req.body;
+  const allowed = ['research','email1','email2','email3','email4','linkedin','call_opener','objection_handling','callbacks'];
+  if (!allowed.includes(field)) return res.status(400).json({ error: 'Invalid field' });
+  try {
+    await pool.query(
+      `UPDATE playbooks SET ${field}=$1, updated_at=NOW() WHERE lead_id=$2 AND user_id=$3`,
+      [value, req.params.leadId, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 

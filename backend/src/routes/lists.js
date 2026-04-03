@@ -54,7 +54,7 @@ router.get('/:id/leads', auth, async (req, res) => {
       `SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4, 
               p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
        FROM leads l LEFT JOIN playbooks p ON p.lead_id=l.id
-       WHERE l.list_id=$1 AND l.user_id=$2 ORDER BY l.created_at ASC`,
+       WHERE l.list_id=$1 AND l.user_id=$2 ORDER BY l.created_at DESC`,
       [req.params.id, req.userId]
     );
     res.json(result.rows);
