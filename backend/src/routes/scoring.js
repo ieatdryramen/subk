@@ -31,14 +31,22 @@ Return ONLY the JSON array.`;
     });
 
     const text = message.content[0].text.trim().replace(/^```json|^```|```$/gm, '').trim();
-    const scores = JSON.parse(text);
+    let scores;
+    try {
+      scores = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('ICP scoring JSON parse error:', text);
+      continue; // Skip this batch, try next
+    }
 
     for (let j = 0; j < batch.length; j++) {
       const s = scores[j];
       if (s) {
+        // Validate score is a number between 1-100
+        const score = Math.max(1, Math.min(100, Math.round(Number(s.score) || 50)));
         await pool.query(
           'UPDATE leads SET icp_score=$1, icp_reason=$2 WHERE id=$3',
-          [s.score, s.reason, batch[j].id]
+          [score, s.reason || '', batch[j].id]
         );
       }
     }

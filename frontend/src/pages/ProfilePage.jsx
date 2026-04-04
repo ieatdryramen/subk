@@ -85,7 +85,10 @@ export default function ProfilePage() {
         if (r.data.custom_tone) setUseCustomTone(true);
         if (r.data.is_admin) setIsAdmin(true);
       }
-    }).catch(() => {});
+    }).catch(err => {
+      console.error('Failed to load profile:', err);
+      setStatus('load-error');
+    });
   }, []);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -130,6 +133,7 @@ export default function ProfilePage() {
             </button>
           </div>
           {status === 'autofilled' && <div style={{ color: 'var(--success)', fontSize: 13 }}>✓ Filled from website — review below</div>}
+          {status === 'autofill-error' && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Could not read website — fill in manually below</div>}
         </div>
 
         {/* Who you are */}
@@ -264,7 +268,8 @@ export default function ProfilePage() {
         <div style={{ display: 'flex', alignItems: 'center', paddingBottom: '2rem' }}>
           <button style={s.saveBtn} onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save profile'}</button>
           {status === 'saved' && <span style={s.success}>✓ Saved — regenerate leads to use the new profile</span>}
-          {status === 'error' && <span style={s.err}>Failed to save — check console</span>}
+          {status === 'error' && <span style={s.err}>Failed to save — try again</span>}
+          {status === 'load-error' && <span style={s.err}>Failed to load profile — showing defaults</span>}
         </div>
       </div>
     </Layout>

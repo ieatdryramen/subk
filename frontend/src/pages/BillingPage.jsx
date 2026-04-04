@@ -117,7 +117,7 @@ export default function BillingPage() {
           </div>
         )}
 
-        <div style={s.grid}>
+        <div className="pf-billing-grid" style={s.grid}>
           {PLANS.map(plan => {
             const isCurrent = status?.plan === plan.key || (status?.whitelisted && plan.key === 'pro');
             return (

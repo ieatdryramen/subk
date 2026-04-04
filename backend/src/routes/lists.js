@@ -84,6 +84,7 @@ router.post('/:id/leads', auth, async (req, res) => {
 // CSV upload
 router.post('/:id/import', auth, upload.single('file'), async (req, res) => {
   try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const content = req.file.buffer.toString('utf8');
     const records = parse(content, { columns: true, skip_empty_lines: true, trim: true });
     const inserted = [];

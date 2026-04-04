@@ -70,7 +70,13 @@ Return ONLY the JSON.`;
     });
 
     const text = message.content[0].text.trim().replace(/^```json|^```|```$/gm, '').trim();
-    const battlecard = JSON.parse(text);
+    let battlecard;
+    try {
+      battlecard = JSON.parse(text);
+    } catch (parseErr) {
+      console.error('Battlecard JSON parse error:', text);
+      return res.status(500).json({ error: 'Failed to parse AI response — try again' });
+    }
     res.json(battlecard);
   } catch (err) {
     console.error(err);

@@ -124,6 +124,12 @@ a:hover { text-decoration: underline; }
     gap: 8px !important;
   }
 
+  /* ---- Billing page ---- */
+  .pf-billing-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
   /* ---- Lead List page ---- */
   /* Hide columns that don't matter on mobile - keep name + status + actions */
   .pf-lead-table th:nth-child(3),
