@@ -54,6 +54,7 @@ export default function SequenceTracker({ leadId }) {
   const [callOutcomes, setCallOutcomes] = useState({});
   const [showOutcomePicker, setShowOutcomePicker] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState(null);
   const [dropIdx, setDropIdx] = useState(null);
@@ -62,10 +63,14 @@ export default function SequenceTracker({ leadId }) {
   const dragItem = useRef(null);
 
   const load = () => {
+    setLoadError(null);
     api.get(`/sequence/${leadId}`).then(r => {
       setSequence(r.data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(err => {
+      setLoadError('Failed to load sequence');
+      setLoading(false);
+    });
   };
 
   const loadConfig = () => {
@@ -119,6 +124,7 @@ export default function SequenceTracker({ leadId }) {
   };
 
   if (loading) return <div style={{ color: 'var(--text2)', fontSize: 13, padding: '1rem 0' }}>Loading sequence...</div>;
+  if (loadError) return <div style={{ color: 'var(--danger)', fontSize: 13, padding: '1rem 0' }}>{loadError} <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '3px 10px', cursor: 'pointer', marginLeft: 8 }}>Retry</button></div>;
 
   const doneCount = sequence.filter(s => s.status === 'done').length;
   const pct = Math.round((doneCount / sequence.length) * 100);

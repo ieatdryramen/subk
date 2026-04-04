@@ -93,7 +93,10 @@ export default function LeadListDetailPage() {
   const fileRef = useRef();
   const pollRef = useRef();
 
+  const [loadError, setLoadError] = useState(null);
+
   const loadLeads = async () => {
+    setLoadError(null);
     try {
       const [listRes, leadsRes] = await Promise.all([
         api.get('/lists').then(r => r.data.find(l => l.id === parseInt(id))),
@@ -101,7 +104,10 @@ export default function LeadListDetailPage() {
       ]);
       setList(listRes);
       setLeads(leadsRes.data);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      setLoadError('Failed to load leads');
+    }
   };
 
   useEffect(() => {
@@ -529,7 +535,12 @@ export default function LeadListDetailPage() {
           </div>
         )}
 
-        {leads.length === 0 ? (
+        {loadError ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
+            <button onClick={loadLeads} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
+          </div>
+        ) : leads.length === 0 ? (
           <div style={s.empty}>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No leads yet</div>
             <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>

@@ -430,6 +430,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
             <div style={s.chatInput}>
               <textarea style={s.chatTextarea} value={chatInput} onChange={e => setChatInput(e.target.value)}
                 placeholder="Rewrite an email, get objection rebuttals, ask about the prospect..."
+                disabled={chatLoading}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }} />
               <button style={s.sendChatBtn} onClick={() => sendChat()} disabled={chatLoading || !chatInput.trim()}>Send</button>
             </div>

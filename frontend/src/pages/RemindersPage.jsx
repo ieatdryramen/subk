@@ -26,9 +26,11 @@ export default function RemindersPage() {
   const [marking, setMarking] = useState({});
   const [showOutcome, setShowOutcome] = useState({});
   const [goalData, setGoalData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const navigate = useNavigate();
 
   const load = () => {
+    setLoadError(null);
     Promise.all([
       api.get('/sequence/due/today'),
       api.get('/goals/my'),
@@ -36,7 +38,10 @@ export default function RemindersPage() {
       setData(dueR.data);
       setGoalData(goalR.data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(err => {
+      setLoadError('Failed to load touches');
+      setLoading(false);
+    });
   };
 
   useEffect(() => { load(); }, []);
@@ -188,6 +193,11 @@ export default function RemindersPage() {
 
         {loading ? (
           <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading...</div>
+        ) : loadError ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
+            <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
+          </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>

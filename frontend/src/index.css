@@ -241,10 +241,3 @@ a:hover { text-decoration: underline; }
     grid-template-columns: 1fr !important;
   }
 }
-
-
-  /* Stats cards */
-  [style*="grid-template-columns: repeat(3, 1fr)"] {
-    grid-template-columns: 1fr !important;
-  }
-}

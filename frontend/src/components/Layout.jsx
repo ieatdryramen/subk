@@ -35,7 +35,7 @@ export default function Layout({ children }) {
           ProspectForge
           <span style={{ fontSize: 10, fontFamily: 'Inter', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Sales Intelligence</span>
         </div>
-        <button onClick={() => setMobileOpen(false)} style={{ display: 'none', background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
+        <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
       <nav style={{ flex: 1, padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {navItems.filter(item => !item.adminOnly || isAdmin).map(item => (
@@ -75,6 +75,7 @@ export default function Layout({ children }) {
         @media (min-width: 769px) {
           .pf-sidebar { display: flex !important; position: sticky !important; top: 0 !important; height: 100vh !important; }
           .pf-mobile-bar { display: none !important; }
+          .mobile-close { display: none !important; }
         }
       `}</style>
 

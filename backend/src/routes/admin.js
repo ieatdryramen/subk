@@ -11,9 +11,6 @@ const adminOnly = async (req, res, next) => {
 // Get team overview dashboard - fast version, no joins
 router.get('/dashboard', auth, async (req, res) => {
   try {
-    // Set 4 second timeout so dashboard never hangs the UI
-    await pool.query("SET statement_timeout = '4000'").catch(() => {});
-
     const userR = await pool.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
     const u = userR.rows[0];
     const userId = parseInt(u.id);
@@ -26,8 +23,8 @@ router.get('/dashboard', auth, async (req, res) => {
       userIds = orgR.rows.map(r => parseInt(r.id));
     }
 
-    // Run all counts independently and fast
-    const [totalLeads, totalPlaybooks, totalLists, totalTouches, members, recentActivity, topLeads] = await Promise.all([
+    // Use Promise.allSettled so one slow/failing query doesn't kill the whole dashboard
+    const results = await Promise.allSettled([
       pool.query('SELECT COUNT(*) as n, COUNT(CASE WHEN created_at > NOW()-INTERVAL \'7 days\' THEN 1 END) as week FROM leads WHERE user_id = ANY($1)', [userIds]),
       pool.query('SELECT COUNT(*) as n, COUNT(CASE WHEN generated_at > NOW()-INTERVAL \'7 days\' THEN 1 END) as week FROM playbooks WHERE user_id = ANY($1)', [userIds]),
       pool.query('SELECT COUNT(*) as n FROM lead_lists WHERE user_id = ANY($1)', [userIds]),
@@ -64,18 +61,33 @@ router.get('/dashboard', auth, async (req, res) => {
       pool.query('SELECT full_name, company, title, icp_score, status FROM leads WHERE user_id = ANY($1) AND icp_score IS NOT NULL ORDER BY icp_score DESC LIMIT 8', [userIds]),
     ]);
 
+    // Extract values with graceful fallbacks for any failed queries
+    const val = (idx) => results[idx].status === 'fulfilled' ? results[idx].value : null;
+    const totalLeads = val(0);
+    const totalPlaybooks = val(1);
+    const totalLists = val(2);
+    const totalTouches = val(3);
+    const members = val(4);
+    const recentActivity = val(5);
+    const topLeads = val(6);
+
+    // Log any failures for debugging
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.error(`Dashboard query ${i} failed:`, r.reason?.message);
+    });
+
     res.json({
       stats: {
-        total_leads: totalLeads.rows[0].n,
-        leads_this_week: totalLeads.rows[0].week,
-        total_playbooks: totalPlaybooks.rows[0].n,
-        playbooks_this_week: totalPlaybooks.rows[0].week,
-        total_lists: totalLists.rows[0].n,
-        touchpoints_completed: totalTouches.rows[0].n,
+        total_leads: totalLeads?.rows[0]?.n || 0,
+        leads_this_week: totalLeads?.rows[0]?.week || 0,
+        total_playbooks: totalPlaybooks?.rows[0]?.n || 0,
+        playbooks_this_week: totalPlaybooks?.rows[0]?.week || 0,
+        total_lists: totalLists?.rows[0]?.n || 0,
+        touchpoints_completed: totalTouches?.rows[0]?.n || 0,
       },
-      members: members.rows,
-      activity: recentActivity.rows,
-      topLeads: topLeads.rows,
+      members: members?.rows || [],
+      activity: recentActivity?.rows || [],
+      topLeads: topLeads?.rows || [],
     });
   } catch (err) {
     console.error('Dashboard error:', err.message);
