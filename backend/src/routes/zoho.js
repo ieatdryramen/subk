@@ -233,7 +233,9 @@ router.get('/callback', async (req, res) => {
           await pool.query('INSERT INTO company_profiles (user_id, zoho_refresh_token) VALUES ($1, $2)', [userId, refresh_token]);
         }
       } else {
-        await pool.query('UPDATE company_profiles SET zoho_refresh_token=$1', [refresh_token]);
+        // No userId — skip update to avoid overwriting all profiles
+        console.error('Zoho OAuth callback: no userId in state, skipping refresh_token update');
+        return res.redirect('/team?zoho=error&reason=missing_user');
       }
     } else if (!userId) {
       return res.redirect('/team?zoho=error&reason=no_refresh_token');

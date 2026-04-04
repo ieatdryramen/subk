@@ -122,8 +122,8 @@ router.post('/generate/:leadId', auth, async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['error', req.params.leadId]).catch(()=>{});
-    res.status(500).json({ error: err.message });
+    await pool.query('UPDATE leads SET status=$1 WHERE id=$2', ['error', req.params.leadId]).catch(e => console.error('Failed to set error status:', e.message));
+    res.status(500).json({ error: 'Playbook generation failed — try again' });
   }
 });
 
@@ -204,7 +204,7 @@ router.post('/generate-list/:listId', auth, async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Batch generation failed' });
   }
 });
 
@@ -217,7 +217,7 @@ router.post('/cancel/:leadId', auth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to cancel generation' });
   }
 });
 
@@ -230,7 +230,7 @@ router.post('/cancel-list/:listId', auth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to cancel generation' });
   }
 });
 
@@ -259,7 +259,7 @@ router.put('/:leadId/field', auth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to save edit' });
   }
 });
 

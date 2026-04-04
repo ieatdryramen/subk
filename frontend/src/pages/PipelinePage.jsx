@@ -145,7 +145,7 @@ export default function PipelinePage() {
   const onDrop = (e, stageKey) => {
     e.preventDefault();
     const lid = parseInt(e.dataTransfer.getData('text/plain'));
-    if (lid && stageKey) moveStage(lid, stageKey);
+    if (!isNaN(lid) && lid && stageKey) moveStage(lid, stageKey);
     setDragOverStage(null); setDraggedId(null);
   };
 

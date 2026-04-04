@@ -36,7 +36,11 @@ export default function LeadListsPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const load = () => api.get('/lists').then(r => setLists(r.data)).catch(console.error);
+  const [loadError, setLoadError] = useState(null);
+  const load = () => {
+    setLoadError(null);
+    api.get('/lists').then(r => setLists(r.data)).catch(err => { console.error(err); setLoadError('Failed to load lists'); });
+  };
   useEffect(() => { load(); }, []);
 
   const create = async () => {
@@ -57,8 +61,13 @@ export default function LeadListsPage() {
   const deleteList = async (e, id) => {
     e.stopPropagation();
     if (!confirm('Delete this list and all its leads?')) return;
-    await api.delete(`/lists/${id}`);
-    load();
+    try {
+      await api.delete(`/lists/${id}`);
+      load();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete list — try again');
+    }
   };
 
   return (
@@ -72,7 +81,12 @@ export default function LeadListsPage() {
           <button style={s.newBtn} onClick={() => setShowModal(true)}>+ New List</button>
         </div>
 
-        {lists.length === 0 ? (
+        {loadError ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
+            <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
+          </div>
+        ) : lists.length === 0 ? (
           <div style={s.empty}>
             <div style={{ fontSize: 24, marginBottom: 12 }}>◉</div>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No lists yet</div>
@@ -92,7 +106,7 @@ export default function LeadListsPage() {
                   </div>
                 </div>
                 <div style={s.cardRight}>
-                  <span style={s.countBadge}>{list.lead_count} lead{list.lead_count !== '1' ? 's' : ''}</span>
+                  <span style={s.countBadge}>{list.lead_count} lead{Number(list.lead_count) !== 1 ? 's' : ''}</span>
                   <button style={s.openBtn}>Open →</button>
                   <button style={s.delBtn} onClick={e => deleteList(e, list.id)} title="Delete list">✕</button>
                 </div>

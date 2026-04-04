@@ -34,13 +34,22 @@ export default function TemplatesPage() {
   const [copied, setCopied] = useState({});
   const [expanded, setExpanded] = useState({});
 
-  const load = () => api.get('/templates').then(r => setTemplates(r.data)).catch(console.error);
+  const [loadError, setLoadError] = useState(null);
+  const load = () => {
+    setLoadError(null);
+    api.get('/templates').then(r => setTemplates(r.data)).catch(err => { console.error(err); setLoadError('Failed to load templates'); });
+  };
   useEffect(() => { load(); }, []);
 
   const del = async (id) => {
     if (!confirm('Delete this template?')) return;
-    await api.delete(`/templates/${id}`);
-    setTemplates(t => t.filter(x => x.id !== id));
+    try {
+      await api.delete(`/templates/${id}`);
+      setTemplates(t => t.filter(x => x.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete template — try again');
+    }
   };
 
   const copy = (template) => {
@@ -68,7 +77,12 @@ export default function TemplatesPage() {
           ))}
         </div>
 
-        {filtered.length === 0 ? (
+        {loadError ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
+            <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={s.empty}>
             No templates yet — open any playbook, go to an email tab, and click "Save template"
           </div>
