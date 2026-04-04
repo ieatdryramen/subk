@@ -8,8 +8,15 @@ router.post('/:leadId/status', auth, async (req, res) => {
   const allowed = ['active', 'responded', 'meeting_booked', 'not_interested', 'nurture'];
   if (!allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
   try {
-    const updates = { engagement_status: status };
-    if (status === 'meeting_booked') updates.meeting_booked_at = new Date();
+    // Verify user owns lead or is in same org
+    const leadCheck = await pool.query(
+      `SELECT l.id FROM leads l JOIN users u ON u.id = $2
+       WHERE l.id = $1 AND (l.user_id = $2 OR (u.org_id IS NOT NULL AND EXISTS (
+         SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id
+       )))`,
+      [req.params.leadId, req.userId]
+    );
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     await pool.query(
       `UPDATE leads SET engagement_status=$1 ${status === 'meeting_booked' ? ', meeting_booked_at=NOW()' : ''} WHERE id=$2`,
       [status, req.params.leadId]

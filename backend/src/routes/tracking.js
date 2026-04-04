@@ -35,7 +35,12 @@ router.get('/click/:leadId/:touchpoint', async (req, res) => {
       WHERE lead_id=$1 AND touchpoint=$2 AND clicked_at IS NULL
     `, [req.params.leadId, req.params.touchpoint]);
   } catch (err) {}
-  res.redirect(url || '/');
+  // Validate redirect URL to prevent open redirect
+  if (url && (url.startsWith('https://') || url.startsWith('http://') || url.startsWith('/'))) {
+    res.redirect(url);
+  } else {
+    res.redirect('/');
+  }
 });
 
 module.exports = router;

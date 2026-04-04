@@ -176,8 +176,6 @@ router.post('/log', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // POST /goals/cleanup — one-time cleanup of backfill pollution in activity_log
 router.post('/cleanup', auth, async (req, res) => {
   try {
@@ -201,3 +199,5 @@ router.post('/cleanup', auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+module.exports = router;

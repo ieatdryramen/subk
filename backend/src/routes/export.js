@@ -16,8 +16,9 @@ const authFromQuery = async (req, res, next) => {
 
 const getLeads = async (listId, userId, filterIds) => {
   const result = await pool.query(`
-    SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4,
-           p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
+    SELECT l.*, l.linkedin as linkedin_url,
+           p.research, p.email1, p.email2, p.email3, p.email4,
+           p.linkedin as playbook_linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
     FROM leads l
     LEFT JOIN playbooks p ON p.lead_id = l.id
     JOIN users u ON u.id = $2
@@ -105,7 +106,7 @@ ${leads.map(lead => {
     ${lead.email4 ? `<div class="email-block"><div class="email-day">Day 14</div><div class="section-content">${escHtml(lead.email4)}</div></div>` : ''}
   </div>
   ${lead.call_opener ? `<div class="section"><div class="section-title">Call Opener</div><div class="section-content">${escHtml(lead.call_opener)}</div></div>` : ''}
-  ${lead.linkedin ? `<div class="section"><div class="section-title">LinkedIn</div><div class="section-content">${escHtml(lead.linkedin)}</div></div>` : ''}
+  ${lead.playbook_linkedin ? `<div class="section"><div class="section-title">LinkedIn</div><div class="section-content">${escHtml(lead.playbook_linkedin)}</div></div>` : ''}
   ${lead.objection_handling ? `<div class="section"><div class="section-title">Objection Handling</div><div class="section-content">${escHtml(lead.objection_handling)}</div></div>` : ''}
   ${lead.callbacks ? `<div class="section"><div class="section-title">Callbacks & Talking Points</div><div class="section-content">${escHtml(lead.callbacks)}</div></div>` : ''}
 </div>`;
@@ -140,11 +141,11 @@ router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
     ];
 
     const rows = leads.map(l => [
-      l.full_name, l.company, l.title, l.email, l.linkedin,
+      l.full_name, l.company, l.title, l.email, l.linkedin_url,
       l.icp_score, l.icp_reason,
       l.research,
       l.email1, l.email2, l.email3, l.email4,
-      l.linkedin, l.call_opener, l.objection_handling, l.callbacks
+      l.playbook_linkedin, l.call_opener, l.objection_handling, l.callbacks
     ].map(escCsv).join(','));
 
     // Use \r\n as row separator (RFC 4180 standard) — this prevents
@@ -165,8 +166,9 @@ router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
 router.get('/lead/:leadId/html', authFromQuery, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4,
-             p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
+      SELECT l.*, l.linkedin as linkedin_url,
+             p.research, p.email1, p.email2, p.email3, p.email4,
+             p.linkedin as playbook_linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
       WHERE l.id = $1
@@ -216,7 +218,7 @@ ${lead.research ? `<div class="section"><div class="section-title">Research Brie
   ${lead.email3 ? `<div class="email-block"><div class="email-day">Email 3</div><div class="section-content">${escHtml(lead.email3)}</div></div>` : ''}
   ${lead.email4 ? `<div class="email-block"><div class="email-day">Email 4</div><div class="section-content">${escHtml(lead.email4)}</div></div>` : ''}
 </div>
-${lead.linkedin ? `<div class="section"><div class="section-title">LinkedIn</div><div class="section-content">${escHtml(lead.linkedin)}</div></div>` : ''}
+${lead.playbook_linkedin ? `<div class="section"><div class="section-title">LinkedIn</div><div class="section-content">${escHtml(lead.playbook_linkedin)}</div></div>` : ''}
 ${lead.call_opener ? `<div class="section"><div class="section-title">Call Opener</div><div class="section-content">${escHtml(lead.call_opener)}</div></div>` : ''}
 ${lead.objection_handling ? `<div class="section"><div class="section-title">Objection Handling</div><div class="section-content">${escHtml(lead.objection_handling)}</div></div>` : ''}
 ${lead.callbacks ? `<div class="section"><div class="section-title">Callbacks</div><div class="section-content">${escHtml(lead.callbacks)}</div></div>` : ''}
@@ -235,8 +237,9 @@ ${lead.callbacks ? `<div class="section"><div class="section-title">Callbacks</d
 router.get('/lead/:leadId/csv', authFromQuery, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT l.*, p.research, p.email1, p.email2, p.email3, p.email4,
-             p.linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
+      SELECT l.*, l.linkedin as linkedin_url,
+             p.research, p.email1, p.email2, p.email3, p.email4,
+             p.linkedin as playbook_linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
       WHERE l.id = $1
@@ -246,7 +249,7 @@ router.get('/lead/:leadId/csv', authFromQuery, async (req, res) => {
     const l = result.rows[0];
 
     const headers = ['Name','Company','Title','Email','LinkedIn URL','ICP Score','ICP Reason','Research','Email 1','Email 2','Email 3','Email 4','LinkedIn Messages','Call Opener','Objection Handling','Callbacks'];
-    const row = [l.full_name, l.company, l.title, l.email, l.linkedin, l.icp_score, l.icp_reason, l.research, l.email1, l.email2, l.email3, l.email4, l.linkedin, l.call_opener, l.objection_handling, l.callbacks].map(escCsv);
+    const row = [l.full_name, l.company, l.title, l.email, l.linkedin_url, l.icp_score, l.icp_reason, l.research, l.email1, l.email2, l.email3, l.email4, l.playbook_linkedin, l.call_opener, l.objection_handling, l.callbacks].map(escCsv);
 
     const CRLF = '\r\n';
     const csv = [headers.map(escCsv).join(','), row.join(',')].join(CRLF) + CRLF;

@@ -109,13 +109,24 @@ router.get('/due/today', auth, async (req, res) => {
     const due = [];
     const overdue = [];
 
+    // Batch-fetch all sequence events for all leads (fixes N+1 query)
+    const leadIds = leadsR.rows.map(l => l.id);
+    const allEventsR = leadIds.length
+      ? await pool.query(
+          'SELECT * FROM sequence_events WHERE lead_id = ANY($1) ORDER BY created_at ASC',
+          [leadIds]
+        )
+      : { rows: [] };
+    const eventsByLead = {};
+    allEventsR.rows.forEach(e => {
+      if (!eventsByLead[e.lead_id]) eventsByLead[e.lead_id] = [];
+      eventsByLead[e.lead_id].push(e);
+    });
+
     for (const lead of leadsR.rows) {
-      const events = await pool.query(
-        'SELECT * FROM sequence_events WHERE lead_id=$1 ORDER BY created_at ASC',
-        [lead.id]
-      );
+      const events = eventsByLead[lead.id] || [];
       const eventMap = {};
-      events.rows.forEach(e => { eventMap[e.touchpoint] = e; });
+      events.forEach(e => { eventMap[e.touchpoint] = e; });
 
       // Find next pending touchpoint and its due date
       let lastCompletedDate = null;
@@ -154,7 +165,7 @@ router.get('/due/today', auth, async (req, res) => {
       // MEFU check
       if (!nextTouch && lead.sequence_stage === 'mefu') {
         const mefuEvent = eventMap['mefu'];
-        const lastDone = events.rows.filter(e => e.touchpoint !== 'mefu' && e.status === 'done').pop();
+        const lastDone = events.filter(e => e.touchpoint !== 'mefu' && e.status === 'done').pop();
         let mefuDue = null;
         if (mefuEvent?.completed_at) {
           const next = new Date(mefuEvent.completed_at);

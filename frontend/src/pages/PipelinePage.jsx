@@ -63,6 +63,7 @@ export default function PipelinePage() {
   const [icpFilter, setIcpFilter] = useState('all');
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkStage, setBulkStage] = useState('');
+  const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
   const navigate = useNavigate();
 

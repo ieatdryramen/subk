@@ -16,13 +16,13 @@ router.get('/due', auth, async (req, res) => {
         l.sequence_stage,
         l.icp_score,
         -- Figure out what touchpoint is next
-        CASE 
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email1') THEN 'email1'
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email2') THEN 'email2'
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'call') THEN 'call'
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email3') THEN 'email3'
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'linkedin_dm') THEN 'linkedin_dm'
-          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email4') THEN 'email4'
+        CASE
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email1' AND se.status = 'done') THEN 'email1'
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email2' AND se.status = 'done') THEN 'email2'
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'call' AND se.status = 'done') THEN 'call'
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email3' AND se.status = 'done') THEN 'email3'
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'linkedin_dm' AND se.status = 'done') THEN 'linkedin_dm'
+          WHEN NOT EXISTS (SELECT 1 FROM sequence_events se WHERE se.lead_id = l.id AND se.touchpoint = 'email4' AND se.status = 'done') THEN 'email4'
           ELSE 'completed'
         END as next_touch,
         -- Days since last touch

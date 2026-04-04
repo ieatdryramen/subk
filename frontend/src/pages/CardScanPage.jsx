@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
@@ -31,7 +31,7 @@ export default function CardScanPage() {
   const fileRef = useRef();
   const navigate = useNavigate();
 
-  useState(() => {
+  useEffect(() => {
     api.get('/lists').then(r => {
       setLists(r.data);
       if (r.data.length) setSelectedList(String(r.data[0].id));
