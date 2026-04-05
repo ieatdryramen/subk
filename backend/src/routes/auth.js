@@ -7,7 +7,8 @@ const { pool } = require('../db');
 router.post('/register', async (req, res) => {
   const { email, password, full_name, invite_code } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
   // Enforce work email
   const personalDomains = ['gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com','icloud.com','live.com','msn.com','protonmail.com','me.com'];
   const emailDomain = email.split('@')[1]?.toLowerCase();

@@ -66,7 +66,12 @@ export default function BillingPage() {
     setLoading(true);
     try {
       const r = await api.post('/billing/checkout', { plan: planKey });
-      window.location.href = r.data.url;
+      if (r.data?.url) {
+        window.location.href = r.data.url;
+      } else {
+        alert('Checkout URL not received — try again');
+        setLoading(false);
+      }
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to start checkout. Make sure Stripe env vars are set.');
       setLoading(false);

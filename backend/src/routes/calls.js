@@ -3,8 +3,8 @@ const auth = require('../middleware/auth');
 const { pool } = require('../db');
 const axios = require('axios');
 
-const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID || '1000.996Z1F3EGG6QI23O3DBDEHMXA8142U';
-const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET || '2edd338a68ae0fb399dddd0289a61aafd03a04e453';
+const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
 
 const getZohoToken = async (userId) => {
   const result = await pool.query(`

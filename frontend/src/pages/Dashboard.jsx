@@ -28,22 +28,23 @@ export default function Dashboard() {
   const [billing, setBilling] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dueCount, setDueCount] = useState(0);
+  const [statsError, setStatsError] = useState(false);
 
   useEffect(() => {
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
     // Load lists fast, then dashboard separately so lists show immediately
     api.get('/lists').then(r => setLists(r.data || [])).catch(() => {});
     api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
+    setStatsError(false);
     api.get('/admin/dashboard')
       .then(r => {
         if (r.data?.stats) {
-          // Backend returns aggregate stats directly
           setStats(r.data.stats);
           setTopLeads(r.data.topLeads?.slice(0, 6) || []);
           setActivity(r.data.activity?.slice(0, 10) || []);
         }
       })
-      .catch(() => {})
+      .catch(() => setStatsError(true))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -96,6 +97,12 @@ export default function Dashboard() {
         )}
 
         {/* Stats */}
+        {statsError && (
+          <div style={{ background: 'var(--bg2)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '1rem', fontSize: 13, color: 'var(--danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Stats couldn't load — showing defaults</span>
+            <button onClick={() => window.location.reload()} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '4px 12px', cursor: 'pointer' }}>Refresh</button>
+          </div>
+        )}
         <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '2rem' }}>
           {statCards.map(s => (
             <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>

@@ -15,6 +15,12 @@ const authFromQuery = async (req, res, next) => {
 };
 
 const getLeads = async (listId, userId, filterIds) => {
+  const params = [listId, userId];
+  let filterClause = '';
+  if (filterIds && filterIds.length) {
+    params.push(filterIds);
+    filterClause = `AND l.id = ANY($${params.length}::int[])`;
+  }
   const result = await pool.query(`
     SELECT l.*, l.linkedin as linkedin_url,
            p.research, p.email1, p.email2, p.email3, p.email4,
@@ -23,13 +29,13 @@ const getLeads = async (listId, userId, filterIds) => {
     LEFT JOIN playbooks p ON p.lead_id = l.id
     JOIN users u ON u.id = $2
     WHERE l.list_id = $1
-      ${filterIds && filterIds.length ? `AND l.id = ANY(ARRAY[${filterIds.join(',')}]::int[])` : ''}
+      ${filterClause}
       AND (
         l.user_id = $2 OR
         EXISTS (SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL)
       )
     ORDER BY l.icp_score DESC NULLS LAST, l.created_at ASC
-  `, [listId, userId]);
+  `, params);
   return result.rows;
 };
 
@@ -171,8 +177,12 @@ router.get('/lead/:leadId/html', authFromQuery, async (req, res) => {
              p.linkedin as playbook_linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
-      WHERE l.id = $1
-    `, [req.params.leadId]);
+      JOIN users u ON u.id = $2
+      WHERE l.id = $1 AND (
+        l.user_id = $2 OR
+        EXISTS (SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL)
+      )
+    `, [req.params.leadId, req.userId]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Lead not found or playbook not generated' });
     const lead = result.rows[0];
@@ -242,8 +252,12 @@ router.get('/lead/:leadId/csv', authFromQuery, async (req, res) => {
              p.linkedin as playbook_linkedin, p.call_opener, p.objection_handling, p.callbacks, p.generated_at
       FROM leads l
       LEFT JOIN playbooks p ON p.lead_id = l.id
-      WHERE l.id = $1
-    `, [req.params.leadId]);
+      JOIN users u ON u.id = $2
+      WHERE l.id = $1 AND (
+        l.user_id = $2 OR
+        EXISTS (SELECT 1 FROM users lu WHERE lu.id = l.user_id AND lu.org_id = u.org_id AND u.org_id IS NOT NULL)
+      )
+    `, [req.params.leadId, req.userId]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Lead not found or playbook not generated' });
     const l = result.rows[0];
