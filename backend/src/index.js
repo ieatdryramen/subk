@@ -17,10 +17,10 @@ const authAttempts = new Map();
 const authRateLimit = (req, res, next) => {
   const key = req.ip + ':' + req.path;
   const now = Date.now();
-  const window = 15 * 60 * 1000; // 15 minutes
+  const windowMs = 15 * 60 * 1000; // 15 minutes
   const maxAttempts = 20;
   const attempts = authAttempts.get(key) || [];
-  const recent = attempts.filter(t => now - t < window);
+  const recent = attempts.filter(t => now - t < windowMs);
   if (recent.length >= maxAttempts) {
     return res.status(429).json({ error: 'Too many attempts — try again in 15 minutes' });
   }
