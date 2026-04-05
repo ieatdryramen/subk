@@ -42,7 +42,7 @@ router.get('/status', auth, async (req, res) => {
       stripe_subscription_id: o.stripe_subscription_id,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -76,7 +76,7 @@ router.post('/checkout', auth, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -87,7 +87,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    return res.status(400).send(`Webhook error: ${err.message}`);
+    return res.status(400).send('Webhook signature verification failed');
   }
 
   try {

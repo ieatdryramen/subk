@@ -27,7 +27,7 @@ router.post('/:leadId/status', auth, async (req, res) => {
     }
     res.json({ success: true, status });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -48,7 +48,7 @@ router.post('/:leadId/snooze', auth, async (req, res) => {
     );
     res.json({ success: true, snoozed_until: snoozeDate });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -58,7 +58,7 @@ router.delete('/:leadId/snooze', auth, async (req, res) => {
     await pool.query(`UPDATE leads SET snoozed_until=NULL WHERE id=$1`, [req.params.leadId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -74,7 +74,7 @@ router.get('/:leadId/notes', auth, async (req, res) => {
     );
     res.json(r.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -89,7 +89,7 @@ router.post('/:leadId/notes', auth, async (req, res) => {
     );
     res.json(r.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -99,7 +99,7 @@ router.delete('/notes/:noteId', auth, async (req, res) => {
     await pool.query(`DELETE FROM conversation_notes WHERE id=$1 AND user_id=$2`, [req.params.noteId, req.userId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

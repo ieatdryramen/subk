@@ -43,7 +43,7 @@ Return ONLY the JSON object. Use empty string "" for any fields not found on the
     res.json(parsed);
   } catch (err) {
     console.error('CardScan error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to scan card — try again' });
   }
 });
 

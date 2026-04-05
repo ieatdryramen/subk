@@ -10,7 +10,7 @@ router.get('/:leadId', auth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -24,7 +24,7 @@ router.post('/:leadId', auth, async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -33,7 +33,7 @@ router.delete('/:leadId/:noteId', auth, async (req, res) => {
     await pool.query('DELETE FROM lead_notes WHERE id=$1 AND user_id=$2', [req.params.noteId, req.userId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

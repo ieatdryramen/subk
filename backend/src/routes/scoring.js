@@ -106,7 +106,7 @@ router.post('/score/:leadId', auth, async (req, res) => {
     res.json(updated.rows[0]);
   } catch (err) {
     console.error('Single score error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Scoring failed — try again' });
   }
 });
 

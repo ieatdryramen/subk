@@ -59,7 +59,7 @@ Return ONLY the JSON object, no markdown fences, no explanation.`,
     res.json(parsed);
   } catch (err) {
     console.error('Autofill error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Autofill failed — try again' });
   }
 });
 

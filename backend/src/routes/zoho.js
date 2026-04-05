@@ -115,7 +115,7 @@ router.post('/push/:leadId', auth, async (req, res) => {
     res.json({ success: true, contactId, zoho_contact_id: contactId, zohoOrgId, contactUrl, isNewContact, message: `${isNewContact ? 'Created' : 'Found'} in Zoho` });
   } catch (err) {
     console.error('Zoho push error:', err.response?.data || err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to sync with Zoho' });
   }
 });
 
@@ -277,7 +277,7 @@ router.get('/mail-debug', auth, async (req, res) => {
     }
     res.json(results);
   } catch (err) {
-    res.status(500).json({ error: err.message, raw: err.response?.data });
+    res.status(500).json({ error: 'Zoho bulk sync failed' });
   }
 });
 
@@ -304,7 +304,7 @@ router.post('/disconnect', auth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

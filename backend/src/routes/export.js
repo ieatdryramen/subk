@@ -119,7 +119,7 @@ ${leads.map(lead => {
     res.send(html);
   } catch (err) {
     console.error('Export error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Export failed' });
   }
 });
 
@@ -157,7 +157,7 @@ router.get('/list/:listId/csv', authFromQuery, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${listName.replace(/[^a-z0-9]/gi, '_')}_playbooks.csv"`);
     res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Export failed' });
   }
 });
 
@@ -229,7 +229,7 @@ ${lead.callbacks ? `<div class="section"><div class="section-title">Callbacks</d
     res.setHeader('Content-Disposition', `inline; filename="${(lead.full_name || 'lead').replace(/[^a-z0-9]/gi, '_')}_playbook.html"`);
     res.send(html);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Export failed' });
   }
 });
 
@@ -258,7 +258,7 @@ router.get('/lead/:leadId/csv', authFromQuery, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${(l.full_name || 'lead').replace(/[^a-z0-9]/gi, '_')}_playbook.csv"`);
     res.send('\uFEFF' + csv);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Export failed' });
   }
 });
 

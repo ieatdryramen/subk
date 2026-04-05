@@ -61,7 +61,7 @@ router.get('/config', auth, async (req, res) => {
     const tps = await getOrgTouchpoints(orgId);
     res.json(tps);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -80,7 +80,7 @@ router.put('/config', auth, async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -186,7 +186,7 @@ router.get('/due/today', auth, async (req, res) => {
 
     res.json({ overdue, due, total: overdue.length + due.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -275,7 +275,7 @@ router.get('/:leadId', auth, async (req, res) => {
 
     res.json(sequence);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -379,7 +379,7 @@ router.post('/:leadId/touch', auth, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -393,7 +393,7 @@ router.post('/:leadId/stage', auth, async (req, res) => {
     await pool.query(`UPDATE leads SET ${col}=$1 WHERE id=$2`, [stage, req.params.leadId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

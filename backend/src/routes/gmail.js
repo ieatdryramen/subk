@@ -95,7 +95,7 @@ router.post('/send/:leadId', auth, async (req, res) => {
     res.json({ success: true, message: `Email sent to ${lead.email} via Gmail` });
   } catch (err) {
     console.error('Gmail send error:', err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data?.error?.message || err.message });
+    res.status(500).json({ error: 'Failed to send email via Gmail' });
   }
 });
 
@@ -105,7 +105,7 @@ router.get('/status', auth, async (req, res) => {
     const u = result.rows[0];
     res.json({ connected: !!u?.gmail_refresh_token, email: u?.gmail_email });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

@@ -18,7 +18,7 @@ router.post('/configure', auth, async (req, res) => {
     await axios.post(webhook_url, { text: '✅ ProspectForge connected to Slack!' });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save or test webhook: ' + err.message });
+    res.status(500).json({ error: 'Failed to save or test webhook' });
   }
 });
 
@@ -30,7 +30,7 @@ router.get('/status', auth, async (req, res) => {
     const org = await pool.query('SELECT slack_webhook FROM organizations WHERE id=$1', [orgId]);
     res.json({ connected: !!org.rows[0]?.slack_webhook });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

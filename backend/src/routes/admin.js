@@ -91,7 +91,7 @@ router.get('/dashboard', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Dashboard error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -107,7 +107,7 @@ router.put('/members/:memberId/role', auth, adminOnly, async (req, res) => {
     await pool.query('UPDATE users SET role=$1 WHERE id=$2', [role, req.params.memberId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -122,7 +122,7 @@ router.delete('/members/:memberId', auth, adminOnly, async (req, res) => {
     await pool.query('UPDATE users SET org_id=NULL WHERE id=$1', [req.params.memberId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

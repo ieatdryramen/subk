@@ -16,7 +16,7 @@ router.get('/', auth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -33,7 +33,7 @@ router.post('/', auth, async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -43,7 +43,7 @@ router.delete('/:id', auth, async (req, res) => {
     await pool.query('DELETE FROM email_templates WHERE id=$1 AND user_id=$2', [req.params.id, req.userId]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

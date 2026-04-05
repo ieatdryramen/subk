@@ -80,7 +80,7 @@ Return ONLY the JSON.`;
     res.json(battlecard);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Battlecard generation failed — try again' });
   }
 });
 

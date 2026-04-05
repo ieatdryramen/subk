@@ -113,7 +113,7 @@ router.post('/:id/import', auth, upload.single('file'), async (req, res) => {
     res.json({ imported: inserted.length, leads: inserted });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'CSV parse error: ' + err.message });
+    res.status(500).json({ error: 'CSV parse failed — check file format' });
   }
 });
 
@@ -147,7 +147,7 @@ router.post('/:listId/fix-names', auth, async (req, res) => {
     }
     res.json({ fixed, total: leads.rows.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

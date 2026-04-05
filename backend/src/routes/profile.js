@@ -40,7 +40,7 @@ router.get('/', auth, async (req, res) => {
     res.json(merged);
   } catch (err) {
     console.error('Profile GET error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -118,7 +118,7 @@ router.post('/', auth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Profile POST error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

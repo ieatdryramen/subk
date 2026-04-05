@@ -68,7 +68,7 @@ router.get('/due', auth, async (req, res) => {
     res.json(leads);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to load reminders' });
   }
 });
 

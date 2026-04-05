@@ -32,7 +32,7 @@ router.get('/:leadId', auth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -97,7 +97,7 @@ router.post('/:leadId/log', auth, async (req, res) => {
     res.json({ success: true, call: callResult.rows[0] });
   } catch (err) {
     console.error('Call log error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

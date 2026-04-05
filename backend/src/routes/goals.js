@@ -49,7 +49,7 @@ router.get('/my', auth, async (req, res) => {
       week: { calls: weekMap.call || 0, emails: weekMap.email || 0, linkedin: weekMap.linkedin || 0 },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -67,7 +67,7 @@ router.put('/my', auth, async (req, res) => {
     `, [req.userId, daily_calls, daily_emails, daily_linkedin, weekly_calls, weekly_emails, weekly_linkedin, goal_mode]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -138,7 +138,7 @@ router.get('/team', auth, adminOnly, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -156,7 +156,7 @@ router.put('/team/:userId', auth, adminOnly, async (req, res) => {
     `, [req.params.userId, daily_calls, daily_emails, daily_linkedin, weekly_calls, weekly_emails, weekly_linkedin, goal_mode]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -172,7 +172,7 @@ router.post('/log', auth, async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -196,7 +196,7 @@ router.post('/cleanup', auth, async (req, res) => {
     `, [req.userId]);
     res.json({ success: true, deleted: result.rowCount });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
