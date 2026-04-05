@@ -186,9 +186,19 @@ export default function LeadListDetailPage() {
 
   const bulkDelete = async () => {
     if (!selectedIds.size || !confirm(`Delete ${selectedIds.size} leads?`)) return;
-    await Promise.all([...selectedIds].map(lid => api.delete(`/lists/${id}/leads/${lid}`).catch(() => {})));
-    setLeads(ls => ls.filter(l => !selectedIds.has(l.id)));
-    setSelectedIds(new Set());
+    const ids = [...selectedIds];
+    const results = await Promise.allSettled(ids.map(lid => api.delete(`/lists/${id}/leads/${lid}`)));
+    const succeeded = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'));
+    const failCount = ids.length - succeeded.size;
+    setLeads(ls => ls.filter(l => !succeeded.has(l.id)));
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      succeeded.forEach(sid => next.delete(sid));
+      return next;
+    });
+    if (failCount > 0) {
+      alert(`${failCount} of ${ids.length} leads failed to delete — try again`);
+    }
   };
 
   const toggleSelect = (lid) => {

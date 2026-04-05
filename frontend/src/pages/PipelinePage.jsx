@@ -65,6 +65,7 @@ export default function PipelinePage() {
   const [bulkStage, setBulkStage] = useState('');
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
+  const [moveError, setMoveError] = useState(null);
   const navigate = useNavigate();
 
   const currentView = VIEW_MODES.find(v => v.key === viewMode);
@@ -88,32 +89,59 @@ export default function PipelinePage() {
   useEffect(() => { setSelectedIds(new Set()); setBulkStage(''); }, [viewMode]);
 
   const moveStage = async (leadId, newStage) => {
+    const prev = leads.find(l => l.id === leadId);
+    const prevStage = prev ? prev[stageField] : null;
+    const prevSeqStage = prev ? prev.sequence_stage : null;
     setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: newStage, sequence_stage: viewMode === 'all' ? newStage : l.sequence_stage } : l));
+    setMoveError(null);
     try {
       await api.post(`/sequence/${leadId}/stage`, { stage: newStage, field: stageField });
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      // Rollback optimistic update
+      setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: prevStage, sequence_stage: prevSeqStage } : l));
+      setMoveError('Failed to move lead — reverted');
+      setTimeout(() => setMoveError(null), 4000);
+    }
   };
 
   const bulkMove = async () => {
     if (!bulkStage || !selectedIds.size) return;
     setBulkMoving(true);
     setBulkMoveProgress(0);
+    setMoveError(null);
     const ids = [...selectedIds];
     const total = ids.length;
+    // Snapshot for rollback
+    const snapshot = leads.filter(l => selectedIds.has(l.id)).map(l => ({ id: l.id, [stageField]: l[stageField], sequence_stage: l.sequence_stage }));
     // Optimistic update
     setLeads(ls => ls.map(l => selectedIds.has(l.id) ? { ...l, [stageField]: bulkStage, sequence_stage: viewMode === 'all' ? bulkStage : l.sequence_stage } : l));
+    let failed = 0;
     try {
       const batchSize = 10;
       let done = 0;
       for (let i = 0; i < ids.length; i += batchSize) {
         const batch = ids.slice(i, i + batchSize);
-        await Promise.all(batch.map(id =>
+        const results = await Promise.allSettled(batch.map(id =>
           api.post(`/sequence/${id}/stage`, { stage: bulkStage, field: stageField })
         ));
+        failed += results.filter(r => r.status === 'rejected').length;
         done += batch.length;
         setBulkMoveProgress(Math.round((done / total) * 100));
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      failed = total;
+    }
+    if (failed > 0) {
+      // Rollback all on any failure
+      setLeads(ls => ls.map(l => {
+        const snap = snapshot.find(s => s.id === l.id);
+        return snap ? { ...l, [stageField]: snap[stageField], sequence_stage: snap.sequence_stage } : l;
+      }));
+      setMoveError(`${failed} of ${total} leads failed to move — reverted`);
+      setTimeout(() => setMoveError(null), 5000);
+    }
     setBulkMoving(false);
     setBulkMoveProgress(0);
     setSelectedIds(new Set());
@@ -244,6 +272,14 @@ export default function PipelinePage() {
             <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
               ✕ Clear
             </button>
+          </div>
+        )}
+
+        {/* Move error banner */}
+        {moveError && (
+          <div style={{ padding: '10px 16px', marginBottom: '1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{moveError}</span>
+            <button onClick={() => setMoveError(null)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>✕</button>
           </div>
         )}
 

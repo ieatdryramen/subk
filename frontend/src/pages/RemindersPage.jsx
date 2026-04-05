@@ -54,7 +54,10 @@ export default function RemindersPage() {
     try {
       await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', notes: '', call_outcome });
       load(); // reloads both leads and goals
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to mark touch as done — please try again');
+    }
     finally { setMarking(m => ({ ...m, [key]: false })); }
   };
 

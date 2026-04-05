@@ -38,12 +38,16 @@ export default function TeamPage() {
   const [zohoClientId, setZohoClientId] = useState('');
   const [zohoClientSecret, setZohoClientSecret] = useState('');
   const [savingZoho, setSavingZoho] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     api.get('/auth/org').then(r => {
       setOrg(r.data.org);
       setMembers(r.data.members || []);
-    }).catch(console.error);
+    }).catch(err => {
+      console.error(err);
+      setLoadError('Failed to load team data');
+    });
     api.get('/zoho/status').then(r => setZohoConnected(r.data.connected)).catch(() => {});
     api.get('/outlook/status').then(r => setOutlookStatus(r.data)).catch(() => {});
     api.get('/gmail/status').then(r => setGmailStatus(r.data)).catch(() => {});
@@ -120,6 +124,13 @@ export default function TeamPage() {
       <div style={s.page}>
         <div style={s.heading}>Team & Integrations</div>
         <div style={s.sub}>Manage your team and connect external tools</div>
+
+        {loadError && (
+          <div style={{ padding: '12px 16px', marginBottom: '1.5rem', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{loadError}</span>
+            <button onClick={() => window.location.reload()} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '5px 14px', cursor: 'pointer' }}>Retry</button>
+          </div>
+        )}
 
         {/* Team */}
         <div style={s.card}>

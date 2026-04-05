@@ -28,8 +28,13 @@ export default function ConversationNotes({ leadId }) {
 
   const del = async (id) => {
     if (!confirm('Delete this note?')) return;
-    await api.delete(`/engagement/notes/${id}`).catch(() => {});
-    setNotes(n => n.filter(x => x.id !== id));
+    try {
+      await api.delete(`/engagement/notes/${id}`);
+      setNotes(n => n.filter(x => x.id !== id));
+    } catch (err) {
+      console.error('Failed to delete note:', err);
+      alert('Failed to delete note — please try again');
+    }
   };
 
   return (

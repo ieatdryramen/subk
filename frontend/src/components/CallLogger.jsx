@@ -57,10 +57,17 @@ export default function CallLogger({ leadId, lead }) {
   const [outcome, setOutcome] = useState('connected');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const timerRef = useRef(null);
   const startTimeRef = useRef(null);
 
-  const load = () => api.get(`/calls/${leadId}`).then(r => setCalls(r.data)).catch(() => {});
+  const load = () => {
+    setLoadError(null);
+    api.get(`/calls/${leadId}`).then(r => setCalls(r.data)).catch(err => {
+      console.error('Failed to load call history:', err);
+      setLoadError('Failed to load call history');
+    });
+  };
   useEffect(() => { load(); }, [leadId]);
 
   const startCall = () => {
@@ -164,7 +171,12 @@ export default function CallLogger({ leadId, lead }) {
       )}
 
       <div style={s.historyTitle}>Call history</div>
-      {calls.length === 0 ? (
+      {loadError ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 13, color: 'var(--danger)' }}>{loadError}</span>
+          <button onClick={load} style={{ fontSize: 11, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '3px 10px', cursor: 'pointer' }}>Retry</button>
+        </div>
+      ) : calls.length === 0 ? (
         <div style={s.empty}>No calls logged yet</div>
       ) : calls.map(call => {
         const outcomeData = OUTCOMES.find(o => o.value === call.outcome) || OUTCOMES[0];
