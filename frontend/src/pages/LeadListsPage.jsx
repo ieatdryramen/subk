@@ -42,6 +42,11 @@ export default function LeadListsPage() {
     api.get('/lists').then(r => setLists(r.data)).catch(err => { console.error(err); setLoadError('Failed to load lists'); });
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') setShowModal(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const create = async () => {
     if (!form.name.trim()) return;

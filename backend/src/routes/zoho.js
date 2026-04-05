@@ -104,9 +104,9 @@ router.post('/push/:leadId', auth, async (req, res) => {
         await pool.query(
           'UPDATE company_profiles SET zoho_org_id=$1 WHERE user_id=$2',
           [zohoOrgId, req.userId]
-        ).catch(() => {});
+        ).catch(e => console.error('Failed to save zoho_org_id:', e.message));
       }
-    } catch (e) {}
+    } catch (e) { console.error('Could not fetch Zoho org ID:', e.message); }
 
     const contactUrl = zohoOrgId
       ? `https://crm.zoho.com/crm/org${zohoOrgId}/tab/Contacts/${contactId}`

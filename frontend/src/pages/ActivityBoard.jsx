@@ -35,6 +35,11 @@ export default function ActivityBoard() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') setEditingMember(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const openEdit = (member) => {
     setEditForm({

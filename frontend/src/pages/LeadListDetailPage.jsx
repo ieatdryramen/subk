@@ -116,6 +116,17 @@ export default function LeadListDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        setModal(null); setShowUpgradeModal(false); setEditingLead(null);
+        setShowGenerateModal(false); setGenerateSituation('');
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
     if (generating || scoring) {
       pollRef.current = setInterval(() => {
         api.get(`/lists/${id}/leads`).then(r => {

@@ -12,7 +12,33 @@ app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
 app.use(express.json());
 
-app.use('/api/auth', require('./routes/auth'));
+// Simple in-memory rate limiter for auth endpoints
+const authAttempts = new Map();
+const authRateLimit = (req, res, next) => {
+  const key = req.ip + ':' + req.path;
+  const now = Date.now();
+  const window = 15 * 60 * 1000; // 15 minutes
+  const maxAttempts = 20;
+  const attempts = authAttempts.get(key) || [];
+  const recent = attempts.filter(t => now - t < window);
+  if (recent.length >= maxAttempts) {
+    return res.status(429).json({ error: 'Too many attempts — try again in 15 minutes' });
+  }
+  recent.push(now);
+  authAttempts.set(key, recent);
+  next();
+};
+// Clean up old entries every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, attempts] of authAttempts) {
+    const recent = attempts.filter(t => now - t < 15 * 60 * 1000);
+    if (recent.length === 0) authAttempts.delete(key);
+    else authAttempts.set(key, recent);
+  }
+}, 30 * 60 * 1000);
+
+app.use('/api/auth', authRateLimit, require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/lists', require('./routes/lists'));
 app.use('/api/playbooks', require('./routes/playbooks'));

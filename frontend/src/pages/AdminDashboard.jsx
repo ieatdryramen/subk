@@ -50,25 +50,40 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState(false);
+
   const load = () => {
-    api.get('/admin/dashboard').then(r => { setData(r.data); setLoading(false); }).catch(() => setLoading(false));
+    setLoading(true);
+    setLoadError(false);
+    api.get('/admin/dashboard').then(r => { setData(r.data); setLoading(false); }).catch(() => { setLoading(false); setLoadError(true); });
   };
 
   useEffect(() => { load(); }, []);
 
   const changeRole = async (memberId, role) => {
-    await api.put(`/admin/members/${memberId}/role`, { role });
-    load();
+    try {
+      await api.put(`/admin/members/${memberId}/role`, { role });
+      load();
+    } catch { alert('Failed to update role'); }
   };
 
   const removeMember = async (memberId, name) => {
     if (!confirm(`Remove ${name} from the team?`)) return;
-    await api.delete(`/admin/members/${memberId}`);
-    load();
+    try {
+      await api.delete(`/admin/members/${memberId}`);
+      load();
+    } catch { alert('Failed to remove member'); }
   };
 
   if (loading) return <Layout><div style={{ padding: '2rem', color: 'var(--text2)' }}>Loading...</div></Layout>;
-  if (!data) return <Layout><div style={{ padding: '2rem', color: 'var(--danger)' }}>Could not load dashboard. Make sure you are an admin.</div></Layout>;
+  if (loadError || !data) return (
+    <Layout>
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ color: 'var(--danger)', fontSize: 14, marginBottom: 12 }}>Could not load dashboard — make sure you are an admin</div>
+        <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
+      </div>
+    </Layout>
+  );
 
   const { stats, members, activity, topLeads } = data;
 
