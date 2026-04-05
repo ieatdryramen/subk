@@ -176,7 +176,7 @@ export default function PipelinePage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
+        <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {[
             { n: total, l: 'Total leads', c: 'var(--text)' },
             { n: notStarted, l: 'Not started', c: 'var(--text3)' },

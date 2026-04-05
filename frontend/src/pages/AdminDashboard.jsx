@@ -79,7 +79,7 @@ export default function AdminDashboard() {
         <div style={s.sub}>Overview of team activity and performance</div>
 
         {/* Stats */}
-        <div style={s.statsGrid}>
+        <div className="pf-stat-grid" style={s.statsGrid}>
           {[
             { num: stats.total_playbooks || 0, label: 'Total playbooks', sub: `+${stats.playbooks_this_week || 0} this week` },
             { num: stats.total_leads || 0, label: 'Total leads', sub: `+${stats.leads_this_week || 0} this week` },
