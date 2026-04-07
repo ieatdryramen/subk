@@ -100,7 +100,7 @@ router.post('/search', auth, async (req, res) => {
   }
 });
 
-// Debug: test SAM.gov API directly
+// Debug: test SAM.gov API directly — tries multiple auth methods and endpoints
 router.get('/debug/sam-test', auth, async (req, res) => {
   const axios = require('axios');
   const SAM_API_KEY = (process.env.SAM_API_KEY || '').trim();
@@ -108,31 +108,78 @@ router.get('/debug/sam-test', auth, async (req, res) => {
     const today = new Date();
     const ago90 = new Date(today - 90 * 24 * 60 * 60 * 1000);
     const fmt = d => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
-    const params = { api_key: SAM_API_KEY, limit: 5, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) };
 
-    // Correct URL (no /prod/) per SAM.gov docs
-    const urls = [
-      'https://api.sam.gov/opportunities/v2/search',
-    ];
     const results = [];
-    for (const url of urls) {
-      try {
-        const r2 = await axios.get(url, { params, timeout: 15000 });
-        results.push({ url, status: r2.status, totalRecords: r2.data?.totalRecords, oppCount: r2.data?.opportunitiesData?.length || 0, keys: Object.keys(r2.data || {}), sample: r2.data?.opportunitiesData?.[0]?.title || null });
-      } catch (e2) {
-        results.push({
-          url,
-          error: e2.message,
-          status: e2.response?.status,
-          body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 500) : JSON.stringify(e2.response?.data)?.substring(0, 500)
-        });
-      }
+
+    // Test 1: GET with api_key query param (documented method)
+    try {
+      const r1 = await axios.get('https://api.sam.gov/opportunities/v2/search', {
+        params: { api_key: SAM_API_KEY, limit: 3, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) },
+        timeout: 15000,
+      });
+      results.push({ test: '1-query-param', status: r1.status, totalRecords: r1.data?.totalRecords, oppCount: r1.data?.opportunitiesData?.length || 0, sample: r1.data?.opportunitiesData?.[0]?.title || null });
+    } catch (e) {
+      results.push({ test: '1-query-param', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
     }
-    res.json({
-      results,
-      hasApiKey: !!SAM_API_KEY,
-      apiKeyLength: SAM_API_KEY?.length,
-    });
+
+    // Test 2: GET with x-api-key header
+    try {
+      const r2 = await axios.get('https://api.sam.gov/opportunities/v2/search', {
+        params: { limit: 3, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) },
+        headers: { 'x-api-key': SAM_API_KEY },
+        timeout: 15000,
+      });
+      results.push({ test: '2-header-auth', status: r2.status, totalRecords: r2.data?.totalRecords, oppCount: r2.data?.opportunitiesData?.length || 0, sample: r2.data?.opportunitiesData?.[0]?.title || null });
+    } catch (e) {
+      results.push({ test: '2-header-auth', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
+    }
+
+    // Test 3: With /prod/ in URL (maybe it IS needed?)
+    try {
+      const r3 = await axios.get('https://api.sam.gov/prod/opportunities/v2/search', {
+        params: { api_key: SAM_API_KEY, limit: 3, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) },
+        timeout: 15000,
+      });
+      results.push({ test: '3-prod-url', status: r3.status, totalRecords: r3.data?.totalRecords, oppCount: r3.data?.opportunitiesData?.length || 0, sample: r3.data?.opportunitiesData?.[0]?.title || null });
+    } catch (e) {
+      results.push({ test: '3-prod-url', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
+    }
+
+    // Test 4: v1 endpoint
+    try {
+      const r4 = await axios.get('https://api.sam.gov/opportunities/v1/search', {
+        params: { api_key: SAM_API_KEY, limit: 3, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) },
+        timeout: 15000,
+      });
+      results.push({ test: '4-v1-endpoint', status: r4.status, totalRecords: r4.data?.totalRecords, oppCount: r4.data?.opportunitiesData?.length || 0 });
+    } catch (e) {
+      results.push({ test: '4-v1-endpoint', status: e.response?.status, error: e.message });
+    }
+
+    // Test 5: Entity API (different API, same key — tests if key is valid at all)
+    try {
+      const r5 = await axios.get('https://api.sam.gov/entity-information/v3/entities', {
+        params: { api_key: SAM_API_KEY, ueiSAM: 'ZQNHWAHG3BE7' },
+        timeout: 15000,
+      });
+      results.push({ test: '5-entity-api-queryparam', status: r5.status, entityCount: r5.data?.entityData?.length || 0 });
+    } catch (e) {
+      results.push({ test: '5-entity-api-queryparam', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
+    }
+
+    // Test 6: Entity API with x-api-key header
+    try {
+      const r6 = await axios.get('https://api.sam.gov/entity-information/v3/entities', {
+        params: { ueiSAM: 'ZQNHWAHG3BE7' },
+        headers: { 'x-api-key': SAM_API_KEY },
+        timeout: 15000,
+      });
+      results.push({ test: '6-entity-api-header', status: r6.status, entityCount: r6.data?.entityData?.length || 0 });
+    } catch (e) {
+      results.push({ test: '6-entity-api-header', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
+    }
+
+    res.json({ results, hasApiKey: !!SAM_API_KEY, apiKeyLength: SAM_API_KEY?.length });
   } catch (err) {
     res.json({ error: err.message, hasApiKey: !!SAM_API_KEY });
   }
