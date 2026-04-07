@@ -194,6 +194,7 @@ function SharedOpportunities({ myUserId }) {
   const [addingTracker, setAddingTracker] = useState({});
   const toast = useToast();
   const [interestList, setInterestList] = useState(null);
+  const [searchQ, setSearchQ] = useState('');
 
   const load = () => {
     api.get('/marketplace/opportunities').then(r => { setOpps(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -271,6 +272,18 @@ function SharedOpportunities({ myUserId }) {
         <button style={s.btn('primary')} onClick={() => setShowPost(true)}>+ Post Opportunity</button>
       </div>
 
+      {/* Search bar */}
+      {!loading && opps.length > 3 && (
+        <div style={{ marginBottom: '1rem' }}>
+          <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search opportunities, agencies, NAICS..."
+            style={{ padding: '8px 12px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 300 }} />
+          {searchQ && <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 8 }}>{opps.filter(o => {
+            const q = searchQ.toLowerCase();
+            return (o.title || '').toLowerCase().includes(q) || (o.agency || '').toLowerCase().includes(q) || (o.naics_codes || '').toLowerCase().includes(q) || (o.roles_needed || '').toLowerCase().includes(q);
+          }).length} matches</span>}
+        </div>
+      )}
+
       {loading ? (
         <div>
           <SkeletonCard />
@@ -283,7 +296,11 @@ function SharedOpportunities({ myUserId }) {
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No shared opportunities yet</div>
           <div style={{ fontSize: 13 }}>Primes post teaming opportunities here for subs to find and express interest.</div>
         </div>
-      ) : opps.map(opp => {
+      ) : opps.filter(opp => {
+        if (!searchQ) return true;
+        const q = searchQ.toLowerCase();
+        return (opp.title || '').toLowerCase().includes(q) || (opp.agency || '').toLowerCase().includes(q) || (opp.naics_codes || '').toLowerCase().includes(q) || (opp.roles_needed || '').toLowerCase().includes(q) || (opp.description || '').toLowerCase().includes(q);
+      }).map(opp => {
         const isOwn = opp.prime_user_id === myUserId;
         const deadline = opp.response_deadline ? new Date(opp.response_deadline) : null;
         const daysLeft = deadline ? Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) : null;
@@ -389,8 +406,12 @@ export default function MarketplacePage() {
   return (
     <Layout>
       <div style={s.page}>
-        <div style={s.heading}>Marketplace</div>
-        <div style={s.sub}>Find teaming partners, post opportunities, connect with primes and subs</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+          <div>
+            <div style={s.heading}>Marketplace</div>
+            <div style={s.sub}>Find teaming partners, post opportunities, connect with primes and subs</div>
+          </div>
+        </div>
 
         <div style={s.tabs}>
           <button style={s.tab(tab === 'opportunities')} onClick={() => setTab('opportunities')}>📋 Teaming Opportunities</button>
