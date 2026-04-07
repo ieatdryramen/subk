@@ -25,7 +25,7 @@ export default function TouchBanner() {
       style={{
         margin: '0 0.75rem 0.5rem',
         padding: '8px 12px',
-        background: hasOverdue ? 'var(--danger-bg)' : 'rgba(245,158,11,0.1)',
+        background: hasOverdue ? 'var(--danger-bg)' : 'var(--warning-bg)',
         border: `1px solid ${hasOverdue ? 'var(--danger)' : 'var(--warning)'}`,
         borderRadius: 'var(--radius)',
         cursor: 'pointer',

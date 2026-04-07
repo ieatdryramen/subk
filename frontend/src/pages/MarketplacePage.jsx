@@ -161,7 +161,7 @@ function SubDirectory() {
               <label style={s.label}>Your message</label>
               <textarea value={teamingMsg} onChange={e => setTeamingMsg(e.target.value)}
                 placeholder="Introduce your firm, describe the opportunity or contract vehicle, explain what you're looking for in a sub-partner..."
-                style={{ minHeight: 140, width: '100%', fontSize: 13 }} />
+                style={{ minHeight: 140, width: '100%', fontSize: 13, background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button style={s.btn('default')} onClick={() => setTeamingModal(null)}>Cancel</button>
@@ -325,18 +325,18 @@ function SharedOpportunities({ myUserId }) {
         <div style={s.modal} onClick={() => setShowPost(false)}>
           <div style={s.modalCard} onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>Post a Teaming Opportunity</div>
-            <div style={s.field}><label style={s.label}>Opportunity Title *</label><input {...f('title')} placeholder="Navy IDIQ — Cybersecurity Support Services" /></div>
-            <div style={s.field}><label style={s.label}>Description</label><textarea {...f('description')} placeholder="Describe the solicitation, scope, and what you're looking for in a sub..." style={{ minHeight: 80 }} /></div>
+            <div style={s.field}><label style={s.label}>Opportunity Title *</label><input {...f('title')} placeholder="Navy IDIQ — Cybersecurity Support Services" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+            <div style={s.field}><label style={s.label}>Description</label><textarea {...f('description')} placeholder="Describe the solicitation, scope, and what you're looking for in a sub..." style={{ minHeight: 80, background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={s.field}><label style={s.label}>NAICS Codes</label><input {...f('naics_codes')} placeholder="541512, 541519" /></div>
-              <div style={s.field}><label style={s.label}>Set-Aside</label><input {...f('set_aside')} placeholder="Small Business" /></div>
-              <div style={s.field}><label style={s.label}>Agency</label><input {...f('agency')} placeholder="Department of Navy" /></div>
-              <div style={s.field}><label style={s.label}>Response Deadline</label><input type="date" {...f('response_deadline')} /></div>
-              <div style={s.field}><label style={s.label}>Min Value ($)</label><input type="number" {...f('value_min')} placeholder="500000" /></div>
-              <div style={s.field}><label style={s.label}>Max Value ($)</label><input type="number" {...f('value_max')} placeholder="5000000" /></div>
+              <div style={s.field}><label style={s.label}>NAICS Codes</label><input {...f('naics_codes')} placeholder="541512, 541519" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+              <div style={s.field}><label style={s.label}>Set-Aside</label><input {...f('set_aside')} placeholder="Small Business" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+              <div style={s.field}><label style={s.label}>Agency</label><input {...f('agency')} placeholder="Department of Navy" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+              <div style={s.field}><label style={s.label}>Response Deadline</label><input type="date" {...f('response_deadline')} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+              <div style={s.field}><label style={s.label}>Min Value ($)</label><input type="number" {...f('value_min')} placeholder="500000" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+              <div style={s.field}><label style={s.label}>Max Value ($)</label><input type="number" {...f('value_max')} placeholder="5000000" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
             </div>
-            <div style={s.field}><label style={s.label}>Roles / Capabilities Needed</label><input {...f('roles_needed')} placeholder="Penetration testing, cloud architecture, cleared personnel" /></div>
-            <div style={s.field}><label style={s.label}>Requirements</label><textarea {...f('requirements')} placeholder="Must have active TS/SCI clearances, CMMC Level 2..." style={{ minHeight: 60 }} /></div>
+            <div style={s.field}><label style={s.label}>Roles / Capabilities Needed</label><input {...f('roles_needed')} placeholder="Penetration testing, cloud architecture, cleared personnel" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
+            <div style={s.field}><label style={s.label}>Requirements</label><textarea {...f('requirements')} placeholder="Must have active TS/SCI clearances, CMMC Level 2..." style={{ minHeight: 60, background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif', width: '100%', fontSize: 13 }} /></div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
               <button style={s.btn('default')} onClick={() => setShowPost(false)}>Cancel</button>
               <button style={s.btn('primary')} onClick={post} disabled={!form.title.trim() || posting}>{posting ? 'Posting...' : 'Post Opportunity'}</button>
@@ -354,7 +354,7 @@ function SharedOpportunities({ myUserId }) {
               <label style={s.label}>Your message to the prime</label>
               <textarea value={interestMsg} onChange={e => setInterestMsg(e.target.value)}
                 placeholder="Briefly describe your firm's relevant capabilities, certifications, and why you're a strong teaming partner for this opportunity..."
-                style={{ minHeight: 120, width: '100%', fontSize: 13 }} />
+                style={{ minHeight: 120, width: '100%', fontSize: 13, background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '8px 12px', fontFamily: 'Plus Jakarta Sans, sans-serif' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button style={s.btn('default')} onClick={() => setInterestModal(null)}>Cancel</button>

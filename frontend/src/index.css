@@ -55,7 +55,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
 select option { background: #FFFFFF; }
 
 button {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;

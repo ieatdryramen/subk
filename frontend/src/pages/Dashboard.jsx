@@ -78,7 +78,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, color: 'var(--warning)' }}>
               🎯 {dueCount} touch{dueCount !== 1 ? 'es' : ''} due today
             </div>
-            <button onClick={() => navigate('/reminders')} style={{ padding: '6px 14px', background: 'var(--warning)', color: '#000', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => navigate('/reminders')} style={{ padding: '6px 14px', background: 'var(--warning)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
               See who →
             </button>
           </div>
@@ -90,7 +90,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 13, color: 'var(--warning)' }}>
               ⚠ {10 - billing.playbooks_used} free playbooks remaining
             </div>
-            <button onClick={() => navigate('/billing')} style={{ padding: '6px 14px', background: 'var(--warning)', color: '#000', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => navigate('/billing')} style={{ padding: '6px 14px', background: 'var(--warning)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
               Upgrade →
             </button>
           </div>

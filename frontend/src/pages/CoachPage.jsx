@@ -129,7 +129,7 @@ export default function CoachPage() {
       fontSize: 13,
       lineHeight: 1.5,
       background: isUser ? 'var(--accent)' : 'var(--bg2)',
-      color: isUser ? '#fff' : 'var(--text)',
+      color: isUser ? 'var(--text-inverse)' : 'var(--text)',
       border: isUser ? 'none' : '1px solid var(--border)',
       wordWrap: 'break-word',
     }),

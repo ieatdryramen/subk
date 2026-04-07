@@ -178,17 +178,17 @@ export default function OpportunitiesPage() {
     heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
     sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '1.5rem' },
     tabs: { display: 'flex', gap: 6, marginBottom: '1.5rem' },
-    tab: (active) => ({ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', background: active ? 'var(--accent)' : 'var(--bg2)', color: active ? '#fff' : 'var(--text2)', border: active ? 'none' : '1px solid var(--border)' }),
+    tab: (active) => ({ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', background: active ? 'var(--accent)' : 'var(--bg2)', color: active ? '#FFFFFF' : 'var(--text2)', border: active ? 'none' : '1px solid var(--border)' }),
     searchCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem' },
     row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
     label: { display: 'block', fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 500 },
     oppCard: (active) => ({ background: 'var(--bg2)', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', marginBottom: 8, overflow: 'hidden', transition: 'border-color 0.15s' }),
     oppHeader: { padding: '1rem 1.25rem', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' },
     scoreBadge: (score) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 10, fontSize: 14, fontWeight: 700, flexShrink: 0, ...scoreColor(score) }),
-    btn: (v) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: v === 'primary' ? 'var(--accent)' : 'var(--bg3)', color: v === 'primary' ? '#fff' : 'var(--text2)' }),
+    btn: (v) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: v === 'primary' ? 'var(--accent)' : 'var(--bg3)', color: v === 'primary' ? '#FFFFFF' : 'var(--text2)' }),
     chatWrap: { borderTop: '1px solid var(--border)', padding: '1rem 1.25rem', background: 'var(--bg)' },
     chatMsgs: { maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 },
-    msgStyle: (role) => ({ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start', background: role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: role === 'user' ? '#fff' : 'var(--text)', border: role === 'user' ? 'none' : '1px solid var(--border)' }),
+    msgStyle: (role) => ({ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start', background: role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: role === 'user' ? '#FFFFFF' : 'var(--text)', border: role === 'user' ? 'none' : '1px solid var(--border)' }),
   };
 
   return (
@@ -290,7 +290,7 @@ export default function OpportunitiesPage() {
                     <button
                       onClick={() => runAutoSearch(config.id)}
                       disabled={loadingAutoSearch}
-                      style={{ fontSize: 11, padding: '4px 12px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 500 }}
+                      style={{ fontSize: 11, padding: '4px 12px', background: 'var(--accent)', color: '#FFFFFF', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 500 }}
                     >
                       {loadingAutoSearch ? '...' : 'Run'}
                     </button>
