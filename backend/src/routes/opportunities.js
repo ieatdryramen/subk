@@ -179,6 +179,25 @@ router.get('/debug/sam-test', auth, async (req, res) => {
       results.push({ test: '6-entity-api-header', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
     }
 
+    // Test 7: No API key at all (to see if we get a DIFFERENT error)
+    try {
+      const r7 = await axios.get('https://api.sam.gov/opportunities/v2/search', {
+        params: { limit: 3, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) },
+        timeout: 15000,
+      });
+      results.push({ test: '7-no-key', status: r7.status });
+    } catch (e) {
+      results.push({ test: '7-no-key', status: e.response?.status, error: e.message, body: (typeof e.response?.data === 'string' ? e.response.data : JSON.stringify(e.response?.data))?.substring(0, 300) });
+    }
+
+    // Test 8: Connectivity check — hit sam.gov homepage
+    try {
+      const r8 = await axios.get('https://api.sam.gov', { timeout: 10000, maxRedirects: 0, validateStatus: () => true });
+      results.push({ test: '8-connectivity', status: r8.status, reachable: true });
+    } catch (e) {
+      results.push({ test: '8-connectivity', reachable: false, error: e.message });
+    }
+
     res.json({ results, hasApiKey: !!SAM_API_KEY, apiKeyLength: SAM_API_KEY?.length });
   } catch (err) {
     res.json({ error: err.message, hasApiKey: !!SAM_API_KEY });
