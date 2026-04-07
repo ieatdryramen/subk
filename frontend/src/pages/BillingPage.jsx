@@ -148,10 +148,10 @@ export default function BillingPage() {
         <div style={s.faqCard}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: '1.25rem' }}>Frequently asked questions</div>
           {[
-            { q: 'What counts as a playbook?', a: 'Each time you generate a personalized playbook for a lead — including emails, call opener, objection handling, and callbacks — that counts as one playbook.' },
+            { q: 'What counts toward my usage?', a: 'AI-generated proposals, opportunity scoring, BD outreach sequences, and prime research each count as one credit. Searching and browsing opportunities is unlimited on all plans.' },
             { q: 'Can I upgrade or downgrade anytime?', a: 'Yes. Upgrades take effect immediately. Downgrades take effect at the end of your billing cycle.' },
-            { q: 'What happens when I hit my limit?', a: "You'll see an upgrade prompt and generation will be paused. Your existing playbooks are always accessible." },
-            { q: 'Do team members share the playbook limit?', a: 'Yes — your plan limit is shared across your whole team. The Team plan (500/mo) is designed for a team of 5.' },
+            { q: 'What happens when I hit my limit?', a: "You'll see an upgrade prompt and AI generation will be paused. Your existing data, proposals, and pipeline are always accessible." },
+            { q: 'Do team members share the limit?', a: 'Yes — your plan limit is shared across your whole team. The Professional plan is designed for teams of up to 5.' },
           ].map(faq => (
             <div key={faq.q} style={s.faqItem}>
               <div style={s.faqQ}>{faq.q}</div>

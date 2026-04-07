@@ -208,8 +208,8 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div style={s.page}>
-        <div style={s.heading}>Company Profile</div>
-        <div style={s.sub}>Your capabilities and preferences power opportunity scoring and outreach generation</div>
+        <div style={s.heading}>Subcontractor Profile</div>
+        <div style={s.sub}>Your capabilities, certs, and past performance power opportunity scoring and teaming matches</div>
 
         {saved && <div style={s.successMsg}>✓ Profile saved successfully</div>}
 
