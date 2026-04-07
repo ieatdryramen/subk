@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 900 },
@@ -27,9 +28,9 @@ export default function CardScanPage() {
   const [newListName, setNewListName] = useState('');
   const [scanningAll, setScanningAll] = useState(false);
   const [addingAll, setAddingAll] = useState(false);
-  const [globalStatus, setGlobalStatus] = useState(null);
   const fileRef = useRef();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   useEffect(() => {
     api.get('/lists').then(r => {
@@ -99,17 +100,18 @@ export default function CardScanPage() {
       setLists(l => [...l, r.data]);
       setSelectedList(listId);
     }
-    if (!listId) { alert('Select or create a list first'); return; }
+    if (!listId) { showToast('Select or create a list first', 'error'); return; }
     try {
       await api.post(`/lists/${listId}/leads`, { leads: [{ full_name: card.result.name, company: card.result.company, title: card.result.title, email: card.result.email, phone: card.result.phone, linkedin: card.result.linkedin, notes: 'Scanned business card' }] });
       setQueue(q => q.map(c => c.id === id ? { ...c, status: 'added' } : c));
+      showToast('Lead added successfully', 'success');
       // Auto-generate in background
       api.get(`/lists/${listId}/leads`).then(r => {
         const newLead = r.data[r.data.length - 1];
         if (newLead) api.post(`/playbooks/generate/${newLead.id}`).catch(e => console.warn('Auto-generate failed for scanned card:', e.message));
       }).catch(e => console.warn('Could not fetch leads for auto-generate:', e.message));
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to add lead');
+      showToast(err.response?.data?.error || 'Failed to add lead', 'error');
     }
   };
 
@@ -121,17 +123,17 @@ export default function CardScanPage() {
       setLists(l => [...l, r.data]);
       setSelectedList(listId);
     }
-    if (!listId) { alert('Select or create a list first'); return; }
+    if (!listId) { showToast('Select or create a list first', 'error'); return; }
     setAddingAll(true);
     const ready = queue.filter(c => c.status === 'done' && c.result);
     const leads = ready.map(c => ({ full_name: c.result.name, company: c.result.company, title: c.result.title, email: c.result.email, phone: c.result.phone, linkedin: c.result.linkedin, notes: 'Scanned business card' }));
     try {
       await api.post(`/lists/${listId}/leads`, { leads });
       setQueue(q => q.map(c => c.status === 'done' ? { ...c, status: 'added' } : c));
-      setGlobalStatus({ type: 'success', text: `${leads.length} leads added. Generating playbooks...` });
+      showToast(`${leads.length} leads added. Generating playbooks...`, 'success');
       setTimeout(() => navigate(`/lists/${listId}`), 2000);
     } catch (err) {
-      setGlobalStatus({ type: 'error', text: err.response?.data?.error || 'Failed to add leads' });
+      showToast(err.response?.data?.error || 'Failed to add leads', 'error');
     } finally {
       setAddingAll(false);
     }
@@ -200,12 +202,6 @@ export default function CardScanPage() {
           </div>
         )}
 
-        {globalStatus && (
-          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius)', fontSize: 13, marginBottom: '1rem', background: globalStatus.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)', color: globalStatus.type === 'success' ? 'var(--success)' : 'var(--danger)', border: `1px solid var(--${globalStatus.type})` }}>
-            {globalStatus.text}
-          </div>
-        )}
-
         {/* Card queue */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {queue.map(card => (
@@ -236,7 +232,19 @@ export default function CardScanPage() {
 
                 {/* Result fields */}
                 <div>
-                  {card.status === 'done' || card.status === 'added' ? (
+                  {card.status === 'scanning' ? (
+                    <>
+                      <div style={s.row2}>
+                        {[1, 2, 3, 4, 5, 6].map(i => (
+                          <div key={`skeleton-${i}`} style={{ marginBottom: 10 }}>
+                            <label style={s.label}>Label</label>
+                            <div style={{ height: 32, background: 'var(--bg3)', borderRadius: 'var(--radius)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ height: 36, background: 'var(--bg3)', borderRadius: 'var(--radius)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                    </>
+                  ) : card.status === 'done' || card.status === 'added' ? (
                     <>
                       <div style={s.row2}>
                         <div style={{ marginBottom: 10 }}>

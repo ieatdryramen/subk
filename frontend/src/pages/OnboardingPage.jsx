@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const COMMON_NAICS = [
   '541512 - Computer Systems Design', '541511 - Custom Computer Programming',
@@ -14,6 +15,7 @@ const COMMON_NAICS = [
 const SET_ASIDES = ['Small Business', '8(a)', 'HUBZone', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'SDB'];
 
 export default function OnboardingPage() {
+  const { showToast } = useToast();
   const [step, setStep] = useState(1);
   const [uploadMode, setUploadMode] = useState(true); // true = upload PDF, false = manual entry
   const [form, setForm] = useState({
@@ -74,9 +76,12 @@ export default function OnboardingPage() {
       }
 
       setParseMsg(`✓ Extracted: ${extracted.company_name || 'Company'} · ${extracted.naics_codes ? '1 NAICS' : '0 NAICS'} codes`);
+      showToast('Capability statement parsed successfully', 'success');
       setTimeout(() => setStep(3), 2000);
     } catch (err) {
-      setParseMsg('Failed to parse PDF: ' + (err.response?.data?.error || err.message));
+      const errorMsg = err.response?.data?.error || err.message;
+      setParseMsg('Failed to parse PDF: ' + errorMsg);
+      showToast('Failed to parse: ' + errorMsg, 'error');
     } finally {
       setParsing(false);
     }
@@ -97,19 +102,19 @@ export default function OnboardingPage() {
   const goNext = async () => {
     if (step === 1) {
       if (uploadMode && !parseMsg.includes('✓')) {
-        alert('Please upload your capability statement first');
+        showToast('Please upload your capability statement first', 'error');
         return;
       }
       setStep(2);
     } else if (step === 2) {
       if (!form.company_name.trim()) {
-        alert('Please enter your company name');
+        showToast('Please enter your company name', 'error');
         return;
       }
       setStep(3);
     } else if (step === 3) {
       if (!searchForm.naics_codes.trim()) {
-        alert('Please select NAICS codes');
+        showToast('Please select NAICS codes', 'error');
         return;
       }
       setStep(4);
@@ -122,9 +127,11 @@ export default function OnboardingPage() {
     setSaving(true);
     try {
       await api.post('/sub-profile', { ...form, certifications: selectedCerts.join(', ') });
+      showToast('Profile saved successfully', 'success');
       setTimeout(() => navigate('/dashboard'), 1000);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save profile');
+      const errorMsg = err.response?.data?.error || 'Failed to save profile';
+      showToast(errorMsg, 'error');
       setSaving(false);
     }
   };
@@ -194,6 +201,7 @@ export default function OnboardingPage() {
       fontSize: 13,
       color: 'var(--text)',
       boxSizing: 'border-box',
+      transition: 'border-color 0.2s, background-color 0.2s',
     },
     uploadZone: (dragging) => ({
       border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border2)'}`,
@@ -259,9 +267,9 @@ export default function OnboardingPage() {
     }),
     msgBox: (type) => ({
       padding: '10px 12px',
-      background: type === 'success' ? 'var(--success-bg)' : 'var(--bg3)',
-      color: type === 'success' ? 'var(--success)' : 'var(--text2)',
-      border: type === 'success' ? '1px solid var(--success)' : '1px solid var(--border)',
+      background: type === 'success' ? 'var(--success-bg)' : type === 'error' ? 'var(--danger-bg)' : type === 'info' ? 'var(--bg3)' : 'var(--bg3)',
+      color: type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : type === 'info' ? 'var(--text2)' : 'var(--text2)',
+      border: type === 'success' ? '1px solid var(--success)' : type === 'error' ? '1px solid var(--danger)' : type === 'info' ? '1px solid var(--border)' : '1px solid var(--border)',
       borderRadius: 'var(--radius)',
       fontSize: 12,
       marginTop: 8,
@@ -317,8 +325,8 @@ export default function OnboardingPage() {
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                   />
-                  {parsing && <div style={s.msgBox('success')}>Parsing...</div>}
-                  {parseMsg && <div style={{ ...s.msgBox(parseMsg.includes('✓') ? 'success' : 'error') }}>{parseMsg}</div>}
+                  {parsing && <div style={s.msgBox('info')}>⏳ Parsing your capability statement...</div>}
+                  {parseMsg && !parsing && <div style={{ ...s.msgBox(parseMsg.includes('✓') ? 'success' : 'error') }}>{parseMsg}</div>}
                 </>
               ) : (
                 <div style={{ fontSize: 13, color: 'var(--text2)', padding: '1rem 0' }}>

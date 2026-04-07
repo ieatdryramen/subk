@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const SET_ASIDES = ['Small Business', '8(a)', 'HUBZone', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'SDB'];
 const COMMON_NAICS = [
@@ -29,6 +30,7 @@ const s = {
 };
 
 export default function ProfilePage() {
+  const { showToast } = useToast();
   const [form, setForm] = useState({
     company_name: '', website_url: '', naics_codes: '', cage_code: '', uei: '',
     certifications: '', past_performance: '', capabilities: '', target_agencies: '',
@@ -36,6 +38,7 @@ export default function ProfilePage() {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedCerts, setSelectedCerts] = useState([]);
   const [parsing, setParsing] = useState(false);
   const [parseMsg, setParseMsg] = useState('');
@@ -50,15 +53,18 @@ export default function ProfilePage() {
   const fileRef = useRef(null);
 
   useEffect(() => {
-    api.get('/sub-profile').then(r => {
-      if (r.data) {
-        setForm(f => ({ ...f, ...r.data }));
-        if (r.data.certifications) {
-          setSelectedCerts(r.data.certifications.split(',').map(c => c.trim()).filter(Boolean));
+    setLoading(true);
+    Promise.all([
+      api.get('/sub-profile').then(r => {
+        if (r.data) {
+          setForm(f => ({ ...f, ...r.data }));
+          if (r.data.certifications) {
+            setSelectedCerts(r.data.certifications.split(',').map(c => c.trim()).filter(Boolean));
+          }
         }
-      }
-    }).catch(() => {});
-    api.get('/sub-profile/past-performance').then(r => setPastPerf(r.data || [])).catch(() => {});
+      }).catch(() => {}),
+      api.get('/sub-profile/past-performance').then(r => setPastPerf(r.data || [])).catch(() => {})
+    ]).finally(() => setLoading(false));
   }, []);
 
   const lookupUEI = async () => {
@@ -94,7 +100,9 @@ export default function ProfilePage() {
       if (!d.sam && d.awardCount === 0) lines.push('No SAM.gov registration or award history found for this UEI.');
       setUeiMsg(lines.join('\n'));
     } catch (err) {
-      setUeiMsg('Lookup failed: ' + (err.response?.data?.error || err.message));
+      const errorMsg = err.response?.data?.error || err.message;
+      setUeiMsg('Lookup failed: ' + errorMsg);
+      showToast('Lookup failed: ' + errorMsg, 'error');
     } finally { setUeiLooking(false); }
   };
 
@@ -105,7 +113,10 @@ export default function ProfilePage() {
       const r = await api.get('/sub-profile/past-performance');
       setPastPerf(r.data || []);
       setUeiMsg(prev => prev + '\n✓ Awards imported to past performance.');
-    } catch (e) { alert('Import failed'); }
+      showToast('Awards imported successfully', 'success');
+    } catch (e) {
+      showToast('Import failed: ' + (e.response?.data?.error || e.message), 'error');
+    }
   };
 
   const toggleCert = (cert) => {
@@ -121,9 +132,11 @@ export default function ProfilePage() {
     try {
       await api.post('/sub-profile', { ...form, certifications: selectedCerts.join(', ') });
       setSaved(true);
+      showToast('Profile saved successfully', 'success');
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save');
+      const errorMsg = err.response?.data?.error || 'Failed to save profile';
+      showToast(errorMsg, 'error');
     } finally { setSaving(false); }
   };
 
@@ -170,8 +183,11 @@ export default function ProfilePage() {
       }
 
       setParseMsg('✓ Capability statement parsed — review the fields below and save.');
+      showToast('Capability statement parsed successfully', 'success');
     } catch (err) {
-      setParseMsg('Failed to parse: ' + (err.response?.data?.error || err.message));
+      const errorMsg = err.response?.data?.error || err.message;
+      setParseMsg('Failed to parse: ' + errorMsg);
+      showToast('Failed to parse: ' + errorMsg, 'error');
     } finally { setParsing(false); }
   };
 
@@ -187,7 +203,11 @@ export default function ProfilePage() {
       }
       setPpModal(null);
       setPpForm({ contract_number: '', contract_title: '', agency: '', prime_or_sub: 'prime', award_amount: '', period_start: '', period_end: '', naics_code: '', set_aside: '', description: '', relevance_tags: '' });
-    } catch (e) { alert(e.response?.data?.error || 'Failed to save'); }
+      showToast('Past performance record saved', 'success');
+    } catch (e) {
+      const errorMsg = e.response?.data?.error || 'Failed to save record';
+      showToast(errorMsg, 'error');
+    }
     finally { setPpSaving(false); }
   };
 
@@ -208,11 +228,25 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div style={s.page}>
-        <div style={s.heading}>Subcontractor Profile</div>
-        <div style={s.sub}>Your capabilities, certs, and past performance power opportunity scoring and teaming matches</div>
+        {loading && (
+          <div style={{ marginBottom: '2rem' }}>
+            <div className="pf-skeleton" style={{ height: 32, marginBottom: 16, width: '40%' }} />
+            <div className="pf-skeleton" style={{ height: 20, marginBottom: 24, width: '80%' }} />
+            <div className="pf-skeleton" style={{ height: 200, marginBottom: 16 }} />
+            <div className="pf-skeleton" style={{ height: 200 }} />
+          </div>
+        )}
+        {!loading && (
+          <>
+            <div style={s.heading}>Subcontractor Profile</div>
+            <div style={s.sub}>Your capabilities, certs, and past performance power opportunity scoring and teaming matches</div>
+          </>
+        )}
 
         {saved && <div style={s.successMsg}>✓ Profile saved successfully</div>}
 
+        {!loading && (
+        <>
         {/* Cap Statement Upload */}
         <div style={s.section}>
           <div style={s.sectionTitle}>📄 Auto-fill from Capability Statement</div>
@@ -451,6 +485,8 @@ export default function ProfilePage() {
         <button style={s.saveBtn} onClick={save} disabled={saving || !form.company_name}>
           {saving ? 'Saving...' : 'Save profile'}
         </button>
+        </>
+        )}
       </div>
 
       {/* Past Performance Modal */}

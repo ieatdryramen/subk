@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const EMAIL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
@@ -65,8 +66,8 @@ export default function PipelinePage() {
   const [bulkStage, setBulkStage] = useState('');
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
-  const [moveError, setMoveError] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const currentView = VIEW_MODES.find(v => v.key === viewMode);
   const STAGES = currentView.stages;
@@ -93,15 +94,13 @@ export default function PipelinePage() {
     const prevStage = prev ? prev[stageField] : null;
     const prevSeqStage = prev ? prev.sequence_stage : null;
     setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: newStage, sequence_stage: viewMode === 'all' ? newStage : l.sequence_stage } : l));
-    setMoveError(null);
     try {
       await api.post(`/sequence/${leadId}/stage`, { stage: newStage, field: stageField });
     } catch (err) {
       console.error(err);
       // Rollback optimistic update
       setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: prevStage, sequence_stage: prevSeqStage } : l));
-      setMoveError('Failed to move lead — reverted');
-      setTimeout(() => setMoveError(null), 4000);
+      showToast('Failed to move lead — reverted', 'error');
     }
   };
 
@@ -139,8 +138,9 @@ export default function PipelinePage() {
         const snap = snapshot.find(s => s.id === l.id);
         return snap ? { ...l, [stageField]: snap[stageField], sequence_stage: snap.sequence_stage } : l;
       }));
-      setMoveError(`${failed} of ${total} leads failed to move — reverted`);
-      setTimeout(() => setMoveError(null), 5000);
+      showToast(`${failed} of ${total} leads failed to move — reverted`, 'error');
+    } else {
+      showToast(`${total} leads moved successfully`, 'success');
     }
     setBulkMoving(false);
     setBulkMoveProgress(0);
@@ -275,13 +275,6 @@ export default function PipelinePage() {
           </div>
         )}
 
-        {/* Move error banner */}
-        {moveError && (
-          <div style={{ padding: '10px 16px', marginBottom: '1rem', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>{moveError}</span>
-            <button onClick={() => setMoveError(null)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 14, padding: '0 4px' }}>✕</button>
-          </div>
-        )}
 
         {/* Kanban board */}
         <div className="pf-kanban" style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, minmax(180px, 1fr))`, gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
@@ -296,51 +289,63 @@ export default function PipelinePage() {
                 onDragLeave={() => setDragOverStage(null)}>
                 <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 11, fontWeight: 600, color: stage.color, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{stage.label}</span>
-                  <span style={{ fontSize: 11, background: 'var(--bg3)', color: 'var(--text3)', padding: '1px 6px', borderRadius: 10 }}>{stageLeads.length}</span>
+                  <span style={{ fontSize: 11, background: 'var(--bg3)', color: 'var(--text3)', padding: '1px 6px', borderRadius: 10 }}>{loading ? '—' : stageLeads.length}</span>
                 </div>
                 <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {stageLeads.map(lead => {
-                    const isSelected = selectedIds.has(lead.id);
-                    return (
-                      <div key={lead.id}
-                        draggable={selectedIds.size === 0}
-                        onDragStart={e => onDragStart(e, lead.id)}
-                        onDragEnd={onDragEnd}
-                        style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
-                        onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={e => toggleSelect(e, lead.id)}
-                            onClick={e => e.stopPropagation()}
-                            style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {lead.full_name || lead.email || '—'}
-                            </div>
-                            <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {lead.company || lead.title || '—'}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              {lead.icp_score != null ? (
-                                <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
-                                  {lead.icp_score}
-                                </span>
-                              ) : <span />}
-                              <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                                onClick={e => { e.stopPropagation(); navigate(`/lists/${lead.list_id}`); }}>→</button>
+                  {loading ? (
+                    <>
+                      {[1, 2, 3].map(i => (
+                        <div key={`skeleton-${i}`}
+                          style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 10px', height: 70, animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}
+                        />
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      {stageLeads.map(lead => {
+                        const isSelected = selectedIds.has(lead.id);
+                        return (
+                          <div key={lead.id}
+                            draggable={selectedIds.size === 0}
+                            onDragStart={e => onDragStart(e, lead.id)}
+                            onDragEnd={onDragEnd}
+                            style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
+                            onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={e => toggleSelect(e, lead.id)}
+                                onClick={e => e.stopPropagation()}
+                                style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
+                              />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {lead.full_name || lead.email || '—'}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {lead.company || lead.title || '—'}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  {lead.icp_score != null ? (
+                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
+                                      {lead.icp_score}
+                                    </span>
+                                  ) : <span />}
+                                  <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                                    onClick={e => { e.stopPropagation(); navigate(`/lists/${lead.list_id}`); }}>→</button>
+                                </div>
+                              </div>
                             </div>
                           </div>
+                        );
+                      })}
+                      {stageLeads.length === 0 && (
+                        <div style={{ fontSize: 11, color: isOver ? stage.color : 'var(--text3)', textAlign: 'center', padding: '20px 0', opacity: 0.7 }}>
+                          {isOver ? 'Drop here' : 'Empty'}
                         </div>
-                      </div>
-                    );
-                  })}
-                  {stageLeads.length === 0 && (
-                    <div style={{ fontSize: 11, color: isOver ? stage.color : 'var(--text3)', textAlign: 'center', padding: '20px 0', opacity: 0.7 }}>
-                      {isOver ? 'Drop here' : 'Empty'}
-                    </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
