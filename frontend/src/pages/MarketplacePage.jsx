@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const CERT_OPTIONS = ['Small Business', '8(a)', 'HUBZone', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'SDB'];
 
@@ -22,7 +23,7 @@ const s = {
   row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   btn: (v) => ({ padding: '7px 16px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer', background: v === 'primary' ? 'var(--accent)' : v === 'success' ? 'var(--success-bg)' : 'var(--bg3)', color: v === 'primary' ? '#fff' : v === 'success' ? 'var(--success)' : 'var(--text2)' }),
   empty: { textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' },
-  modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '1rem' },
+  modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '1rem' },
   modalCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto' },
   modalTitle: { fontSize: 18, fontWeight: 600, marginBottom: '1.25rem' },
   field: { marginBottom: 14 },
@@ -30,16 +31,16 @@ const s = {
   postBanner: { background: 'var(--accent-bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
 };
 
-// ── Sub Directory Tab ──────────────────────────────────────────────────────
-function Toast({ message, onClose }) {
-  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, []);
+// ── Loading Skeletons ────────────────────────────────────────────────────────
+function SkeletonCard() {
   return (
-    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', fontSize: 13, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 400, animation: 'fadeIn 0.2s' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <span style={{ whiteSpace: 'pre-wrap' }}>{message}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
-      </div>
-    </div>
+    <div className="pf-skeleton" style={{ height: 140, marginBottom: 10 }} />
+  );
+}
+
+function SkeletonLine() {
+  return (
+    <div className="pf-skeleton" style={{ height: 16, marginBottom: 8 }} />
   );
 }
 
@@ -54,7 +55,7 @@ function SubDirectory() {
   const [teamingMsg, setTeamingMsg] = useState('');
   const [sending, setSending] = useState(false);
   const [addingTracker, setAddingTracker] = useState({});
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
 
   const load = () => {
     const params = new URLSearchParams();
@@ -73,8 +74,8 @@ function SubDirectory() {
       await api.post('/marketplace/teaming', { to_user_id: teamingModal.user_id, message: teamingMsg, from_type: 'prime' });
       setTeamingModal(null);
       setTeamingMsg('');
-      setToast('Teaming request sent!');
-    } catch (e) { setToast(e.response?.data?.error || 'Failed to send'); }
+      toast.addToast('Teaming request sent!');
+    } catch (e) { toast.addToast(e.response?.data?.error || 'Failed to send'); }
     finally { setSending(false); }
   };
 
@@ -89,9 +90,9 @@ function SubDirectory() {
         certifications: sub.certifications,
         size_category: 'small_business'
       });
-      setToast('Sub added to tracker!');
+      toast.addToast('Sub added to tracker!');
     } catch (e) {
-      setToast(e.response?.data?.error || 'Failed to add to tracker');
+      toast.addToast(e.response?.data?.error || 'Failed to add to tracker');
     } finally {
       setAddingTracker(p => ({ ...p, [sub.id]: false }));
     }
@@ -99,7 +100,6 @@ function SubDirectory() {
 
   return (
     <>
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <div style={s.filters}>
         <input style={s.filterInput} placeholder="Search capabilities..." value={q} onChange={e => setQ(e.target.value)} />
         <input style={{ ...s.filterInput, width: 140 }} placeholder="NAICS code..." value={naics} onChange={e => setNaics(e.target.value)} />
@@ -109,8 +109,13 @@ function SubDirectory() {
         {cert && <button style={s.certBtn(false)} onClick={() => setCert('')}>✕ Clear</button>}
       </div>
 
-      {loading ? <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading...</div>
-      : subs.length === 0 ? (
+      {loading ? (
+        <div>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : subs.length === 0 ? (
         <div style={s.empty}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No public sub profiles yet</div>
@@ -187,7 +192,7 @@ function SharedOpportunities({ myUserId }) {
   const [form, setForm] = useState({ title: '', description: '', naics_codes: '', set_aside: '', agency: '', response_deadline: '', value_min: '', value_max: '', roles_needed: '', requirements: '' });
   const [posting, setPosting] = useState(false);
   const [addingTracker, setAddingTracker] = useState({});
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
   const [interestList, setInterestList] = useState(null);
 
   const load = () => {
@@ -204,7 +209,7 @@ function SharedOpportunities({ myUserId }) {
       setShowPost(false);
       setForm({ title: '', description: '', naics_codes: '', set_aside: '', agency: '', response_deadline: '', value_min: '', value_max: '', roles_needed: '', requirements: '' });
       load();
-    } catch (e) { setToast(e.response?.data?.error || 'Failed to post'); }
+    } catch (e) { toast.addToast(e.response?.data?.error || 'Failed to post'); }
     finally { setPosting(false); }
   };
 
@@ -214,8 +219,8 @@ function SharedOpportunities({ myUserId }) {
       await api.post(`/marketplace/opportunities/${interestModal.id}/interest`, { message: interestMsg });
       setInterestModal(null);
       setInterestMsg('');
-      setToast('Interest submitted! The prime will be notified.');
-    } catch (e) { setToast(e.response?.data?.error || 'Failed to submit'); }
+      toast.addToast('Interest submitted! The prime will be notified.');
+    } catch (e) { toast.addToast(e.response?.data?.error || 'Failed to submit'); }
     finally { setSending(false); }
   };
 
@@ -228,9 +233,9 @@ function SharedOpportunities({ myUserId }) {
         agency_focus: opp.agency,
         size_category: 'prime'
       });
-      setToast('Prime added to tracker!');
+      toast.addToast('Prime added to tracker!');
     } catch (e) {
-      setToast(e.response?.data?.error || 'Failed to add prime to tracker');
+      toast.addToast(e.response?.data?.error || 'Failed to add prime to tracker');
     } finally {
       setAddingTracker(p => ({ ...p, [opp.id]: false }));
     }
@@ -240,7 +245,6 @@ function SharedOpportunities({ myUserId }) {
 
   return (
     <>
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       {interestList && (
         <div style={s.modal} onClick={() => setInterestList(null)}>
           <div style={s.modalCard} onClick={e => e.stopPropagation()}>
@@ -267,8 +271,13 @@ function SharedOpportunities({ myUserId }) {
         <button style={s.btn('primary')} onClick={() => setShowPost(true)}>+ Post Opportunity</button>
       </div>
 
-      {loading ? <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading...</div>
-      : opps.length === 0 ? (
+      {loading ? (
+        <div>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : opps.length === 0 ? (
         <div style={s.empty}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
           <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No shared opportunities yet</div>

@@ -35,7 +35,7 @@ const s = {
   progress: { height: 3, background: 'var(--bg3)', borderRadius: 2, marginBottom: '1.5rem', overflow: 'hidden' },
   progressBar: (pct) => ({ height: '100%', width: pct + '%', background: 'var(--accent)', borderRadius: 2, transition: 'width 0.4s' }),
   table: { width: '100%', borderCollapse: 'collapse', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' },
-  th: { padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)', background: 'var(--bg3)' },
+  th: { padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' },
   td: { padding: '12px 14px', fontSize: 13, borderBottom: '1px solid var(--border)', verticalAlign: 'top' },
   badge: (status) => ({ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: statusColors[status]?.bg || statusColors.pending.bg, color: statusColors[status]?.color || statusColors.pending.color }),
   scoreBadge: (score) => ({ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, ...scoreColor(score) }),
@@ -94,9 +94,11 @@ export default function LeadListDetailPage() {
   const pollRef = useRef();
 
   const [loadError, setLoadError] = useState(null);
+  const [loadingTable, setLoadingTable] = useState(true);
 
   const loadLeads = async () => {
     setLoadError(null);
+    setLoadingTable(true);
     try {
       const [listRes, leadsRes] = await Promise.all([
         api.get('/lists').then(r => r.data.find(l => l.id === parseInt(id))),
@@ -107,6 +109,8 @@ export default function LeadListDetailPage() {
     } catch (err) {
       console.error(err);
       setLoadError('Failed to load leads');
+    } finally {
+      setLoadingTable(false);
     }
   };
 
@@ -566,6 +570,35 @@ export default function LeadListDetailPage() {
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No leads yet</div>
             <div style={{ fontSize: 13 }}>Add leads manually or import a CSV</div>
           </div>
+        ) : loadingTable ? (
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table style={s.table} className="pf-lead-table">
+            <thead>
+              <tr>
+                <th style={{ ...s.th, width: 36 }}><input type="checkbox" style={s.checkbox} disabled /></th>
+                <th style={s.th}>Name</th>
+                <th style={s.th}>Company</th>
+                <th style={s.th}>Title</th>
+                <th style={s.th}>ICP Score</th>
+                <th style={s.th}>Status</th>
+                <th style={s.th}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map(i => (
+                <tr key={i}>
+                  <td style={{ ...s.td, width: 52 }}></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '70%' }} /></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '60%' }} /></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '65%' }} /></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '50%' }} /></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '55%' }} /></td>
+                  <td style={s.td}><div className="pf-skeleton" style={{ height: 16, width: '75%' }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
         ) : (
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={s.table} className="pf-lead-table">
@@ -684,18 +717,18 @@ export default function LeadListDetailPage() {
           <div style={s.modalCard} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={s.modalTitle}>Add lead</div>
             <div style={s.row2}>
-              <div style={s.field}><label style={s.label}>Full name</label><input autoFocus value={addForm.full_name} onChange={e => setAddForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Sarah Chen" /></div>
-              <div style={s.field}><label style={s.label}>Company</label><input value={addForm.company} onChange={e => setAddForm(f => ({ ...f, company: e.target.value }))} placeholder="Apex Federal" /></div>
+              <div style={s.field}><label style={s.label}>Full name</label><input autoFocus value={addForm.full_name} onChange={e => setAddForm(f => ({ ...f, full_name: e.target.value }))} placeholder="Sarah Chen" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div style={s.field}><label style={s.label}>Company</label><input value={addForm.company} onChange={e => setAddForm(f => ({ ...f, company: e.target.value }))} placeholder="Apex Federal" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
             </div>
             <div style={s.row2}>
-              <div style={s.field}><label style={s.label}>Title</label><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="VP of Business Development" /></div>
-              <div style={s.field}><label style={s.label}>Email</label><input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="s.chen@apex.com" /></div>
+              <div style={s.field}><label style={s.label}>Title</label><input value={addForm.title} onChange={e => setAddForm(f => ({ ...f, title: e.target.value }))} placeholder="VP of Business Development" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div style={s.field}><label style={s.label}>Email</label><input value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} placeholder="s.chen@apex.com" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
             </div>
             <div style={s.row2}>
-              <div style={s.field}><label style={s.label}>Phone</label><input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" /></div>
-              <div style={s.field}><label style={s.label}>LinkedIn URL</label><input value={addForm.linkedin} onChange={e => setAddForm(f => ({ ...f, linkedin: e.target.value }))} placeholder="https://linkedin.com/in/..." /></div>
+              <div style={s.field}><label style={s.label}>Phone</label><input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="+1 (555) 000-0000" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div style={s.field}><label style={s.label}>LinkedIn URL</label><input value={addForm.linkedin} onChange={e => setAddForm(f => ({ ...f, linkedin: e.target.value }))} placeholder="https://linkedin.com/in/..." style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
             </div>
-            <div style={s.field}><label style={s.label}>Notes (optional)</label><textarea value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} placeholder="Met at conference..." style={{ minHeight: 60 }} /></div>
+            <div style={s.field}><label style={s.label}>Notes (optional)</label><textarea value={addForm.notes} onChange={e => setAddForm(f => ({ ...f, notes: e.target.value }))} placeholder="Met at conference..." style={{ minHeight: 60, background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
             <div style={s.modalBtns}>
               <button style={s.cancelBtn} onClick={() => setModal(null)}>Cancel</button>
               <button style={s.saveBtn} onClick={addLead} disabled={!addForm.full_name && !addForm.company}>Add lead</button>
@@ -710,12 +743,12 @@ export default function LeadListDetailPage() {
           <div style={{ ...s.modalCard, maxWidth: 520 }} className="pf-modal-card" onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: '1.25rem' }}>Edit lead</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div><label style={s.label}>Full name</label><input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} /></div>
-              <div><label style={s.label}>Company</label><input value={editForm.company} onChange={e => setEditForm(f => ({...f, company: e.target.value}))} /></div>
-              <div><label style={s.label}>Title</label><input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} /></div>
-              <div><label style={s.label}>Email</label><input value={editForm.email} onChange={e => setEditForm(f => ({...f, email: e.target.value}))} /></div>
-              <div><label style={s.label}>Phone</label><input value={editForm.phone} onChange={e => setEditForm(f => ({...f, phone: e.target.value}))} placeholder="+1 (555) 000-0000" /></div>
-              <div><label style={s.label}>LinkedIn URL</label><input value={editForm.linkedin} onChange={e => setEditForm(f => ({...f, linkedin: e.target.value}))} /></div>
+              <div><label style={s.label}>Full name</label><input value={editForm.full_name} onChange={e => setEditForm(f => ({...f, full_name: e.target.value}))} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div><label style={s.label}>Company</label><input value={editForm.company} onChange={e => setEditForm(f => ({...f, company: e.target.value}))} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div><label style={s.label}>Title</label><input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div><label style={s.label}>Email</label><input value={editForm.email} onChange={e => setEditForm(f => ({...f, email: e.target.value}))} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div><label style={s.label}>Phone</label><input value={editForm.phone} onChange={e => setEditForm(f => ({...f, phone: e.target.value}))} placeholder="+1 (555) 000-0000" style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
+              <div><label style={s.label}>LinkedIn URL</label><input value={editForm.linkedin} onChange={e => setEditForm(f => ({...f, linkedin: e.target.value}))} style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)' }} /></div>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={s.label}>Notes</label>

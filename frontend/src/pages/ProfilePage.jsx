@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 860 },
@@ -37,6 +38,9 @@ const s = {
   urlRow: { display: 'flex', gap: 10, marginBottom: 16 },
   contextBox: { background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 14px', fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 },
   divider: { height: 1, background: 'var(--border)', margin: '0.25rem 0 1rem' },
+  skeleton: { background: 'var(--bg3)', borderRadius: 'var(--radius)', animation: 'pulse 2s ease-in-out infinite', marginBottom: 8 },
+  skeletonLine: { height: 16, borderRadius: 4 },
+  skeletonInput: { height: 40, borderRadius: 'var(--radius)', marginBottom: 12 },
 };
 
 const ROLES = [
@@ -57,6 +61,7 @@ const TONES = [
 ];
 
 export default function ProfilePage() {
+  const toast = useToast();
   const [form, setForm] = useState({
     name: 'SumX AI',
     product: 'Modern ERP built specifically for government contractors — replaces Costpoint, Deltek, and Unanet',
@@ -88,6 +93,7 @@ export default function ProfilePage() {
     }).catch(err => {
       console.error('Failed to load profile:', err);
       setStatus('load-error');
+      toast.addToast('Failed to load profile', 'error');
     });
   }, []);
 
@@ -100,7 +106,11 @@ export default function ProfilePage() {
       const res = await api.post('/autofill', { url: form.website_url });
       setForm(f => ({ ...f, ...res.data }));
       setStatus('autofilled');
-    } catch { setStatus('autofill-error'); }
+      toast.addToast('Filled from website — review below', 'success');
+    } catch {
+      setStatus('autofill-error');
+      toast.addToast('Could not read website — fill in manually below', 'error');
+    }
     finally { setAutoFilling(false); }
   };
 
@@ -111,18 +121,59 @@ export default function ProfilePage() {
       if (useCustomTone && form.custom_tone) payload.tone = 'custom';
       await api.post('/profile', payload);
       setStatus('saved');
+      toast.addToast('Profile saved — regenerate leads to use the new profile', 'success');
     } catch (err) {
       setStatus('error');
+      toast.addToast('Failed to save profile — try again', 'error');
     } finally { setLoading(false); }
   };
 
+  const LoadingCard = () => (
+    <div style={s.card}>
+      <div style={{ ...s.skeleton, ...s.skeletonLine, width: '30%', marginBottom: 12 }} />
+      <div style={{ ...s.skeleton, ...s.skeletonInput, width: '100%' }} />
+      <div style={{ ...s.skeleton, ...s.skeletonInput, width: '100%' }} />
+    </div>
+  );
+
   return (
     <Layout>
+      <style>{`
+        input, textarea, select {
+          background: var(--bg1);
+          color: var(--text);
+          border: 1px solid var(--border);
+          padding: 10px 12px;
+          border-radius: var(--radius);
+          font-family: inherit;
+          font-size: 13px;
+          transition: border-color 0.2s;
+        }
+        input:focus, textarea:focus, select:focus {
+          outline: none;
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+        input::placeholder, textarea::placeholder {
+          color: var(--text3);
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      `}</style>
       <div style={s.page}>
         <div style={s.heading}>Company Profile</div>
         <div style={s.sub}>Controls who you are and how you sound. The GovCon knowledge is built into the AI — you just set your name, role, and tone.</div>
 
+        {status === 'load-error' ? (
+          <div style={{ ...s.card, background: 'var(--danger-bg)', borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+            Failed to load profile. Please refresh the page or try again.
+          </div>
+        ) : null}
+
         {/* Auto-fill */}
+        {loading ? <LoadingCard /> : (
         <div style={s.card}>
           <div style={s.cardTitle}>Auto-fill from website</div>
           <div style={s.divider} />
@@ -135,8 +186,10 @@ export default function ProfilePage() {
           {status === 'autofilled' && <div style={{ color: 'var(--success)', fontSize: 13 }}>✓ Filled from website — review below</div>}
           {status === 'autofill-error' && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Could not read website — fill in manually below</div>}
         </div>
+        )}
 
         {/* Who you are */}
+        {loading ? <LoadingCard /> : (
         <div style={s.card}>
           <div style={s.cardTitle}>Who you are</div>
           <div style={s.cardSub}>This personalizes every email signature and call opener.</div>
@@ -160,9 +213,10 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* What you sell — admin only */}
-        {isAdmin && <div style={s.card}>
+        {isAdmin && (loading ? <LoadingCard /> : <div style={s.card}>
           <div style={s.cardTitle}>What you sell</div>
           <div style={s.cardSub}>Keep this sharp and honest. It feeds into research and email generation.</div>
           <div style={s.divider} />
@@ -196,7 +250,7 @@ export default function ProfilePage() {
               <span style={s.hint}>One per line — the AI writes specific rebuttals for each one.</span>
             </div>
           </div>
-        </div>}
+        </div>)}
 
         {/* Member view — company context is set by admin */}
         {!isAdmin && (
@@ -214,6 +268,7 @@ export default function ProfilePage() {
         )}
 
         {/* Built-in GovCon context */}
+        {loading ? <LoadingCard /> : (
         <div style={s.card}>
           <div style={s.cardTitle}>🔒 Built-in GovCon intelligence</div>
           <div style={s.cardSub}>This knowledge is locked into the AI — it does not need to live in a form.</div>
@@ -229,8 +284,10 @@ export default function ProfilePage() {
             To update this context, contact your admin. It applies to every playbook generated.
           </div>
         </div>
+        )}
 
         {/* Tone */}
+        {loading ? <LoadingCard /> : (
         <div style={s.card}>
           <div style={s.cardTitle}>Tone & style</div>
           <div style={s.cardSub}>How you sound in emails and on calls.</div>
@@ -256,7 +313,9 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+        )}
 
+        {loading ? <LoadingCard /> : (
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={s.cardTitle}>Email Signature</div>
           <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>Appended to every email generated. Include your name, title, phone, LinkedIn — whatever you want prospects to see.</div>
@@ -264,6 +323,7 @@ export default function ProfilePage() {
             placeholder={`Jack Beaver\nAccount Executive — SumX AI\n(434) 555-0100\nlinkedin.com/in/jackbeaver`}
             style={{ minHeight: 100, fontFamily: 'monospace', fontSize: 13, width: '100%' }} />
         </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', paddingBottom: '2rem' }}>
           <button style={s.saveBtn} onClick={save} disabled={loading}>{loading ? 'Saving...' : 'Save profile'}</button>

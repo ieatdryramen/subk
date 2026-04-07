@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 860 },
@@ -21,9 +22,12 @@ const s = {
   }),
   btn: (v) => ({ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer', background: v === 'accept' ? 'var(--success-bg)' : v === 'decline' ? 'var(--danger-bg)' : 'var(--bg3)', color: v === 'accept' ? 'var(--success)' : v === 'decline' ? 'var(--danger)' : 'var(--text2)' }),
   empty: { textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' },
+  skeleton: { background: 'var(--bg3)', borderRadius: 'var(--radius)', animation: 'pulse 2s ease-in-out infinite', marginBottom: 10 },
+  skeletonLine: { height: 16, borderRadius: 4, marginBottom: 8 },
 };
 
 export default function TeamingInboxPage() {
+  const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('received');
@@ -41,7 +45,10 @@ export default function TeamingInboxPage() {
     try {
       await api.patch(`/marketplace/teaming/${id}`, { status });
       setRequests(rs => rs.map(r => r.id === id ? { ...r, status } : r));
-    } catch (e) { alert('Failed to update'); }
+      toast.addToast(`Request ${status === 'accepted' ? 'accepted' : 'declined'}`, 'success');
+    } catch (e) {
+      toast.addToast('Failed to update request', 'error');
+    }
     finally { setUpdating(u => ({ ...u, [id]: false })); }
   };
 
@@ -86,6 +93,12 @@ export default function TeamingInboxPage() {
   return (
     <Layout>
       <div style={s.page}>
+        <style>{`
+          @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+          }
+        `}</style>
         <div style={s.heading}>Teaming Inbox</div>
         <div style={s.sub}>Manage teaming requests from primes and subs</div>
 
@@ -96,8 +109,18 @@ export default function TeamingInboxPage() {
           <button style={s.tab(tab === 'sent')} onClick={() => setTab('sent')}>Sent</button>
         </div>
 
-        {loading ? <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading...</div>
-        : current.length === 0 ? (
+        {loading ? (
+          <div>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={s.card}>
+                <div style={{ ...s.skeleton, ...s.skeletonLine, width: '40%' }} />
+                <div style={{ ...s.skeleton, ...s.skeletonLine, width: '60%', marginBottom: 12 }} />
+                <div style={{ ...s.skeleton, ...s.skeletonLine, width: '100%' }} />
+                <div style={{ ...s.skeleton, ...s.skeletonLine, width: '100%' }} />
+              </div>
+            ))}
+          </div>
+        ) : current.length === 0 ? (
           <div style={s.empty}>
             <div style={{ fontSize: 32, marginBottom: 10 }}>{tab === 'received' ? '📥' : '📤'}</div>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No {tab} requests yet</div>

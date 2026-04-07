@@ -34,12 +34,14 @@ export default function LeadListsPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const navigate = useNavigate();
 
   const [loadError, setLoadError] = useState(null);
   const load = () => {
     setLoadError(null);
-    api.get('/lists').then(r => setLists(r.data)).catch(err => { console.error(err); setLoadError('Failed to load lists'); });
+    setLoadingData(true);
+    api.get('/lists').then(r => { setLists(r.data); setLoadingData(false); }).catch(err => { console.error(err); setLoadError('Failed to load lists'); setLoadingData(false); });
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -86,7 +88,13 @@ export default function LeadListsPage() {
           <button style={s.newBtn} onClick={() => setShowModal(true)}>+ New List</button>
         </div>
 
-        {loadError ? (
+        {loadingData ? (
+          <div style={s.grid}>
+            {[1, 2, 3].map(i => (
+              <div key={i} className="pf-skeleton" style={{ height: 80, borderRadius: 'var(--radius-lg)' }} />
+            ))}
+          </div>
+        ) : loadError ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
             <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
@@ -128,12 +136,14 @@ export default function LeadListsPage() {
             <div style={s.field}>
               <label style={s.label}>List name</label>
               <input autoFocus value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Q2 GovCon Targets" onKeyDown={e => e.key === 'Enter' && create()} />
+                placeholder="e.g. Q2 GovCon Targets" onKeyDown={e => e.key === 'Enter' && create()}
+                style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: 'var(--radius)' }} />
             </div>
             <div style={s.field}>
               <label style={s.label}>Description (optional)</label>
               <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="e.g. Prime contractors in VA/NC corridor" />
+                placeholder="e.g. Prime contractors in VA/NC corridor"
+                style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: 'var(--radius)' }} />
             </div>
             <div style={s.modalBtns}>
               <button style={s.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
