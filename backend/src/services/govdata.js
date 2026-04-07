@@ -1,14 +1,15 @@
 const axios = require('axios');
 
 const SAM_API_KEY = (process.env.SAM_API_KEY || '').trim();
-const SAM_BASE = 'https://api.sam.gov/opportunities/v2/search';
+const SAM_BASE = 'https://api.sam.gov/prod/opportunities/v2/search';
 const USASPENDING_BASE = 'https://api.usaspending.gov/api/v2';
 
 // Fetch live opportunities from SAM.gov
+// Returns { opportunities: [], error: string|null, apiStatus: number|null }
 const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, limit = 50 }) => {
   if (!SAM_API_KEY) {
     console.log('No SAM_API_KEY set — cannot search SAM.gov');
-    return [];
+    return { opportunities: [], error: 'SAM.gov API key not configured. Add SAM_API_KEY to environment variables.', apiStatus: null };
   }
 
   try {
@@ -22,7 +23,14 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
       );
 
       const results = await Promise.all(searchPromises);
-      const allOpps = results.flat();
+
+      // Check if ALL results were errors
+      const allErrors = results.every(r => r.error);
+      if (allErrors && results.length > 0) {
+        return { opportunities: [], error: results[0].error, apiStatus: results[0].apiStatus };
+      }
+
+      const allOpps = results.filter(r => !r.error).flatMap(r => r.opportunities || []);
 
       // Deduplicate by sam_notice_id
       const dedupMap = {};
@@ -33,10 +41,7 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
       });
 
       const deduped = Object.values(dedupMap).slice(0, limit);
-      if (deduped.length === 0) {
-        console.log('SAM.gov returned 0 results for multi-NAICS search');
-      }
-      return deduped;
+      return { opportunities: deduped, error: null, apiStatus: 200 };
     }
 
     // Single NAICS code or no NAICS
@@ -48,46 +53,36 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
       limit,
     });
 
-    if (singleResult.length > 0) return singleResult;
+    if (singleResult.error) {
+      return { opportunities: [], error: singleResult.error, apiStatus: singleResult.apiStatus };
+    }
+    if (singleResult.opportunities.length > 0) {
+      return { opportunities: singleResult.opportunities, error: null, apiStatus: 200 };
+    }
 
     // Progressively broaden search if no results
-    // 1. Drop agency filter
-    if (agency) {
-      console.log('No results — retrying without agency filter...');
-      const noAgency = await searchOpportunitiesForCode({ code: codes[0] || null, keywords, agency: null, set_aside, limit });
-      if (noAgency.length > 0) return noAgency;
+    const broadeningSteps = [];
+    if (agency) broadeningSteps.push({ code: codes[0] || null, keywords, agency: null, set_aside, limit, label: 'without agency' });
+    if (set_aside && set_aside !== 'all') broadeningSteps.push({ code: codes[0] || null, keywords, agency: null, set_aside: null, limit, label: 'without set-aside' });
+    if (keywords && codes[0]) broadeningSteps.push({ code: codes[0], keywords: null, agency: null, set_aside: null, limit, label: 'NAICS only' });
+    if (codes[0] || keywords) broadeningSteps.push({ code: null, keywords: null, agency: null, set_aside: null, limit, label: 'dates only' });
+
+    for (const step of broadeningSteps) {
+      console.log(`No results — retrying ${step.label}...`);
+      const result = await searchOpportunitiesForCode(step);
+      if (result.error) return { opportunities: [], error: result.error, apiStatus: result.apiStatus };
+      if (result.opportunities.length > 0) return { opportunities: result.opportunities, error: null, apiStatus: 200 };
     }
 
-    // 2. Drop set-aside filter
-    if (set_aside && set_aside !== 'all') {
-      console.log('No results — retrying without set-aside filter...');
-      const noSetAside = await searchOpportunitiesForCode({ code: codes[0] || null, keywords, agency: null, set_aside: null, limit });
-      if (noSetAside.length > 0) return noSetAside;
-    }
-
-    // 3. Drop title/keywords filter — just NAICS + dates
-    if (keywords && codes[0]) {
-      console.log('No results — retrying with just NAICS code...');
-      const naicsOnly = await searchOpportunitiesForCode({ code: codes[0], keywords: null, agency: null, set_aside: null, limit });
-      if (naicsOnly.length > 0) return naicsOnly;
-    }
-
-    // 4. Final fallback — just dates, no filters at all
-    if (codes[0] || keywords) {
-      console.log('No results — retrying broad search (dates only)...');
-      const broadest = await searchOpportunitiesForCode({ code: null, keywords: null, agency: null, set_aside: null, limit });
-      if (broadest.length > 0) return broadest;
-    }
-
-    console.log('SAM.gov returned 0 results for all search attempts');
-    return [];
+    return { opportunities: [], error: null, apiStatus: 200 }; // genuinely no results
   } catch (err) {
     console.error('SAM.gov API error:', err.message);
-    return [];
+    return { opportunities: [], error: `SAM.gov API error: ${err.message}`, apiStatus: null };
   }
 };
 
 // Helper: search opportunities for a single NAICS code
+// Returns { opportunities: [], error: string|null, apiStatus: number|null }
 const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, limit = 50 }) => {
   try {
     // SAM.gov API requires MM/dd/yyyy date format
@@ -120,7 +115,7 @@ const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, l
     const opps = response.data?.opportunitiesData || [];
     console.log(`SAM.gov returned ${opps.length} opportunities (totalRecords: ${response.data?.totalRecords || 'N/A'})`);
 
-    return opps.map(opp => ({
+    const mapped = opps.map(opp => ({
       sam_notice_id: opp.noticeId,
       title: opp.title,
       agency: opp.fullParentPathName?.split('.')[0] || opp.department || 'Unknown Agency',
@@ -139,9 +134,25 @@ const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, l
       solicitation_number: opp.solicitationNumber || '',
       opportunity_url: `https://sam.gov/opp/${opp.noticeId}/view`,
     }));
+
+    return { opportunities: mapped, error: null, apiStatus: 200 };
   } catch (err) {
-    console.error(`SAM.gov API error for NAICS ${code}:`, err.response?.status, err.response?.data || err.message);
-    return [];
+    const status = err.response?.status;
+    const errBody = err.response?.data;
+    console.error(`SAM.gov API error for NAICS ${code}:`, status, errBody || err.message);
+
+    let errorMsg = `SAM.gov returned HTTP ${status || 'timeout'}`;
+    if (status === 404) {
+      errorMsg = 'SAM.gov API returned 404 — the API may be temporarily unavailable. Check sam.gov/alerts for system status.';
+    } else if (status === 403) {
+      errorMsg = 'SAM.gov API key is not authorized. Verify your API key in SAM.gov Account Details.';
+    } else if (status === 429) {
+      errorMsg = 'SAM.gov rate limit reached (1000/day). Try again later.';
+    } else if (!status) {
+      errorMsg = `SAM.gov connection error: ${err.message}`;
+    }
+
+    return { opportunities: [], error: errorMsg, apiStatus: status || null };
   }
 };
 

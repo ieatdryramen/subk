@@ -46,8 +46,12 @@ router.post('/search', auth, async (req, res) => {
       return res.status(402).json({ error: 'Search limit reached. Upgrade to continue.', upgrade: true });
     }
 
-    // Fetch live data
-    const opps = await searchOpportunities({ naics_codes, keywords, agency, set_aside });
+    // Fetch live data from SAM.gov
+    const samResult = await searchOpportunities({ naics_codes, keywords, agency, set_aside });
+    const opps = samResult.opportunities || [];
+
+    // If SAM.gov returned an error, pass it through but continue with any results we got
+    const samError = samResult.error || null;
 
     // Get sub profile for scoring
     const profileR = await pool.query('SELECT * FROM sub_profiles WHERE user_id=$1', [req.userId]);
@@ -56,8 +60,13 @@ router.post('/search', auth, async (req, res) => {
     // Score each opportunity
     const scored = await Promise.all(opps.map(async opp => {
       if (subProfile) {
-        const score = await scoreOpportunity(opp, subProfile);
-        return { ...opp, fit_score: score.score, fit_reason: score.reason };
+        try {
+          const score = await scoreOpportunity(opp, subProfile);
+          return { ...opp, fit_score: score.score, fit_reason: score.reason };
+        } catch (scoreErr) {
+          console.error('Scoring error:', scoreErr.message);
+          return { ...opp, fit_score: null, fit_reason: null };
+        }
       }
       return { ...opp, fit_score: null, fit_reason: null };
     }));
@@ -93,7 +102,7 @@ router.post('/search', auth, async (req, res) => {
       await pool.query('UPDATE organizations SET searches_used=searches_used+1 WHERE id=$1', [orgId]);
     }
 
-    res.json({ opportunities: scored, search_id: searchId, count: scored.length });
+    res.json({ opportunities: scored, search_id: searchId, count: scored.length, sam_error: samError });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

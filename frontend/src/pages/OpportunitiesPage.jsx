@@ -57,17 +57,24 @@ export default function OpportunitiesPage() {
     api.get('/autosearch').then(r => setAutoSearchConfigs(r.data || [])).catch(() => {});
   }, []);
 
+  const [samError, setSamError] = useState(null);
   const search = async () => {
     setSearching(true);
+    setSamError(null);
     try {
       const r = await api.post('/opportunities/search', searchForm);
       setSearchResults(Array.isArray(r.data) ? r.data : r.data.opportunities || []);
+      if (r.data.sam_error) {
+        setSamError(r.data.sam_error);
+        addToast(r.data.sam_error, 'error');
+      } else {
+        addToast(`Found ${r.data.count || 0} opportunities`, 'success');
+      }
       if (searchForm.save_search) {
         api.get('/opportunities').then(r2 => setOpps(Array.isArray(r2.data) ? r2.data : r2.data.opportunities || []));
       }
       setLastSearched(Date.now());
       setTab('results');
-      addToast('Search completed successfully', 'success');
     } catch (err) {
       if (err.response?.data?.upgrade) {
         addToast('Search limit reached. Upgrade your plan to continue.', 'error');
@@ -337,11 +344,22 @@ export default function OpportunitiesPage() {
             {tab === 'saved' && 'No saved opportunities yet — star opportunities to save them'}
             {tab === 'results' && (
               <div>
-                <div style={{ fontSize: 15, marginBottom: 8 }}>No results found on SAM.gov</div>
-                <div style={{ fontSize: 13, color: 'var(--text3)' }}>
-                  Try broadening your search — use fewer keywords, remove agency filters, or try different NAICS codes.
-                  {!searchForm.naics_codes && !searchForm.keywords && ' Enter at least a NAICS code or keyword to search.'}
-                </div>
+                {samError ? (
+                  <>
+                    <div style={{ fontSize: 15, marginBottom: 8, color: 'var(--danger)' }}>SAM.gov API Error</div>
+                    <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 12 }}>{samError}</div>
+                    <a href="https://sam.gov/alerts" target="_blank" rel="noreferrer"
+                      style={{ fontSize: 13, color: 'var(--accent2)' }}>Check SAM.gov System Alerts →</a>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 15, marginBottom: 8 }}>No results found on SAM.gov</div>
+                    <div style={{ fontSize: 13, color: 'var(--text3)' }}>
+                      Try broadening your search — use fewer keywords, remove agency filters, or try different NAICS codes.
+                      {!searchForm.naics_codes && !searchForm.keywords && ' Enter at least a NAICS code or keyword to search.'}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
