@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { ToastProvider } from './components/Toast';
+import CommandPalette from './components/CommandPalette';
 import './index.css';
 
 // ProspectForge (BD/Sales) pages
@@ -42,7 +44,9 @@ const PublicOnly = ({ children }) => {
 
 const App = () => (
   <AuthProvider>
+    <ToastProvider>
     <BrowserRouter>
+      <CommandPalette />
       <Routes>
         <Route path="/" element={<PublicOrApp />} />
         <Route path="/login" element={<PublicOnly><AuthPage mode="login" /></PublicOnly>} />
@@ -85,6 +89,7 @@ const App = () => (
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   </AuthProvider>
 );
 

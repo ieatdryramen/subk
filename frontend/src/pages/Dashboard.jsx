@@ -72,6 +72,22 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/lists')} style={{ padding: '10px 16px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.2s' }} onMouseEnter={e => { e.target.style.background = 'var(--bg3)'; e.target.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.target.style.background = 'var(--bg2)'; e.target.style.borderColor = 'var(--border)'; }}>
+            + New Lead List
+          </button>
+          <button onClick={() => navigate('/opportunities')} style={{ padding: '10px 16px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.2s' }} onMouseEnter={e => { e.target.style.background = 'var(--bg3)'; e.target.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.target.style.background = 'var(--bg2)'; e.target.style.borderColor = 'var(--border)'; }}>
+            🔍 Find Opportunities
+          </button>
+          <button onClick={() => navigate('/reminders')} style={{ padding: '10px 16px', background: 'var(--bg2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.2s' }} onMouseEnter={e => { e.target.style.background = 'var(--bg3)'; e.target.style.borderColor = 'var(--accent)'; }} onMouseLeave={e => { e.target.style.background = 'var(--bg2)'; e.target.style.borderColor = 'var(--border)'; }}>
+            📋 View Touches
+          </button>
+          <button onClick={() => navigate('/coach')} style={{ padding: '10px 16px', background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.2s' }} onMouseEnter={e => { e.target.style.opacity = '0.9'; }} onMouseLeave={e => { e.target.style.opacity = '1'; }}>
+            ✨ AI Coach
+          </button>
+        </div>
+
         {/* Due touches nudge */}
         {dueCount > 0 && (
           <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -104,14 +120,50 @@ export default function Dashboard() {
           </div>
         )}
         <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '2rem' }}>
-          {statCards.map(s => (
-            <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-              <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'Syne, sans-serif', color: s.color, marginBottom: 2 }}>{s.n}</div>
-              <div style={{ fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{s.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{s.sub}</div>
-            </div>
-          ))}
+          {loading ? (
+            <>
+              <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 120 }} />
+              <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 120 }} />
+              <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 120 }} />
+              <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 120 }} />
+            </>
+          ) : (
+            statCards.map(s => (
+              <div key={s.label} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+                <div style={{ fontSize: 32, fontWeight: 700, fontFamily: 'Syne, sans-serif', color: s.color, marginBottom: 2 }}>{s.n}</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{s.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{s.sub}</div>
+              </div>
+            ))
+          )}
         </div>
+
+        {/* Pipeline Overview */}
+        {!loading && (
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '2rem' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1.25rem' }}>Pipeline Overview</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              {[
+                { label: 'New', key: 'pipeline_new', color: 'var(--text2)' },
+                { label: 'Contacted', key: 'pipeline_contacted', color: 'var(--accent2)' },
+                { label: 'Engaged', key: 'pipeline_engaged', color: 'var(--warning)' },
+                { label: 'Proposal', key: 'pipeline_proposal', color: 'var(--accent)' },
+                { label: 'Closed', key: 'pipeline_closed', color: 'var(--success)' }
+              ].map(stage => {
+                const count = stats ? (stats[stage.key] || 0) : 0;
+                const maxCount = Math.max(stats?.pipeline_new || 1, stats?.pipeline_contacted || 1, stats?.pipeline_engaged || 1, stats?.pipeline_proposal || 1, stats?.pipeline_closed || 1);
+                const percentage = Math.max((count / maxCount) * 100, 8);
+                return (
+                  <div key={stage.label} style={{ flex: 1, textAlign: 'center' }}>
+                    <div style={{ background: stage.color, height: `${percentage}px`, borderRadius: 'var(--radius)', marginBottom: 8, minHeight: 20, transition: 'all 0.3s' }} />
+                    <div style={{ fontSize: 13, fontWeight: 700, color: stage.color }}>{count}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{stage.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, marginBottom: '1.5rem' }}>
           {/* Lead Lists */}

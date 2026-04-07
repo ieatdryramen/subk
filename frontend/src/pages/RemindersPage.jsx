@@ -8,7 +8,7 @@ const TYPE_ICONS = { email: '✉', call: '📞', linkedin: '🔗', mefu: '📅' 
 const TYPE_COLORS = {
   email:    { bg: 'var(--accent-bg)',        color: 'var(--accent2)', border: 'var(--accent)' },
   call:     { bg: 'rgba(34,197,94,0.08)',    color: 'var(--success)', border: 'var(--success)' },
-  linkedin: { bg: 'var(--teal-bg)',          color: 'var(--teal)',    border: 'var(--teal)' },
+  linkedin: { bg: 'var(--teal-bg)',          color: 'var(--accent)',  border: 'var(--accent)' },
   mefu:     { bg: 'rgba(245,158,11,0.08)',   color: 'var(--warning)', border: 'var(--warning)' },
 };
 
@@ -170,7 +170,7 @@ export default function RemindersPage() {
               <GoalBar label="Calls" actual={goalData.today.calls} goal={goalData.goals.daily_calls} color="var(--success)" />
               <GoalBar label="Emails" actual={goalData.today.emails} goal={goalData.goals.daily_emails} color="var(--accent)" />
               {goalData.goals.daily_linkedin > 0 && (
-                <GoalBar label="LinkedIn" actual={goalData.today.linkedin} goal={goalData.goals.daily_linkedin} color="var(--teal)" />
+                <GoalBar label="LinkedIn" actual={goalData.today.linkedin} goal={goalData.goals.daily_linkedin} color="var(--accent)" />
               )}
             </div>
           </div>
