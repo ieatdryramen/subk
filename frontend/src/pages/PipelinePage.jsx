@@ -223,7 +223,7 @@ export default function PipelinePage() {
           <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No leads in pipeline yet</div>
-            <div style={{ fontSize: 14, marginBottom: 20, maxWidth: 400, margin: '0 auto', marginBottom: 20 }}>
+            <div style={{ fontSize: 14, maxWidth: 400, margin: '0 auto 20px' }}>
               Start by adding leads to your pipeline. Build a list, assign a playbook, and watch them move through stages as you execute.
             </div>
             <button
