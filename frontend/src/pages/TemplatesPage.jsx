@@ -33,11 +33,13 @@ export default function TemplatesPage() {
   const [filter, setFilter] = useState('all');
   const [copied, setCopied] = useState({});
   const [expanded, setExpanded] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const [loadError, setLoadError] = useState(null);
   const load = () => {
+    setLoading(true);
     setLoadError(null);
-    api.get('/templates').then(r => setTemplates(r.data)).catch(err => { console.error(err); setLoadError('Failed to load templates'); });
+    api.get('/templates').then(r => { setTemplates(r.data); setLoading(false); }).catch(err => { console.error(err); setLoadError('Failed to load templates'); setLoading(false); });
   };
   useEffect(() => { load(); }, []);
 
@@ -62,6 +64,28 @@ export default function TemplatesPage() {
   const filtered = filter === 'all' ? templates : templates.filter(t => t.touchpoint === filter);
   const touchpoints = [...new Set(templates.map(t => t.touchpoint).filter(Boolean))];
 
+  const renderSkeletons = () => (
+    <div style={s.grid}>
+      {[...Array(3)].map((_, i) => (
+        <div key={i} style={s.card}>
+          <div style={s.cardHead}>
+            <div style={{ flex: 1 }}>
+              <div className="pf-skeleton" style={{ height: 18, width: '60%', marginBottom: 6 }} />
+              <div className="pf-skeleton" style={{ height: 12, width: '40%' }} />
+            </div>
+            <div className="pf-skeleton" style={{ height: 20, width: 80, borderRadius: 10 }} />
+          </div>
+          <div className="pf-skeleton" style={{ height: 14, width: '50%', marginBottom: 8 }} />
+          <div className="pf-skeleton" style={{ height: 120 }} />
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <div className="pf-skeleton" style={{ height: 32, width: 60 }} />
+            <div className="pf-skeleton" style={{ height: 32, width: 60 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <Layout>
       <div style={s.page}>
@@ -77,7 +101,9 @@ export default function TemplatesPage() {
           ))}
         </div>
 
-        {loadError ? (
+        {loading ? (
+          renderSkeletons()
+        ) : loadError ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
             <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>

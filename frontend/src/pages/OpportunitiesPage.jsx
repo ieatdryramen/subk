@@ -1,18 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
-
-function OppsToast({ message, onClose }) {
-  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, []);
-  return (
-    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', fontSize: 13, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 400 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <span>{message}</span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
-      </div>
-    </div>
-  );
-}
+import { useToast } from '../components/Toast';
 
 const scoreColor = (score) => {
   if (!score) return { color: 'var(--text3)', bg: 'var(--bg3)' };
@@ -31,6 +20,7 @@ const STATUS_COLORS = {
 const SET_ASIDES = ['all', 'Small Business Set-Aside', '8(a)', 'HUBZone', 'SDVOSB', 'WOSB'];
 
 export default function OpportunitiesPage() {
+  const { addToast } = useToast();
   const [opps, setOpps] = useState([]);
   const [savedOpps, setSavedOpps] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -50,7 +40,7 @@ export default function OpportunitiesPage() {
   const [savedMap, setSavedMap] = useState({});
   const [autoSearchConfigs, setAutoSearchConfigs] = useState([]);
   const [loadingAutoSearch, setLoadingAutoSearch] = useState(false);
-  const [toast, setToast] = useState(null);
+  const [lastSearched, setLastSearched] = useState(null);
 
   useEffect(() => {
     api.get('/opportunities').then(r => setOpps(r.data)).catch(() => {});
@@ -71,12 +61,14 @@ export default function OpportunitiesPage() {
       if (searchForm.save_search) {
         api.get('/opportunities').then(r2 => setOpps(r2.data));
       }
+      setLastSearched(Date.now());
       setTab('results');
+      addToast('Search completed successfully', 'success');
     } catch (err) {
       if (err.response?.data?.upgrade) {
-        setToast('Search limit reached. Upgrade your plan to continue.');
+        addToast('Search limit reached. Upgrade your plan to continue.', 'error');
       } else {
-        setToast(err.response?.data?.error || 'Search failed');
+        addToast(err.response?.data?.error || 'Search failed', 'error');
       }
     } finally { setSearching(false); }
   };
@@ -103,7 +95,7 @@ export default function OpportunitiesPage() {
         setSavedMap(m => ({ ...m, [id]: true }));
       }
     } catch (e) {
-      setToast(e.response?.data?.error || 'Failed to save opportunity');
+      addToast(e.response?.data?.error || 'Failed to save opportunity', 'error');
     }
   };
 
@@ -133,7 +125,7 @@ export default function OpportunitiesPage() {
       const r = await api.get('/autosearch');
       setAutoSearchConfigs(r.data || []);
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to update auto-search');
+      addToast(err.response?.data?.error || 'Failed to update auto-search', 'error');
     } finally {
       setLoadingAutoSearch(false);
     }
@@ -148,7 +140,7 @@ export default function OpportunitiesPage() {
       a.download = 'subk-opportunities.csv';
       a.click();
     } catch (e) {
-      setToast('Export failed');
+      addToast('Export failed', 'error');
     }
   };
 
@@ -157,9 +149,9 @@ export default function OpportunitiesPage() {
     try {
       await api.post(`/autosearch/run/${searchId}`);
       api.get('/opportunities').then(r => setOpps(r.data));
-      setToast('Search completed! New opportunities have been added.');
+      addToast('Search completed! New opportunities have been added.', 'success');
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to run search');
+      addToast(err.response?.data?.error || 'Failed to run search', 'error');
     } finally {
       setLoadingAutoSearch(false);
     }
@@ -193,7 +185,6 @@ export default function OpportunitiesPage() {
 
   return (
     <Layout>
-      {toast && <OppsToast message={toast} onClose={() => setToast(null)} />}
       <div style={s.page}>
         <div style={s.heading}>Opportunities</div>
         <div style={s.sub}>Live federal contract opportunities scored against your profile</div>
@@ -213,6 +204,11 @@ export default function OpportunitiesPage() {
         {tab === 'search' && (
           <div style={s.searchCard}>
             <div style={{ fontSize: 15, fontWeight: 600, marginBottom: '1.25rem' }}>Search SAM.gov — Live Opportunities</div>
+            {lastSearched && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '1rem' }}>
+                Last searched: {new Date(lastSearched).toLocaleTimeString()}
+              </div>
+            )}
             <div style={s.row2}>
               <div>
                 <label style={s.label}>NAICS Codes</label>
@@ -246,6 +242,9 @@ export default function OpportunitiesPage() {
             <button style={{ ...s.btn('primary'), padding: '10px 24px', fontSize: 13 }} onClick={search} disabled={searching}>
               {searching ? '🔍 Searching SAM.gov...' : '🔍 Search live opportunities'}
             </button>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: '1rem', textAlign: 'center' }}>
+              ⌘K to navigate
+            </div>
           </div>
         )}
 
