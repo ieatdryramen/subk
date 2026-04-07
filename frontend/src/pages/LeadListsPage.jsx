@@ -37,6 +37,8 @@ export default function LeadListsPage() {
   const [form, setForm] = useState({ name: '', description: '' });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
+  const [editingList, setEditingList] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '' });
   const navigate = useNavigate();
 
   const [loadError, setLoadError] = useState(null);
@@ -47,7 +49,7 @@ export default function LeadListsPage() {
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') setShowModal(false); };
+    const onKey = e => { if (e.key === 'Escape') { setShowModal(false); setEditingList(null); } };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
@@ -76,6 +78,27 @@ export default function LeadListsPage() {
     } catch (err) {
       console.error(err);
       addToast('Failed to delete list — try again', 'error');
+    }
+  };
+
+  const startEdit = (e, list) => {
+    e.stopPropagation();
+    setEditingList(list.id);
+    setEditForm({ name: list.name, description: list.description || '' });
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.name.trim()) return;
+    setLoading(true);
+    try {
+      await api.put(`/lists/${editingList}`, editForm);
+      setEditingList(null);
+      load();
+      addToast('List updated', 'success');
+    } catch (err) {
+      addToast('Failed to update list', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,6 +145,7 @@ export default function LeadListsPage() {
                 </div>
                 <div style={s.cardRight}>
                   <span style={s.countBadge}>{list.lead_count} lead{Number(list.lead_count) !== 1 ? 's' : ''}</span>
+                  <button style={{ ...s.openBtn, fontSize: 12 }} onClick={e => startEdit(e, list)} title="Edit list">✎</button>
                   <button style={s.openBtn}>Open →</button>
                   <button style={s.delBtn} onClick={e => deleteList(e, list.id)} title="Delete list">✕</button>
                 </div>
@@ -151,6 +175,31 @@ export default function LeadListsPage() {
               <button style={s.cancelBtn} onClick={() => setShowModal(false)}>Cancel</button>
               <button style={s.createBtn} onClick={create} disabled={loading || !form.name.trim()}>
                 {loading ? 'Creating...' : 'Create list'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingList && (
+        <div style={s.modal} onClick={() => setEditingList(null)}>
+          <div style={s.modalCard} onClick={e => e.stopPropagation()}>
+            <div style={s.modalTitle}>Edit list</div>
+            <div style={s.field}>
+              <label style={s.label}>List name</label>
+              <input autoFocus value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && saveEdit()}
+                style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: 'var(--radius)', width: '100%' }} />
+            </div>
+            <div style={s.field}>
+              <label style={s.label}>Description</label>
+              <input value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 12px', borderRadius: 'var(--radius)', width: '100%' }} />
+            </div>
+            <div style={s.modalBtns}>
+              <button style={s.cancelBtn} onClick={() => setEditingList(null)}>Cancel</button>
+              <button style={s.createBtn} onClick={saveEdit} disabled={loading || !editForm.name.trim()}>
+                {loading ? 'Saving...' : 'Save changes'}
               </button>
             </div>
           </div>

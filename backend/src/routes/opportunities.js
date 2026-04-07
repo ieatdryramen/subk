@@ -33,6 +33,30 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// Recent opportunities for dashboard
+router.get('/recent', auth, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 5;
+    const result = await pool.query(
+      `SELECT o.* FROM opportunities o
+       JOIN opportunity_searches os ON o.search_id = os.id
+       WHERE os.user_id = $1
+       ORDER BY o.created_at DESC LIMIT $2`,
+      [req.userId, limit]
+    );
+    const countResult = await pool.query(
+      `SELECT COUNT(*) as total FROM opportunities o
+       JOIN opportunity_searches os ON o.search_id = os.id
+       WHERE os.user_id = $1`,
+      [req.userId]
+    );
+    res.json({ opportunities: result.rows, total: parseInt(countResult.rows[0].total) });
+  } catch (err) {
+    console.error('Recent opps error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Search live opportunities from SAM.gov + score them
 router.post('/search', auth, async (req, res) => {
   const { naics_codes, keywords, agency, set_aside, save_search, search_name } = req.body;

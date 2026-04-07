@@ -29,12 +29,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dueCount, setDueCount] = useState(0);
   const [statsError, setStatsError] = useState(false);
+  const [recentOpps, setRecentOpps] = useState([]);
+  const [oppCount, setOppCount] = useState(0);
 
   useEffect(() => {
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
     // Load lists fast, then dashboard separately so lists show immediately
     api.get('/lists').then(r => setLists(r.data || [])).catch(() => {});
     api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
+    api.get('/opportunities/recent?limit=5').then(r => { setRecentOpps(r.data?.opportunities || []); setOppCount(r.data?.total || 0); }).catch(() => {});
     setStatsError(false);
     api.get('/admin/dashboard')
       .then(r => {
@@ -61,6 +64,11 @@ export default function Dashboard() {
 
   return (
     <Layout>
+      <style>{`
+        @media (max-width: 768px) {
+          .pf-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       <div style={{ padding: '2rem 2.5rem', maxWidth: 1100 }}>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -162,6 +170,28 @@ export default function Dashboard() {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Recent Opportunities */}
+        {!loading && recentOpps.length > 0 && (
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recent Opportunities {oppCount > 0 && <span style={{ color: 'var(--accent2)' }}>({oppCount})</span>}</div>
+              <button onClick={() => navigate('/opportunities')} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer' }}>View all →</button>
+            </div>
+            {recentOpps.map((opp, i) => (
+              <div key={opp.id || i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < recentOpps.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opp.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{opp.agency} {opp.set_aside ? `· ${opp.set_aside}` : ''}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {opp.fit_score && <span style={{ padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: scoreBg(opp.fit_score), color: scoreColor(opp.fit_score) }}>{opp.fit_score}</span>}
+                  {opp.response_deadline && <span style={{ fontSize: 10, color: new Date(opp.response_deadline) < new Date(Date.now() + 7 * 86400000) ? 'var(--danger)' : 'var(--text3)' }}>Due {new Date(opp.response_deadline).toLocaleDateString()}</span>}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

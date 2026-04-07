@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
 export default function NotificationBell() {
@@ -8,6 +9,7 @@ export default function NotificationBell() {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const bellRef = useRef(null);
+  const navigate = useNavigate();
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -38,7 +40,7 @@ export default function NotificationBell() {
       await api.put(`/notifications/${id}/read`);
       setNotifications((prev) =>
         prev.map((notif) =>
-          notif.id === id ? { ...notif, read: true } : notif
+          notif.id === id ? { ...notif, is_read: true } : notif
         )
       );
       fetchUnreadCount();
@@ -50,13 +52,9 @@ export default function NotificationBell() {
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
     try {
-      await Promise.all(
-        notifications
-          .filter((n) => !n.read)
-          .map((n) => api.put(`/notifications/${n.id}/read`))
-      );
+      await api.put('/notifications/read-all');
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, read: true }))
+        prev.map((n) => ({ ...n, is_read: true }))
       );
       fetchUnreadCount();
     } catch (error) {
@@ -66,8 +64,12 @@ export default function NotificationBell() {
 
   // Handle notification click
   const handleNotificationClick = (notification) => {
-    if (!notification.read) {
+    if (!notification.is_read) {
       markAsRead(notification.id);
+    }
+    if (notification.link) {
+      setIsOpen(false);
+      navigate(notification.link);
     }
   };
 
@@ -128,7 +130,7 @@ export default function NotificationBell() {
         @keyframes fadeIn {
           from {
             opacity: 0;
-            transform: translateY(-8px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;
@@ -191,9 +193,9 @@ export default function NotificationBell() {
             ref={dropdownRef}
             style={{
               position: 'absolute',
-              top: '100%',
-              right: '0',
-              marginTop: '8px',
+              bottom: '100%',
+              left: '0',
+              marginBottom: '8px',
               backgroundColor: 'var(--bg2)',
               border: `1px solid var(--border)`,
               borderRadius: 'var(--radius)',
@@ -290,18 +292,18 @@ export default function NotificationBell() {
                       padding: '12px 16px',
                       borderBottom: `1px solid var(--border)`,
                       cursor: 'pointer',
-                      backgroundColor: notif.read
+                      backgroundColor: notif.is_read
                         ? 'transparent'
                         : 'rgba(var(--accent-rgb), 0.05)',
                       transition: 'background-color 0.2s',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = notif.read
+                      e.currentTarget.style.backgroundColor = notif.is_read
                         ? 'rgba(var(--text-rgb), 0.03)'
                         : 'rgba(var(--accent-rgb), 0.1)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = notif.read
+                      e.currentTarget.style.backgroundColor = notif.is_read
                         ? 'transparent'
                         : 'rgba(var(--accent-rgb), 0.05)';
                     }}
@@ -313,7 +315,7 @@ export default function NotificationBell() {
                         alignItems: 'flex-start',
                       }}
                     >
-                      {!notif.read && (
+                      {!notif.is_read && (
                         <div
                           style={{
                             flex: '0 0 auto',

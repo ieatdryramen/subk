@@ -37,6 +37,21 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Update list
+router.put('/:id', auth, async (req, res) => {
+  const { name, description } = req.body;
+  try {
+    const result = await pool.query(
+      'UPDATE lead_lists SET name=$1, description=$2 WHERE id=$3 AND user_id=$4 RETURNING *',
+      [name, description, req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'List not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete list
 router.delete('/:id', auth, async (req, res) => {
   try {
@@ -146,6 +161,22 @@ router.post('/:listId/fix-names', auth, async (req, res) => {
       }
     }
     res.json({ fixed, total: leads.rows.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update lead
+router.put('/:listId/leads/:leadId', auth, async (req, res) => {
+  const { full_name, company, title, email, phone, linkedin, notes } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE leads SET full_name=$1, company=$2, title=$3, email=$4, phone=$5, linkedin=$6, notes=$7
+       WHERE id=$8 AND user_id=$9 RETURNING *`,
+      [full_name, company, title, email, phone, linkedin, notes, req.params.leadId, req.userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+    res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

@@ -697,7 +697,10 @@ export default function LeadListDetailPage() {
                           ) : lead.status === 'generating' ? (
                             <div style={{ color: 'var(--text2)', fontSize: 13, padding: '1rem 0' }}>Building playbook — about 20 seconds...</div>
                           ) : lead.status === 'error' ? (
-                            <div style={{ color: 'var(--danger)', fontSize: 13, padding: '1rem 0' }}>Generation failed. Make sure your company profile is complete.</div>
+                            <div style={{ color: 'var(--danger)', fontSize: 13, padding: '1rem 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <span>Generation failed. Make sure your company profile is complete.</span>
+                              <button onClick={e => generateOne(e, lead.id)} style={{ padding: '6px 14px', fontSize: 12, background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 'var(--radius)', cursor: 'pointer', fontWeight: 500, whiteSpace: 'nowrap' }}>Retry</button>
+                            </div>
                           ) : (
                             <div style={{ color: 'var(--text2)', fontSize: 13, padding: '1rem 0' }}>
                               Click <strong>Generate</strong> to build a personalized playbook for {lead.full_name || 'this lead'}.
