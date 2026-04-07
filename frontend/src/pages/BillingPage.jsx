@@ -14,7 +14,7 @@ const s = {
   barFill: (pct) => ({ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct > 80 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--accent)', borderRadius: 3, transition: 'width 0.3s' }),
   barLabel: { display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)', marginBottom: 4 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: '2rem' },
-  planCard: (featured, current) => ({ background: current ? 'rgba(8,165,191,0.05)' : 'var(--bg2)', border: current ? '2px solid var(--accent)' : featured ? '1px solid rgba(8,165,191,0.3)' : '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', position: 'relative' }),
+  planCard: (featured, current) => ({ background: current ? 'rgba(30,111,255,0.05)' : 'var(--bg2)', border: current ? '2px solid var(--accent)' : featured ? '1px solid rgba(30,111,255,0.3)' : '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', position: 'relative' }),
   planCardBadge: { position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 600, padding: '3px 12px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.5px' },
   planTitle: { fontSize: 17, fontWeight: 600, marginBottom: 6 },
   price: { fontSize: 34, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 2 },

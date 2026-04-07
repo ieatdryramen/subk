@@ -58,7 +58,7 @@ export default function Layout({ children }) {
     }}>
       <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: '#08A5BF' }}>SumX</span>
+          <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: '#1e6fff' }}>SumX</span>
           <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}> CRM</span>
           <span style={{ fontSize: 10, fontFamily: 'Inter', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>GovCon Intelligence Platform</span>
         </div>
@@ -113,7 +113,7 @@ export default function Layout({ children }) {
 
       {/* Mobile top bar */}
       <div className="pf-mobile-bar" style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <span style={{ fontFamily: 'Syne', fontSize: 16, fontWeight: 700 }}><span style={{ color: '#08A5BF' }}>SumX</span> CRM</span>
+        <span style={{ fontFamily: 'Syne', fontSize: 16, fontWeight: 700 }}><span style={{ color: '#1e6fff' }}>SumX</span> CRM</span>
         <button onClick={() => setMobileOpen(true)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 10px', borderRadius: 'var(--radius)', fontSize: 13, cursor: 'pointer' }}>☰ Menu</button>
       </div>
 
