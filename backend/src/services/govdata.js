@@ -48,20 +48,36 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
       limit,
     });
 
-    // If no results and we had an agency filter, try broader search without agency
-    if (singleResult.length === 0 && agency) {
-      console.log(`No results with agency filter. Retrying broader search without agency...`);
-      const broaderResult = await searchOpportunitiesForCode({
-        code: codes[0] || null,
-        keywords,
-        agency: null,
-        set_aside,
-        limit,
-      });
-      if (broaderResult.length > 0) return broaderResult;
+    if (singleResult.length > 0) return singleResult;
+
+    // Progressively broaden search if no results
+    // 1. Drop agency filter
+    if (agency) {
+      console.log('No results — retrying without agency filter...');
+      const noAgency = await searchOpportunitiesForCode({ code: codes[0] || null, keywords, agency: null, set_aside, limit });
+      if (noAgency.length > 0) return noAgency;
     }
 
-    if (singleResult.length > 0) return singleResult;
+    // 2. Drop set-aside filter
+    if (set_aside && set_aside !== 'all') {
+      console.log('No results — retrying without set-aside filter...');
+      const noSetAside = await searchOpportunitiesForCode({ code: codes[0] || null, keywords, agency: null, set_aside: null, limit });
+      if (noSetAside.length > 0) return noSetAside;
+    }
+
+    // 3. Drop title/keywords filter — just NAICS + dates
+    if (keywords && codes[0]) {
+      console.log('No results — retrying with just NAICS code...');
+      const naicsOnly = await searchOpportunitiesForCode({ code: codes[0], keywords: null, agency: null, set_aside: null, limit });
+      if (naicsOnly.length > 0) return naicsOnly;
+    }
+
+    // 4. Final fallback — just dates, no filters at all
+    if (codes[0] || keywords) {
+      console.log('No results — retrying broad search (dates only)...');
+      const broadest = await searchOpportunitiesForCode({ code: null, keywords: null, agency: null, set_aside: null, limit });
+      if (broadest.length > 0) return broadest;
+    }
 
     console.log('SAM.gov returned 0 results for all search attempts');
     return [];
@@ -84,8 +100,8 @@ const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, l
     };
 
     if (code) params.ncode = code;
-    if (keywords) params.keyword = keywords;
-    // Note: organizationName is not a valid SAM.gov API param — omitting agency filter
+    if (keywords) params.title = keywords;
+    if (agency) params.organizationName = agency;
     // SAM.gov set-aside codes: SBA, 8A, HZC, SDVOSBC, WOSB, etc.
     if (set_aside && set_aside !== 'all') {
       const setAsideCodeMap = {
@@ -99,10 +115,10 @@ const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, l
       params.typeOfSetAside = setAsideCodeMap[set_aside] || set_aside;
     }
 
-    console.log(`SAM.gov search: ncode=${code}, keyword=${keywords}, limit=${limit}`);
+    console.log(`SAM.gov search params:`, JSON.stringify(params, null, 0).replace(SAM_API_KEY, '***'));
     const response = await axios.get(SAM_BASE, { params, timeout: 15000 });
     const opps = response.data?.opportunitiesData || [];
-    console.log(`SAM.gov returned ${opps.length} opportunities`);
+    console.log(`SAM.gov returned ${opps.length} opportunities (totalRecords: ${response.data?.totalRecords || 'N/A'})`);
 
     return opps.map(opp => ({
       sam_notice_id: opp.noticeId,
