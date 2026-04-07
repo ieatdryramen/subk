@@ -113,9 +113,9 @@ router.get('/debug/sam-test', auth, async (req, res) => {
 
     // Try multiple URL variants
     const urls = [
-      'https://api.sam.gov/opportunities/v2/search',
       'https://api.sam.gov/prod/opportunities/v2/search',
-      'https://api.sam.gov/opportunities/v1/search',
+      'https://api.sam.gov/opportunities/v2/search',
+      'https://api-alpha.sam.gov/prodlike/opportunities/v2/search',
     ];
     const results = [];
     for (const url of urls) {
@@ -123,7 +123,13 @@ router.get('/debug/sam-test', auth, async (req, res) => {
         const r2 = await axios.get(url, { params, timeout: 15000 });
         results.push({ url, status: r2.status, totalRecords: r2.data?.totalRecords, oppCount: r2.data?.opportunitiesData?.length || 0, keys: Object.keys(r2.data || {}), sample: r2.data?.opportunitiesData?.[0]?.title || null });
       } catch (e2) {
-        results.push({ url, error: e2.message, status: e2.response?.status, body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 200) : JSON.stringify(e2.response?.data)?.substring(0, 200) });
+        results.push({
+          url,
+          error: e2.message,
+          status: e2.response?.status,
+          headers: e2.response?.headers ? { 'content-type': e2.response.headers['content-type'], 'x-ratelimit-remaining': e2.response.headers['x-ratelimit-remaining'], server: e2.response.headers['server'] } : null,
+          body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 300) : JSON.stringify(e2.response?.data)?.substring(0, 300)
+        });
       }
     }
     res.json({
