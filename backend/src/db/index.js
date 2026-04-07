@@ -566,17 +566,14 @@ const initDb = async () => {
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_used INTEGER DEFAULT 0;
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_limit INTEGER DEFAULT 100;
   `);
-  // Cleanup: null out fake opportunity URLs from old mock/seed data
+  // Cleanup: delete fake seeded opportunities — they have SAM-20xx notice IDs which aren't real
   await pool.query(`
-    UPDATE opportunities SET opportunity_url = NULL
-    WHERE opportunity_url IS NOT NULL AND (
-      opportunity_url LIKE '%/opp/LIVE-%' OR
-      opportunity_url LIKE '%/opp/live-%' OR
-      opportunity_url LIKE '%/opp/SAM-2026-%' OR
-      opportunity_url LIKE '%/opp/SAM-2025-%'
-    )
+    DELETE FROM opportunities
+    WHERE sam_notice_id LIKE 'SAM-20%'
+       OR sam_notice_id LIKE 'LIVE-%'
+       OR sam_notice_id LIKE 'live-%'
   `).then(r => {
-    if (r.rowCount > 0) console.log(`Cleaned ${r.rowCount} fake opportunity URLs`);
+    if (r.rowCount > 0) console.log(`Deleted ${r.rowCount} fake seeded opportunities`);
   }).catch(() => {});
 
   console.log('SumX CRM database initialized');
