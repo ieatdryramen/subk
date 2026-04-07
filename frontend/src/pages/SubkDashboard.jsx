@@ -33,7 +33,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/opportunities').then(r => setOpps(r.data)).catch(() => {});
+    api.get('/opportunities').then(r => setOpps(Array.isArray(r.data) ? r.data : r.data.opportunities || [])).catch(() => {});
     api.get('/primes').then(r => setPrimes(r.data)).catch(() => {});
     api.get('/profile').then(r => setProfile(r.data)).catch(() => {});
     api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});

@@ -7,13 +7,26 @@ const { scoreOpportunity } = require('../services/ai');
 // Get all opportunities for org
 router.get('/', auth, async (req, res) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 50));
+    const offset = (page - 1) * limit;
+
     const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
-    const r = await pool.query(
-      'SELECT * FROM opportunities WHERE org_id=$1 ORDER BY fit_score DESC NULLS LAST, posted_date DESC',
+
+    // Get total count
+    const countR = await pool.query(
+      'SELECT COUNT(*) as total FROM opportunities WHERE org_id=$1',
       [orgId]
     );
-    res.json(r.rows);
+    const total = parseInt(countR.rows[0].total, 10);
+
+    // Get paginated results
+    const r = await pool.query(
+      'SELECT * FROM opportunities WHERE org_id=$1 ORDER BY fit_score DESC NULLS LAST, posted_date DESC LIMIT $2 OFFSET $3',
+      [orgId, limit, offset]
+    );
+    res.json({ opportunities: r.rows, total, page, limit });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -140,14 +153,29 @@ router.delete('/save/:id', auth, async (req, res) => {
 // Get all saved opportunities for user
 router.get('/saved', auth, async (req, res) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 50));
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const countR = await pool.query(
+      `SELECT COUNT(*) as total FROM opportunities o
+       JOIN saved_opportunities so ON so.opportunity_id = o.id
+       WHERE so.user_id=$1`,
+      [req.userId]
+    );
+    const total = parseInt(countR.rows[0].total, 10);
+
+    // Get paginated results
     const r = await pool.query(
       `SELECT o.* FROM opportunities o
        JOIN saved_opportunities so ON so.opportunity_id = o.id
        WHERE so.user_id=$1
-       ORDER BY so.created_at DESC`,
-      [req.userId]
+       ORDER BY so.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [req.userId, limit, offset]
     );
-    res.json(r.rows);
+    res.json({ opportunities: r.rows, total, page, limit });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

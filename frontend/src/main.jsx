@@ -4,6 +4,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { ToastProvider } from './components/Toast';
 import CommandPalette from './components/CommandPalette';
+import ErrorBoundary from './components/ErrorBoundary';
+import NotFoundPage from './pages/NotFoundPage';
 import './index.css';
 
 // ProspectForge (BD/Sales) pages
@@ -43,6 +45,7 @@ const PublicOnly = ({ children }) => {
 };
 
 const App = () => (
+  <ErrorBoundary>
   <AuthProvider>
     <ToastProvider>
     <BrowserRouter>
@@ -86,11 +89,12 @@ const App = () => (
         {/* Public routes */}
         <Route path="/sub/:id" element={<PublicProfilePage />} />
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
     </ToastProvider>
   </AuthProvider>
+  </ErrorBoundary>
 );
 
 // Show landing page to logged-out users, dashboard to logged-in

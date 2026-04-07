@@ -43,11 +43,15 @@ export default function OpportunitiesPage() {
   const [lastSearched, setLastSearched] = useState(null);
 
   useEffect(() => {
-    api.get('/opportunities').then(r => setOpps(r.data)).catch(() => {});
+    api.get('/opportunities').then(r => {
+      const data = r.data;
+      setOpps(Array.isArray(data) ? data : data.opportunities || []);
+    }).catch(() => {});
     api.get('/opportunities/saved').then(r => {
-      setSavedOpps(r.data);
+      const data = Array.isArray(r.data) ? r.data : r.data.opportunities || [];
+      setSavedOpps(data);
       const map = {};
-      r.data.forEach(o => { map[o.id] = true; });
+      data.forEach(o => { map[o.id] = true; });
       setSavedMap(map);
     }).catch(() => {});
     api.get('/autosearch').then(r => setAutoSearchConfigs(r.data || [])).catch(() => {});
@@ -59,7 +63,7 @@ export default function OpportunitiesPage() {
       const r = await api.post('/opportunities/search', searchForm);
       setSearchResults(r.data.opportunities || []);
       if (searchForm.save_search) {
-        api.get('/opportunities').then(r2 => setOpps(r2.data));
+        api.get('/opportunities').then(r2 => setOpps(Array.isArray(r2.data) ? r2.data : r2.data.opportunities || []));
       }
       setLastSearched(Date.now());
       setTab('results');
@@ -148,7 +152,7 @@ export default function OpportunitiesPage() {
     setLoadingAutoSearch(true);
     try {
       await api.post(`/autosearch/run/${searchId}`);
-      api.get('/opportunities').then(r => setOpps(r.data));
+      api.get('/opportunities').then(r => setOpps(Array.isArray(r.data) ? r.data : r.data.opportunities || []));
       addToast('Search completed! New opportunities have been added.', 'success');
     } catch (err) {
       addToast(err.response?.data?.error || 'Failed to run search', 'error');
