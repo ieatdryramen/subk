@@ -30,6 +30,38 @@ router.post('/search', auth, async (req, res) => {
   }
 });
 
+// Export primes as CSV — MUST be before /:id routes to avoid path conflict
+router.get('/export/csv', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    const r = await pool.query('SELECT company_name, cage_code, uei, website, naics_codes, certifications, outreach_status, contact_name, contact_email, fit_score, total_awards_value FROM primes WHERE org_id=$1 ORDER BY fit_score DESC NULLS LAST', [orgId]);
+
+    const headers = ['Company Name', 'CAGE Code', 'UEI', 'Website', 'NAICS Codes', 'Certifications', 'Outreach Status', 'Contact Name', 'Contact Email', 'Fit Score', 'Total Awards Value'];
+    const rows = r.rows.map(p => [
+      `"${(p.company_name||'').replace(/"/g, '""')}"`,
+      p.cage_code || '',
+      p.uei || '',
+      p.website || '',
+      `"${(p.naics_codes||'').replace(/"/g, '""')}"`,
+      `"${(p.certifications||'').replace(/"/g, '""')}"`,
+      p.outreach_status || 'not_contacted',
+      `"${(p.contact_name||'').replace(/"/g, '""')}"`,
+      p.contact_email || '',
+      p.fit_score || '',
+      p.total_awards_value || '',
+    ].join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=subk-primes.csv');
+    res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add a prime to track
 router.post('/', auth, async (req, res) => {
   const { company_name, uei, cage_code, website, naics_codes, agency_focus, total_awards_value, award_count, recent_awards, size_category } = req.body;
@@ -78,14 +110,17 @@ router.post('/:id/generate', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   const { outreach_status, contact_name, contact_email, contact_title, notes, fit_score, fit_reason } = req.body;
   try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
     await pool.query(
       `UPDATE primes SET outreach_status=COALESCE($1, outreach_status), contact_name=COALESCE($2, contact_name),
        contact_email=COALESCE($3, contact_email), contact_title=COALESCE($4, contact_title),
        notes=COALESCE($5, notes), fit_score=COALESCE($6, fit_score), fit_reason=COALESCE($7, fit_reason), updated_at=NOW()
-       WHERE id=$8`,
-      [outreach_status, contact_name, contact_email, contact_title, notes, fit_score, fit_reason, req.params.id]
+       WHERE id=$8 AND org_id=$9`,
+      [outreach_status, contact_name, contact_email, contact_title, notes, fit_score, fit_reason, req.params.id, orgId]
     );
-    const r = await pool.query('SELECT * FROM primes WHERE id=$1', [req.params.id]);
+    const r = await pool.query('SELECT * FROM primes WHERE id=$1 AND org_id=$2', [req.params.id, orgId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Prime not found' });
     res.json(r.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -95,7 +130,9 @@ router.put('/:id', auth, async (req, res) => {
 // Delete a prime
 router.delete('/:id', auth, async (req, res) => {
   try {
-    await pool.query('DELETE FROM primes WHERE id=$1', [req.params.id]);
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    await pool.query('DELETE FROM primes WHERE id=$1 AND org_id=$2', [req.params.id, orgId]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -288,38 +325,6 @@ router.get('/:id/sequence', auth, async (req, res) => {
 
     res.json(events.rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /primes/export/csv — export primes as CSV
-router.get('/export/csv', auth, async (req, res) => {
-  try {
-    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
-    const orgId = userR.rows[0]?.org_id;
-    const r = await pool.query('SELECT company_name, cage_code, uei, website, naics_codes, certifications, outreach_status, contact_name, contact_email, fit_score, total_awards_value FROM primes WHERE org_id=$1 ORDER BY fit_score DESC NULLS LAST', [orgId]);
-
-    const headers = ['Company Name', 'CAGE Code', 'UEI', 'Website', 'NAICS Codes', 'Certifications', 'Outreach Status', 'Contact Name', 'Contact Email', 'Fit Score', 'Total Awards Value'];
-    const rows = r.rows.map(p => [
-      `"${(p.company_name||'').replace(/"/g, '""')}"`,
-      p.cage_code || '',
-      p.uei || '',
-      p.website || '',
-      `"${(p.naics_codes||'').replace(/"/g, '""')}"`,
-      `"${(p.certifications||'').replace(/"/g, '""')}"`,
-      p.outreach_status || 'not_contacted',
-      `"${(p.contact_name||'').replace(/"/g, '""')}"`,
-      p.contact_email || '',
-      p.fit_score || '',
-      p.total_awards_value || '',
-    ].join(','));
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=subk-primes.csv');
-    res.send(csv);
-  } catch (err) {
-    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
