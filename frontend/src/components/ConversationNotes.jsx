@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
+import { useToast } from './Toast';
 
 export default function ConversationNotes({ leadId }) {
+  const { addToast } = useToast();
   const [notes, setNotes] = useState([]);
   const [input, setInput] = useState('');
   const [saving, setSaving] = useState(false);
@@ -22,7 +24,7 @@ export default function ConversationNotes({ leadId }) {
       await api.post(`/engagement/${leadId}/notes`, { content: input.trim() });
       setInput('');
       load();
-    } catch (e) { alert('Failed to save note'); }
+    } catch (e) { addToast('Failed to save note', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -33,7 +35,7 @@ export default function ConversationNotes({ leadId }) {
       setNotes(n => n.filter(x => x.id !== id));
     } catch (err) {
       console.error('Failed to delete note:', err);
-      alert('Failed to delete note — please try again');
+      addToast('Failed to delete note — please try again', 'error');
     }
   };
 

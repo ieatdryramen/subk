@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import api from '../lib/api';
+import { useToast } from './Toast';
 
 const s = {
   wrap: { padding: '4px 0' },
@@ -15,6 +16,7 @@ const s = {
 };
 
 export default function Battlecard({ leadId }) {
+  const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +26,7 @@ export default function Battlecard({ leadId }) {
       const r = await api.post(`/battlecard/generate/${leadId}`);
       setData(r.data);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to generate battlecard');
+      addToast(err.response?.data?.error || 'Failed to generate battlecard', 'error');
     } finally {
       setLoading(false);
     }

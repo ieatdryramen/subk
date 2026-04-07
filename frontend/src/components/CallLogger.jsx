@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
+import { useToast } from './Toast';
 
 const OUTCOMES = [
   { value: 'connected', label: '✅ Connected', color: 'var(--success)' },
@@ -50,6 +51,7 @@ const timeAgo = (ts) => {
 };
 
 export default function CallLogger({ leadId, lead }) {
+  const { addToast } = useToast();
   const [calls, setCalls] = useState([]);
   const [calling, setCalling] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -105,7 +107,7 @@ export default function CallLogger({ leadId, lead }) {
       setElapsed(0);
       load();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to log call');
+      addToast(err.response?.data?.error || 'Failed to log call', 'error');
     } finally {
       setSaving(false);
     }

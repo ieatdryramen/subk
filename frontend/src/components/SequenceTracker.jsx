@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
+import { useToast } from './Toast';
 
 const TOUCHPOINT_ICONS = {
   email1: '✉', email2: '✉', email3: '✉', email4: '✉',
@@ -49,6 +50,7 @@ const s = {
 };
 
 export default function SequenceTracker({ leadId }) {
+  const { addToast } = useToast();
   const [sequence, setSequence] = useState([]);
   const [notes, setNotes] = useState({});
   const [callOutcomes, setCallOutcomes] = useState({});
@@ -119,7 +121,7 @@ export default function SequenceTracker({ leadId }) {
       const toSave = (config || sequence).map(tp => ({ key: tp.key, label: tp.label, day: tp.day, type: tp.type }));
       await api.put('/sequence/config', { config: toSave });
       setEditMode(false);
-    } catch (err) { alert('Failed to save sequence order'); }
+    } catch (err) { addToast('Failed to save sequence order', 'error'); }
     finally { setSavingConfig(false); }
   };
 
