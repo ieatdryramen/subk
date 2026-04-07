@@ -48,13 +48,17 @@ export default function PrimesPage() {
   }, []);
 
   const loadSequence = async (primeId) => {
-    const r = await api.get(`/primes/${primeId}/outreach`);
-    setSequence(s => ({ ...s, [primeId]: r.data }));
+    try {
+      const r = await api.get(`/primes/${primeId}/outreach`);
+      setSequence(s => ({ ...s, [primeId]: Array.isArray(r.data) ? r.data : [] }));
+    } catch { setSequence(s => ({ ...s, [primeId]: [] })); }
   };
 
   const loadNotes = async (primeId) => {
-    const r = await api.get(`/primes/${primeId}/notes`);
-    setNotes(n => ({ ...n, [primeId]: r.data }));
+    try {
+      const r = await api.get(`/primes/${primeId}/notes`);
+      setNotes(n => ({ ...n, [primeId]: Array.isArray(r.data) ? r.data : [] }));
+    } catch { setNotes(n => ({ ...n, [primeId]: [] })); }
   };
 
   const expandPrime = async (id) => {
@@ -314,7 +318,7 @@ export default function PrimesPage() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {(sequence[prime.id] || []).map(tp => (
+                          {(Array.isArray(sequence[prime.id]) ? sequence[prime.id] : []).map(tp => (
                             <div key={tp.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: tp.status === 'done' ? 'var(--success-bg)' : 'var(--bg)', border: `1px solid ${tp.status === 'done' ? 'var(--success)' : 'var(--border)'}`, borderRadius: 'var(--radius)' }}>
                               <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>{TOUCHPOINT_ICONS[tp.key] || '•'}</span>
                               <div style={{ flex: 1 }}>
@@ -442,7 +446,7 @@ export default function PrimesPage() {
                           onKeyDown={e => e.key === 'Enter' && addNote(prime.id)} />
                         <button style={s.btn('primary')} onClick={() => addNote(prime.id)}>Add</button>
                       </div>
-                      {(notes[prime.id] || []).map(note => (
+                      {(Array.isArray(notes[prime.id]) ? notes[prime.id] : []).map(note => (
                         <div key={note.id} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '10px 14px', marginBottom: 8 }}>
                           <div style={{ fontSize: 13 }}>{note.content}</div>
                           <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>{note.full_name} · {new Date(note.created_at).toLocaleString()}</div>
@@ -459,7 +463,7 @@ export default function PrimesPage() {
                         {!(chatMessages[prime.id]?.length) && (
                           <div style={{ color: 'var(--text3)', fontSize: 13 }}>Ask anything about teaming strategy, how to approach this prime, what to say on a call...</div>
                         )}
-                        {(chatMessages[prime.id] || []).map((m, i) => (
+                        {(Array.isArray(chatMessages[prime.id]) ? chatMessages[prime.id] : []).map((m, i) => (
                           <div key={i} style={{ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', background: m.role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: m.role === 'user' ? '#fff' : 'var(--text)', border: m.role === 'user' ? 'none' : '1px solid var(--border)' }}>
                             {m.content}
                           </div>
