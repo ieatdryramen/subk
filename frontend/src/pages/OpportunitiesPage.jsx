@@ -370,7 +370,7 @@ export default function OpportunitiesPage() {
             </div>
 
             {expanded === (opp.id || opp.sam_notice_id) && (
-              <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.25rem' }}>
+              <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.25rem', background: 'var(--bg2)' }}>
                 {opp.description && (
                   <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem', lineHeight: 1.7 }}>{opp.description}</div>
                 )}

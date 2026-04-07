@@ -282,7 +282,7 @@ export default function PrimesPage() {
             </div>
 
             {expanded === prime.id && (
-              <div style={{ borderTop: '1px solid var(--border)' }}>
+              <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg2)' }}>
                 {/* Sub-tabs */}
                 <div style={{ display: 'flex', gap: 4, padding: '0.75rem 1.25rem', background: 'var(--bg3)', flexWrap: 'wrap' }}>
                   {[
