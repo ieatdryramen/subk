@@ -34,7 +34,7 @@ export default function UsageBanner() {
           ? `Free trial: ${remaining} playbook${remaining !== 1 ? 's' : ''} remaining`
           : `${remaining} playbooks remaining this month`}
       </div>
-      <div style={{ height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
+      <div style={{ height: 3, background: 'rgba(0,0,0,0.08)', borderRadius: 2, overflow: 'hidden', marginBottom: 6 }}>
         <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: isMaxed ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--accent)', borderRadius: 2 }} />
       </div>
       <div

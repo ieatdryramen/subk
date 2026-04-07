@@ -5,8 +5,8 @@ import Layout from '../components/Layout';
 
 const EMAIL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-  { key: 'email1_sent', label: 'Email 1 Sent', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
-  { key: 'email2_sent', label: 'Email 2 Sent', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'email1_sent', label: 'Email 1 Sent', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
+  { key: 'email2_sent', label: 'Email 2 Sent', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'email3_sent', label: 'Email 3 Sent', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   { key: 'email4_sent', label: 'Email 4 Sent', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   { key: 'replied', label: 'Replied ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
@@ -15,7 +15,7 @@ const EMAIL_STAGES = [
 const CALL_STAGES = [
   { key: 'not_started', label: 'Not Called', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
   { key: 'call_attempted', label: 'Attempted', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  { key: 'call_connected', label: 'Connected', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'call_connected', label: 'Connected', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'call_voicemail', label: 'Voicemail', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
   { key: 'call_booked', label: 'Meeting Booked', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 ];
@@ -23,21 +23,21 @@ const CALL_STAGES = [
 const LINKEDIN_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
   { key: 'linkedin_connected', label: 'Connected', color: '#0077b5', bg: 'rgba(0,119,181,0.1)' },
-  { key: 'linkedin_dm_sent', label: 'DM Sent', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'linkedin_dm_sent', label: 'DM Sent', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'linkedin_replied', label: 'Replied', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 ];
 
 const ALL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-  { key: 'in_progress_1', label: 'Touch 1 ✉', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'in_progress_1', label: 'Touch 1 ✉', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'in_progress_2', label: 'Touch 2 🔗', color: '#0077b5', bg: 'rgba(0,119,181,0.1)' },
   { key: 'in_progress_3', label: 'Touch 3 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  { key: 'in_progress_4', label: 'Touch 4 ✉', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'in_progress_4', label: 'Touch 4 ✉', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'in_progress_5', label: 'Touch 5 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  { key: 'in_progress_6', label: 'Touch 6 ✉', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'in_progress_6', label: 'Touch 6 ✉', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'in_progress_7', label: 'Touch 7 💬', color: '#0077b5', bg: 'rgba(0,119,181,0.1)' },
   { key: 'in_progress_8', label: 'Touch 8 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  { key: 'in_progress_9', label: 'Touch 9 ✉', color: '#1e6fff', bg: 'rgba(30,111,255,0.1)' },
+  { key: 'in_progress_9', label: 'Touch 9 ✉', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'in_progress_10', label: 'Touch 10 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
   { key: 'mefu', label: 'MEFU 📅', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   { key: 'meeting_booked', label: '🗓 Meeting Booked', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },

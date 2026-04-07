@@ -25,32 +25,32 @@ export default function PublicProfilePage() {
   };
 
   const s = {
-    page: { minHeight: '100vh', background: '#0d0d1a', color: '#e2e2e8', fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" },
+    page: { minHeight: '100vh', background: '#F4F7FA', color: '#1A202C', fontFamily: "'Inter', sans-serif" },
     container: { maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem' },
-    header: { textAlign: 'center', marginBottom: '2.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' },
-    logo: { fontFamily: 'Syne, sans-serif', fontSize: 24, fontWeight: 700, color: '#818cf8', letterSpacing: '-0.5px' },
-    logoSub: { fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2 },
+    header: { textAlign: 'center', marginBottom: '2.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.08)' },
+    logo: { fontFamily: 'Syne, sans-serif', fontSize: 24, fontWeight: 700, color: '#08A5BF', letterSpacing: '-0.5px' },
+    logoSub: { fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '1px', marginTop: 2 },
     company: { fontSize: 28, fontWeight: 700, marginTop: 20, marginBottom: 4 },
-    tagline: { fontSize: 15, color: '#9898b0', lineHeight: 1.5 },
+    tagline: { fontSize: 15, color: '#6B7280', lineHeight: 1.5 },
     section: { marginBottom: '1.5rem' },
-    sectionTitle: { fontSize: 11, color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 600, marginBottom: 10 },
-    card: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: 8 },
+    sectionTitle: { fontSize: 11, color: '#08A5BF', textTransform: 'uppercase', letterSpacing: '0.8px', fontWeight: 600, marginBottom: 10 },
+    card: { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: 8 },
     chips: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-    chip: { display: 'inline-block', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, background: 'rgba(129,140,248,0.1)', color: '#a5b4fc', border: '1px solid rgba(129,140,248,0.15)' },
-    chipGreen: { display: 'inline-block', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, background: 'rgba(34,197,94,0.1)', color: '#86efac', border: '1px solid rgba(34,197,94,0.15)' },
+    chip: { display: 'inline-block', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, background: 'rgba(8,165,191,0.08)', color: '#06798E', border: '1px solid rgba(8,165,191,0.2)' },
+    chipGreen: { display: 'inline-block', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, background: 'rgba(16,185,129,0.08)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' },
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-    infoLabel: { fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 },
-    infoVal: { fontSize: 14, color: '#e2e2e8' },
-    ppCard: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8, padding: '12px 16px', marginBottom: 6 },
-    footer: { textAlign: 'center', padding: '2rem 0', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '2rem' },
-    cta: { display: 'inline-block', background: '#6366f1', color: '#fff', padding: '12px 28px', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 },
+    infoLabel: { fontSize: 11, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 },
+    infoVal: { fontSize: 14, color: '#1A202C' },
+    ppCard: { background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.06)', borderRadius: 8, padding: '12px 16px', marginBottom: 6 },
+    footer: { textAlign: 'center', padding: '2rem 0', borderTop: '1px solid rgba(0,0,0,0.06)', marginTop: '2rem' },
+    cta: { display: 'inline-block', background: '#08A5BF', color: '#fff', padding: '12px 28px', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: 14 },
   };
 
   if (loading) return (
     <div style={s.page}>
       <div style={{ ...s.container, textAlign: 'center', paddingTop: '4rem' }}>
         <div style={s.logo}>SubK</div>
-        <div style={{ color: '#666', marginTop: 16 }}>Loading profile...</div>
+        <div style={{ color: '#9CA3AF', marginTop: 16 }}>Loading profile...</div>
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ export default function PublicProfilePage() {
       <div style={{ ...s.container, textAlign: 'center', paddingTop: '4rem' }}>
         <div style={s.logo}>SubK</div>
         <div style={{ color: '#ef4444', marginTop: 16, fontSize: 15 }}>{error}</div>
-        <div style={{ color: '#666', marginTop: 8, fontSize: 13 }}>This profile may be private or no longer available.</div>
+        <div style={{ color: '#9CA3AF', marginTop: 8, fontSize: 13 }}>This profile may be private or no longer available.</div>
       </div>
     </div>
   );
@@ -79,7 +79,7 @@ export default function PublicProfilePage() {
           <div style={s.company}>{profile.company_name}</div>
           {profile.tagline && <div style={s.tagline}>{profile.tagline}</div>}
           {profile.contact_name && (
-            <div style={{ fontSize: 13, color: '#9898b0', marginTop: 8 }}>Contact: {profile.contact_name}</div>
+            <div style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>Contact: {profile.contact_name}</div>
           )}
         </div>
 
@@ -96,7 +96,7 @@ export default function PublicProfilePage() {
               <div style={s.infoLabel}>Website</div>
               <div style={s.infoVal}>
                 <a href={profile.website_url.startsWith('http') ? profile.website_url : `https://${profile.website_url}`}
-                  target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'none' }}>
+                  target="_blank" rel="noopener noreferrer" style={{ color: '#08A5BF', textDecoration: 'none' }}>
                   {profile.website_url.replace(/^https?:\/\//, '')}
                 </a>
               </div>
@@ -146,7 +146,7 @@ export default function PublicProfilePage() {
         {profile.capabilities && (
           <div style={s.section}>
             <div style={s.sectionTitle}>Core Capabilities</div>
-            <div style={{ ...s.card, fontSize: 14, lineHeight: 1.6, color: '#c8c8d8' }}>
+            <div style={{ ...s.card, fontSize: 14, lineHeight: 1.6, color: '#4A5568' }}>
               {profile.capabilities}
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function PublicProfilePage() {
             {profile.past_performance.map((pp, i) => (
               <div key={i} style={s.ppCard}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{pp.contract_title || 'Contract'}</div>
-                <div style={{ fontSize: 12, color: '#9898b0', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ fontSize: 12, color: '#6B7280', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                   {pp.agency && <span>{pp.agency}</span>}
                   {pp.prime_or_sub && <span style={{ textTransform: 'capitalize' }}>{pp.prime_or_sub}</span>}
                   {pp.award_amount && <span>{fmtMoney(pp.award_amount)}</span>}
@@ -189,7 +189,7 @@ export default function PublicProfilePage() {
                   {pp.period_start && <span>{new Date(pp.period_start).getFullYear()}{pp.period_end ? `\u2013${new Date(pp.period_end).getFullYear()}` : '+'}</span>}
                 </div>
                 {pp.description && (
-                  <div style={{ fontSize: 13, color: '#b0b0c0', marginTop: 6, lineHeight: 1.5 }}>{pp.description}</div>
+                  <div style={{ fontSize: 13, color: '#6B7280', marginTop: 6, lineHeight: 1.5 }}>{pp.description}</div>
                 )}
               </div>
             ))}
@@ -198,12 +198,12 @@ export default function PublicProfilePage() {
 
         {/* Footer / CTA */}
         <div style={s.footer}>
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 12 }}>
             Interested in teaming? Connect with {profile.company_name} on SubK.
           </div>
           <a href="/signup" style={s.cta}>Join SubK Free</a>
-          <div style={{ fontSize: 11, color: '#444', marginTop: 16 }}>
-            Powered by <span style={{ color: '#818cf8', fontWeight: 600 }}>SubK</span> &middot; GovCon Teaming Marketplace
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 16 }}>
+            Powered by <span style={{ color: '#08A5BF', fontWeight: 600 }}>SubK</span> &middot; GovCon Teaming Marketplace
           </div>
         </div>
       </div>

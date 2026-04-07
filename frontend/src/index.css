@@ -1,24 +1,24 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #080c14;
-  --bg2: #0e1420;
-  --bg3: #161e2e;
-  --border: rgba(255,255,255,0.07);
-  --border2: rgba(255,255,255,0.12);
-  --text: #e8eef8;
-  --text2: #8090a8;
-  --text3: #485568;
-  --accent: #1e6fff;
-  --accent2: #5b9fff;
-  --accent-bg: rgba(30,111,255,0.12);
-  --accent-gold: #1e6fff;
-  --success: #22c55e;
-  --success-bg: rgba(34,197,94,0.1);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245,158,11,0.1);
-  --danger: #ef4444;
-  --danger-bg: rgba(239,68,68,0.1);
+  --bg: #F4F7FA;
+  --bg2: #FFFFFF;
+  --bg3: #E8ECF1;
+  --border: rgba(0,0,0,0.08);
+  --border2: rgba(0,0,0,0.14);
+  --text: #1A202C;
+  --text2: #4A5568;
+  --text3: #9CA3AF;
+  --accent: #08A5BF;
+  --accent2: #06798E;
+  --accent-bg: rgba(8,165,191,0.10);
+  --accent-gold: #08A5BF;
+  --success: #10B981;
+  --success-bg: rgba(16,185,129,0.08);
+  --warning: #D97706;
+  --warning-bg: rgba(217,119,6,0.08);
+  --danger: #DC2626;
+  --danger-bg: rgba(220,38,38,0.08);
   --radius: 8px;
   --radius-lg: 12px;
 }
@@ -30,6 +30,7 @@ body {
   font-size: 14px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 600; }
@@ -40,7 +41,7 @@ h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 600; }
 input, textarea, select {
   font-family: 'Inter', sans-serif;
   font-size: 14px;
-  background: var(--bg3);
+  background: #FFFFFF;
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: var(--radius);
@@ -51,7 +52,7 @@ input, textarea, select {
 }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
-select option { background: var(--bg3); }
+select option { background: #FFFFFF; }
 
 button {
   font-family: 'Inter', sans-serif;
@@ -64,12 +65,12 @@ button {
 }
 button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-a { color: var(--accent2); text-decoration: none; }
+a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
