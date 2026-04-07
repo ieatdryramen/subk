@@ -100,6 +100,37 @@ router.post('/search', auth, async (req, res) => {
   }
 });
 
+// Debug: test SAM.gov API directly
+router.get('/debug/sam-test', auth, async (req, res) => {
+  const axios = require('axios');
+  const SAM_API_KEY = process.env.SAM_API_KEY;
+  try {
+    const today = new Date();
+    const ago90 = new Date(today - 90 * 24 * 60 * 60 * 1000);
+    const fmt = d => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
+    const params = { api_key: SAM_API_KEY, limit: 5, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) };
+    console.log('SAM debug params:', JSON.stringify(params).replace(SAM_API_KEY, '***'));
+    const response = await axios.get('https://api.sam.gov/opportunities/v2/search', { params, timeout: 15000 });
+    res.json({
+      status: response.status,
+      totalRecords: response.data?.totalRecords,
+      oppCount: response.data?.opportunitiesData?.length || 0,
+      keys: Object.keys(response.data || {}),
+      firstOpp: response.data?.opportunitiesData?.[0]?.title || null,
+      hasApiKey: !!SAM_API_KEY,
+      apiKeyPrefix: SAM_API_KEY ? SAM_API_KEY.substring(0, 8) + '...' : 'NOT SET',
+    });
+  } catch (err) {
+    res.json({
+      error: err.message,
+      status: err.response?.status,
+      responseData: err.response?.data,
+      hasApiKey: !!SAM_API_KEY,
+      apiKeyPrefix: SAM_API_KEY ? SAM_API_KEY.substring(0, 8) + '...' : 'NOT SET',
+    });
+  }
+});
+
 // Update opportunity status
 router.put('/:id/status', auth, async (req, res) => {
   const { status } = req.body;
