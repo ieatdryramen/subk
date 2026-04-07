@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const SAM_API_KEY = process.env.SAM_API_KEY;
-const SAM_BASE = 'https://api.sam.gov/prod/opportunities/v2/search';
+const SAM_API_KEY = (process.env.SAM_API_KEY || '').trim();
+const SAM_BASE = 'https://api.sam.gov/opportunities/v2/search';
 const USASPENDING_BASE = 'https://api.usaspending.gov/api/v2';
 
 // Fetch live opportunities from SAM.gov

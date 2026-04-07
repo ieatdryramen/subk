@@ -103,21 +103,17 @@ router.post('/search', auth, async (req, res) => {
 // Debug: test SAM.gov API directly
 router.get('/debug/sam-test', auth, async (req, res) => {
   const axios = require('axios');
-  const SAM_API_KEY = process.env.SAM_API_KEY;
+  const SAM_API_KEY = (process.env.SAM_API_KEY || '').trim();
   try {
     const today = new Date();
     const ago90 = new Date(today - 90 * 24 * 60 * 60 * 1000);
     const fmt = d => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
     const params = { api_key: SAM_API_KEY, limit: 5, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) };
-    console.log('SAM debug params:', JSON.stringify(params).replace(SAM_API_KEY, '***'));
 
-    // Try multiple URL variants + entity API to check if key works at all
+    // Correct URL (no /prod/) per SAM.gov docs
     const urls = [
-      'https://api.sam.gov/prod/opportunities/v2/search',
       'https://api.sam.gov/opportunities/v2/search',
     ];
-    // Also test entity API to see if key works there
-    urls.push('https://api.sam.gov/entity-information/v3/entities?ueiSAM=ZQNHWAHG3BE7');
     const results = [];
     for (const url of urls) {
       try {
@@ -128,25 +124,17 @@ router.get('/debug/sam-test', auth, async (req, res) => {
           url,
           error: e2.message,
           status: e2.response?.status,
-          headers: e2.response?.headers ? { 'content-type': e2.response.headers['content-type'], 'x-ratelimit-remaining': e2.response.headers['x-ratelimit-remaining'], server: e2.response.headers['server'] } : null,
-          body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 300) : JSON.stringify(e2.response?.data)?.substring(0, 300)
+          body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 500) : JSON.stringify(e2.response?.data)?.substring(0, 500)
         });
       }
     }
     res.json({
       results,
       hasApiKey: !!SAM_API_KEY,
-      apiKeyPrefix: SAM_API_KEY ? SAM_API_KEY.substring(0, 8) + '...' : 'NOT SET',
       apiKeyLength: SAM_API_KEY?.length,
     });
   } catch (err) {
-    res.json({
-      error: err.message,
-      status: err.response?.status,
-      responseData: err.response?.data,
-      hasApiKey: !!SAM_API_KEY,
-      apiKeyPrefix: SAM_API_KEY ? SAM_API_KEY.substring(0, 8) + '...' : 'NOT SET',
-    });
+    res.json({ error: err.message, hasApiKey: !!SAM_API_KEY });
   }
 });
 
