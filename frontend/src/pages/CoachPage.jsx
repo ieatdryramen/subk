@@ -2,6 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 
+const simpleMarkdown = (text) => {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/## (.+)/g, '<div style="font-weight:600;font-size:14px;margin:12px 0 6px;color:var(--accent2)">$1</div>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n- /g, '\n• ')
+    .replace(/\n/g, '<br/>');
+};
+
 const quickPrompts = [
   'How do I find teaming partners?',
   'Help me write a capability statement',
@@ -190,8 +200,8 @@ export default function CoachPage() {
             messages.map((msg, i) => (
               <div key={i} style={{ ...s.messageBubble, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 {msg.role === 'assistant' && <div style={s.bubbleIcon}>🤖</div>}
-                <div style={s.bubbleContent(msg.role === 'user')}>
-                  {msg.content}
+                <div style={s.bubbleContent(msg.role === 'user')} dangerouslySetInnerHTML={msg.role === 'assistant' ? { __html: simpleMarkdown(msg.content) } : undefined}>
+                  {msg.role === 'user' ? msg.content : undefined}
                 </div>
                 {msg.role === 'user' && <div style={s.bubbleIcon}>👤</div>}
               </div>
