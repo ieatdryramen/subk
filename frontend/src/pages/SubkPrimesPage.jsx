@@ -85,8 +85,13 @@ export default function PrimesPage() {
     setSearching(true);
     try {
       const r = await api.post('/subk-primes/search', searchForm);
-      setSearchResults(r.data);
-      setTab('results');
+      const results = Array.isArray(r.data) ? r.data : [];
+      setSearchResults(results);
+      if (results.length > 0) {
+        setTab('results');
+      } else {
+        setToast('No prime awardees found — try different NAICS codes or agency');
+      }
     } catch (err) {
       setToast(err.response?.data?.error || 'Search failed');
     } finally { setSearching(false); }

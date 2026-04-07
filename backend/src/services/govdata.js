@@ -134,8 +134,8 @@ const searchPrimeAwardees = async ({ naics_codes, agency, limit = 20 }) => {
         ...(codes.length ? { naics_codes: codes } : {}),
         ...(agency ? { agencies: [{ type: 'awarding', tier: 'toptier', name: agency }] } : {}),
       },
-      fields: ['recipient_name', 'award_amount', 'awarding_agency_name', 'naics_code', 'recipient_uei', 'period_of_performance_start_date'],
-      sort: 'award_amount',
+      fields: ['Recipient Name', 'Award Amount', 'Awarding Agency', 'naics_code', 'Recipient UEI', 'Start Date'],
+      sort: 'Award Amount',
       order: 'desc',
       limit,
       page: 1,
@@ -144,28 +144,28 @@ const searchPrimeAwardees = async ({ naics_codes, agency, limit = 20 }) => {
     const response = await axios.post(`${USASPENDING_BASE}/search/spending_by_award/`, payload, { timeout: 15000 });
     const results = response.data?.results || [];
 
-    // Group by recipient
+    // Group by recipient — USASpending uses capitalized field names
     const primeMap = {};
     results.forEach(r => {
-      const name = r.recipient_name;
+      const name = r['Recipient Name'];
       if (!name) return;
       if (!primeMap[name]) {
         primeMap[name] = {
           company_name: name,
-          uei: r.recipient_uei,
-          agency_focus: r.awarding_agency_name,
+          uei: r['Recipient UEI'],
+          agency_focus: r['Awarding Agency'],
           naics_codes: r.naics_code,
           total_awards_value: 0,
           award_count: 0,
           recent_awards: [],
         };
       }
-      primeMap[name].total_awards_value += r.award_amount || 0;
+      primeMap[name].total_awards_value += r['Award Amount'] || 0;
       primeMap[name].award_count++;
       primeMap[name].recent_awards.push({
-        agency: r.awarding_agency_name,
-        amount: r.award_amount,
-        date: r.period_of_performance_start_date,
+        agency: r['Awarding Agency'],
+        amount: r['Award Amount'],
+        date: r['Start Date'],
       });
     });
 
