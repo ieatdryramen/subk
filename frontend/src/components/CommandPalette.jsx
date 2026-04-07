@@ -6,7 +6,6 @@ const CommandPalette = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [recentLeads, setRecentLeads] = useState([]);
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const inputRef = useRef(null);
@@ -41,30 +40,15 @@ const CommandPalette = () => {
 
   const allCommands = [...navCommands, ...actionCommands];
 
-  // Search leads when query is 3+ chars
-  const searchLeads = useCallback(async (query) => {
-    if (query.length < 3) { setSearchResults(null); return; }
+  // Global search when query is 2+ chars
+  const searchAll = useCallback(async (query) => {
+    if (query.length < 2) { setSearchResults(null); return; }
     setSearching(true);
     try {
-      const { data } = await api.get('/lists');
-      const lists = Array.isArray(data) ? data : [];
-      const allLeads = [];
-      for (const list of lists.slice(0, 5)) {
-        try {
-          const r = await api.get(`/lists/${list.id}/leads`);
-          const leads = Array.isArray(r.data) ? r.data : r.data.leads || [];
-          allLeads.push(...leads.map(l => ({ ...l, listName: list.name, listId: list.id })));
-        } catch {}
-      }
-      const q = query.toLowerCase();
-      const matches = allLeads.filter(l =>
-        (l.full_name || '').toLowerCase().includes(q) ||
-        (l.company || '').toLowerCase().includes(q) ||
-        (l.email || '').toLowerCase().includes(q)
-      ).slice(0, 5);
-      setSearchResults(matches);
+      const { data } = await api.get(`/search?q=${encodeURIComponent(query)}`);
+      setSearchResults(data);
     } catch {
-      setSearchResults([]);
+      setSearchResults({ leads: [], opportunities: [], primes: [] });
     } finally {
       setSearching(false);
     }
@@ -86,9 +70,19 @@ const CommandPalette = () => {
   Object.entries(grouped).forEach(([cat, cmds]) => {
     cmds.forEach(cmd => flatList.push({ ...cmd, _cat: cat }));
   });
-  if (searchResults?.length > 0) {
-    searchResults.forEach(lead => {
-      flatList.push({ label: lead.full_name || lead.email, sub: `${lead.company || ''} · ${lead.listName}`, path: `/lists/${lead.listId}`, icon: '👤', _cat: 'Leads', _isLead: true });
+  if (searchResults?.leads?.length > 0) {
+    searchResults.leads.forEach(lead => {
+      flatList.push({ label: lead.full_name || lead.email, sub: `${lead.company || ''} · ${lead.list_name || ''}`, path: `/lists/${lead.list_id}`, icon: '👤', _cat: 'Leads', _lead: lead });
+    });
+  }
+  if (searchResults?.opportunities?.length > 0) {
+    searchResults.opportunities.forEach(opp => {
+      flatList.push({ label: opp.title, sub: `${opp.agency || ''} · ${opp.set_aside || ''}`, path: '/opportunities', icon: '🔍', _cat: 'Opportunities', _opp: opp });
+    });
+  }
+  if (searchResults?.primes?.length > 0) {
+    searchResults.primes.forEach(prime => {
+      flatList.push({ label: prime.company_name, sub: `${prime.contact_name || ''} · ${prime.agency_focus || ''}`, path: '/primes', icon: '🏢', _cat: 'Primes', _prime: prime });
     });
   }
 
@@ -130,8 +124,8 @@ const CommandPalette = () => {
   useEffect(() => {
     setSelectedIndex(0);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    if (search.length >= 3) {
-      searchTimeout.current = setTimeout(() => searchLeads(search), 300);
+    if (search.length >= 2) {
+      searchTimeout.current = setTimeout(() => searchAll(search), 300);
     } else {
       setSearchResults(null);
     }
@@ -194,50 +188,60 @@ const CommandPalette = () => {
             </div>
           ))}
 
-          {/* Lead search results */}
+          {/* Global search results */}
           {searching && (
             <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', textAlign: 'center' }}>
-              Searching leads...
+              Searching...
             </div>
           )}
-          {searchResults && searchResults.length > 0 && (
-            <div>
-              <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Leads</div>
-              {searchResults.map((lead, li) => {
-                idx++;
-                const i = idx;
-                return (
-                  <button key={lead.id} onClick={() => handleSelect({ path: `/lists/${lead.listId}` })}
-                    onMouseEnter={() => setSelectedIndex(i)}
-                    style={{
-                      width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                      fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
-                      background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
-                      color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
-                      transition: 'background 0.1s',
-                    }}>
-                    <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>👤</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lead.full_name || lead.email}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {[lead.company, lead.title, lead.listName].filter(Boolean).join(' · ')}
+          {searchResults && ['leads', 'opportunities', 'primes'].map(type => {
+            const items = searchResults[type] || [];
+            if (items.length === 0) return null;
+            const config = {
+              leads: { label: 'Leads', icon: '👤', getLabel: i => i.full_name || i.email, getSub: i => [i.company, i.title, i.list_name].filter(Boolean).join(' · '), getPath: i => `/lists/${i.list_id}`, getScore: i => i.icp_score },
+              opportunities: { label: 'Opportunities', icon: '🔍', getLabel: i => i.title, getSub: i => [i.agency, i.set_aside].filter(Boolean).join(' · '), getPath: () => '/opportunities', getScore: i => i.fit_score },
+              primes: { label: 'Primes', icon: '🏢', getLabel: i => i.company_name, getSub: i => [i.contact_name, i.agency_focus].filter(Boolean).join(' · '), getPath: () => '/primes', getScore: i => i.fit_score },
+            }[type];
+            return (
+              <div key={type}>
+                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{config.label}</div>
+                {items.map(item => {
+                  idx++;
+                  const i = idx;
+                  const score = config.getScore(item);
+                  return (
+                    <button key={`${type}-${item.id}`} onClick={() => handleSelect({ path: config.getPath(item) })}
+                      onMouseEnter={() => setSelectedIndex(i)}
+                      style={{
+                        width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                        fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
+                        background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
+                        color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
+                        transition: 'background 0.1s',
+                      }}>
+                      <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>{config.icon}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{config.getLabel(item)}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{config.getSub(item)}</div>
                       </div>
-                    </div>
-                    {lead.icp_score != null && (
-                      <span style={{
-                        padding: '2px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700,
-                        background: lead.icp_score >= 70 ? 'var(--success-bg)' : lead.icp_score >= 40 ? 'var(--warning-bg)' : 'var(--bg3)',
-                        color: lead.icp_score >= 70 ? 'var(--success)' : lead.icp_score >= 40 ? 'var(--warning)' : 'var(--text3)',
-                      }}>{lead.icp_score}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-          {searchResults && searchResults.length === 0 && !searching && search.length >= 3 && (
+                      {score != null && (
+                        <span style={{
+                          padding: '2px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700,
+                          background: score >= 70 ? 'var(--success-bg)' : score >= 40 ? 'var(--warning-bg)' : 'var(--bg3)',
+                          color: score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--text3)',
+                        }}>{score}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+          {searchResults && !searching && search.length >= 2 &&
+            (searchResults.leads?.length || 0) + (searchResults.opportunities?.length || 0) + (searchResults.primes?.length || 0) === 0 &&
+            filteredCommands.length === 0 && (
             <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', textAlign: 'center' }}>
-              No leads found for "{search}"
+              No results for "{search}"
             </div>
           )}
 
@@ -251,7 +255,7 @@ const CommandPalette = () => {
         <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 16, fontSize: 11, color: 'var(--text3)' }}>
           <span>↑↓ Navigate</span>
           <span>↵ Select</span>
-          <span>Type 3+ chars to search leads</span>
+          <span>Type 2+ chars to search everything</span>
         </div>
       </div>
     </>

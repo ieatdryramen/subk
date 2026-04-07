@@ -90,6 +90,7 @@ app.use('/api/autosearch', require('./routes/autosearch'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/seed', require('./routes/seed'));
+app.use('/api/search', require('./routes/search'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.2.0', app: 'SumX CRM', uptime: process.uptime() }));
 
