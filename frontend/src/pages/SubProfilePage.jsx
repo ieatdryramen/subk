@@ -198,7 +198,7 @@ export default function ProfilePage() {
         const r = await api.post('/sub-profile/past-performance', ppForm);
         setPastPerf(p => [r.data, ...p]);
       } else {
-        const r = await api.put(`/profile/past-performance/${ppModal.id}`, ppForm);
+        const r = await api.put(`/sub-profile/past-performance/${ppModal.id}`, ppForm);
         setPastPerf(p => p.map(x => x.id === ppModal.id ? r.data : x));
       }
       setPpModal(null);
@@ -213,7 +213,7 @@ export default function ProfilePage() {
 
   const deletePP = async (id) => {
     if (!confirm('Delete this record?')) return;
-    await api.delete(`/profile/past-performance/${id}`).catch(() => {});
+    await api.delete(`/sub-profile/past-performance/${id}`).catch(() => {});
     setPastPerf(p => p.filter(x => x.id !== id));
   };
 

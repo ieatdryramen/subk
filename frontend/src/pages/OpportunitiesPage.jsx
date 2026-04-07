@@ -269,13 +269,13 @@ export default function OpportunitiesPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {config.auto_enabled && (
+                    {config.auto_frequency && (
                       <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                        {config.frequency}ly
+                        {config.auto_frequency}ly
                       </div>
                     )}
                     <select
-                      value={config.auto_enabled ? config.frequency : ''}
+                      value={config.auto_frequency ? config.auto_frequency : ''}
                       onChange={e => {
                         if (e.target.value) {
                           toggleAutoSearch(config.id, e.target.value);

@@ -71,7 +71,7 @@ function SubDirectory() {
     if (!teamingMsg.trim()) return;
     setSending(true);
     try {
-      await api.post('/marketplace/teaming', { to_user_id: teamingModal.user_id, message: teamingMsg, from_type: 'prime' });
+      await api.post('/marketplace/teaming', { to_user_id: teamingModal.user_id, message: teamingMsg, from_type: 'sub' });
       setTeamingModal(null);
       setTeamingMsg('');
       toast.addToast('Teaming request sent!');
@@ -83,7 +83,7 @@ function SubDirectory() {
     setAddingTracker(p => ({ ...p, [sub.id]: true }));
     try {
       const subProfile = await api.get('/profile').catch(() => null);
-      await api.post('/api/primes', {
+      await api.post('/subk-primes', {
         company_name: sub.company_name,
         naics_codes: sub.naics_codes,
         website: sub.website_url,
@@ -227,7 +227,7 @@ function SharedOpportunities({ myUserId }) {
   const addPrimeToTracker = async (opp) => {
     setAddingTracker(p => ({ ...p, [opp.id]: true }));
     try {
-      await api.post('/api/primes', {
+      await api.post('/subk-primes', {
         company_name: opp.prime_company || opp.prime_name,
         naics_codes: opp.naics_codes,
         agency_focus: opp.agency,

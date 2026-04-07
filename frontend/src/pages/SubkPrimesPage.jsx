@@ -175,7 +175,7 @@ export default function PrimesPage() {
   };
 
   const filteredPrimes = primes.filter(p => statusFilter === 'all' || p.outreach_status === statusFilter);
-  const displayPrimes = tab === 'results' ? [] : filteredPrimes;
+  const displayPrimes = tab === 'results' ? searchResults : filteredPrimes;
 
   const s = {
     page: { padding: '2rem 2.5rem' },
