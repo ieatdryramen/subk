@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 900 },
@@ -37,6 +38,7 @@ const PLANS = [
 const FEATURES = ['Teaming marketplace', 'BD outreach sequences', 'Zoho CRM sync', 'AI GovCon coach', 'Compliance checker', 'Prime tracker'];
 
 export default function BillingPage() {
+  const { addToast } = useToast();
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
   const [stripeReady, setStripeReady] = useState(false);
@@ -60,7 +62,7 @@ export default function BillingPage() {
 
   const upgrade = async (planKey) => {
     if (!stripeReady) {
-      alert('Stripe is not configured yet. Add STRIPE_SECRET_KEY and price IDs to Railway environment variables.');
+      addToast('Stripe is not configured yet. Add STRIPE_SECRET_KEY and price IDs to Railway environment variables.', 'error');
       return;
     }
     setLoading(true);
@@ -69,11 +71,11 @@ export default function BillingPage() {
       if (r.data?.url) {
         window.location.href = r.data.url;
       } else {
-        alert('Checkout URL not received — try again');
+        addToast('Checkout URL not received — try again', 'error');
         setLoading(false);
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to start checkout. Make sure Stripe env vars are set.');
+      addToast(err.response?.data?.error || 'Failed to start checkout. Make sure Stripe env vars are set.', 'error');
       setLoading(false);
     }
   };

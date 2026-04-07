@@ -9,7 +9,7 @@ const TYPE_ICONS = { email: '✉', call: '📞', linkedin: '🔗', mefu: '📅' 
 const TYPE_COLORS = {
   email:    { bg: 'var(--accent-bg)',        color: 'var(--accent2)', border: 'var(--accent)' },
   call:     { bg: 'rgba(34,197,94,0.08)',    color: 'var(--success)', border: 'var(--success)' },
-  linkedin: { bg: 'var(--teal-bg)',          color: 'var(--accent)',  border: 'var(--accent)' },
+  linkedin: { bg: 'var(--accent-bg)',         color: 'var(--accent)',  border: 'var(--accent)' },
   mefu:     { bg: 'rgba(245,158,11,0.08)',   color: 'var(--warning)', border: 'var(--warning)' },
 };
 

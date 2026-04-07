@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 900 },
@@ -30,6 +31,7 @@ const s = {
 };
 
 export default function LeadListsPage() {
+  const { addToast } = useToast();
   const [lists, setLists] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
@@ -73,7 +75,7 @@ export default function LeadListsPage() {
       load();
     } catch (err) {
       console.error(err);
-      alert('Failed to delete list — try again');
+      addToast('Failed to delete list — try again', 'error');
     }
   };
 

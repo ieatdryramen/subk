@@ -5,6 +5,7 @@ import LeadNotes from './LeadNotes';
 import Battlecard from './Battlecard';
 import CallLogger from './CallLogger';
 import ConversationNotes from './ConversationNotes';
+import { useToast } from './Toast';
 
 const tabs = [
   { key: 'lead_info', label: '👤 Lead Info' },
@@ -79,6 +80,7 @@ const msgStyle = (role) => ({
 });
 
 export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPlaybookUpdate }) {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('sequence');
   const [copied, setCopied] = useState(false);
   const [sending, setSending] = useState(false); // kept for future use
@@ -151,7 +153,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       await api.post('/templates', { name, subject, body, touchpoint: tabKey });
       setSavedTemplate(true);
       setTimeout(() => setSavedTemplate(false), 2500);
-    } catch (err) { alert('Failed to save template'); }
+    } catch (err) { addToast('Failed to save template', 'error'); }
   };
 
   const sendChat = async (text) => {
@@ -178,7 +180,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       setLocalPlaybook(p => ({ ...p, [activeTab]: contentDraft }));
       setEditingContent(false);
     } catch (err) {
-      alert('Failed to save');
+      addToast('Failed to save', 'error');
     } finally { setSavingContent(false); }
   };
 
@@ -192,7 +194,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
     try {
       await api.post(`/engagement/${leadId}/status`, { status });
       setEngagementStatus(status);
-    } catch (e) { alert('Failed to update status'); }
+    } catch (e) { addToast('Failed to update status', 'error'); }
   };
 
   const snooze = async (days) => {
@@ -200,7 +202,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       const r = await api.post(`/engagement/${leadId}/snooze`, { days });
       setSnoozedUntil(r.data.snoozed_until);
       setShowSnooze(false);
-    } catch (e) { alert('Failed to snooze'); }
+    } catch (e) { addToast('Failed to snooze', 'error'); }
   };
 
   const generateTab = async () => {
@@ -211,7 +213,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
         setLocalPlaybook(p => ({ ...p, [activeTab]: r.data[activeTab] }));
       }
     } catch (err) {
-      alert('Generation failed');
+      addToast('Generation failed', 'error');
     } finally { setGeneratingTab(false); }
   };
 
@@ -244,7 +246,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
       setLocalLead(prev => ({ ...prev, ...infoForm }));
       setEditingInfo(false);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save');
+      addToast(err.response?.data?.error || 'Failed to save', 'error');
     } finally { setSavingInfo(false); }
   };
 

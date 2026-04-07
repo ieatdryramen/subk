@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import PlaybookViewer from '../components/PlaybookViewer';
+import { useToast } from '../components/Toast';
 
 const statusColors = {
   pending: { bg: 'var(--bg3)', color: 'var(--text3)', label: 'Pending' },
@@ -60,6 +61,7 @@ const s = {
 export default function LeadListDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const [list, setList] = useState(null);
   const [leads, setLeads] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
@@ -155,7 +157,7 @@ export default function LeadListDetailPage() {
   const generateAll = async () => {
     setGenerating(true); setProgress(0);
     try { await api.post(`/playbooks/generate-list/${id}`); }
-    catch (err) { alert(err.response?.data?.error || 'Generation failed. Check your company profile.'); setGenerating(false); }
+    catch (err) { addToast(err.response?.data?.error || 'Generation failed. Check your company profile.', 'error'); setGenerating(false); }
   };
 
   const bulkGenerate = async (sections) => {
@@ -201,7 +203,7 @@ export default function LeadListDetailPage() {
       return next;
     });
     if (failCount > 0) {
-      alert(`${failCount} of ${ids.length} leads failed to delete — try again`);
+      addToast(`${failCount} of ${ids.length} leads failed to delete — try again`, 'error');
     }
   };
 
@@ -233,7 +235,7 @@ export default function LeadListDetailPage() {
     }
     setBulkZohoing(false);
     setSelectedIds(new Set());
-    alert(`Pushed ${ok} to Zoho${fail > 0 ? `, ${fail} failed` : ''}`);
+    addToast(`Pushed ${ok} to Zoho${fail > 0 ? `, ${fail} failed` : ''}`, fail > 0 ? 'error' : 'success');
   };
 
   const bulkScore = async () => {
@@ -284,14 +286,14 @@ export default function LeadListDetailPage() {
       setLeads(ls => ls.map(l => l.id === editingLead.id ? { ...l, ...editForm } : l));
       setEditingLead(null);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save');
+      addToast(err.response?.data?.error || 'Failed to save', 'error');
     } finally { setSavingEdit(false); }
   };
 
   const scoreList = async () => {
     setScoring(true); setProgress(0);
     try { await api.post(`/scoring/score-list/${id}`); }
-    catch (err) { alert(err.response?.data?.error || 'Scoring failed.'); setScoring(false); }
+    catch (err) { addToast(err.response?.data?.error || 'Scoring failed.', 'error'); setScoring(false); }
   };
 
   const exportList = (format) => {
@@ -320,9 +322,9 @@ export default function LeadListDetailPage() {
     e.stopPropagation();
     try {
       const r = await api.post(`/zoho/push/${leadId}`);
-      alert(r.data.message);
+      addToast(r.data.message, 'success');
     } catch (err) {
-      alert(err.response?.data?.error || 'Zoho push failed.');
+      addToast(err.response?.data?.error || 'Zoho push failed.', 'error');
     }
   };
 
@@ -351,8 +353,8 @@ export default function LeadListDetailPage() {
       const r = await api.post(`/lists/${id}/import`, fd);
       await loadLeads();
       setModal(null);
-      alert(`Imported ${r.data.imported} leads`);
-    } catch (err) { alert(err.response?.data?.error || 'Import failed'); }
+      addToast(`Imported ${r.data.imported} leads`, 'success');
+    } catch (err) { addToast(err.response?.data?.error || 'Import failed', 'error'); }
   };
 
   const toggleRow = (leadId) => setExpandedId(prev => prev === leadId ? null : leadId);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 1200 },
@@ -47,6 +48,7 @@ const timeAgo = (ts) => {
 const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 export default function AdminDashboard() {
+  const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +66,7 @@ export default function AdminDashboard() {
     try {
       await api.put(`/admin/members/${memberId}/role`, { role });
       load();
-    } catch { alert('Failed to update role'); }
+    } catch { addToast('Failed to update role', 'error'); }
   };
 
   const removeMember = async (memberId, name) => {
@@ -72,7 +74,7 @@ export default function AdminDashboard() {
     try {
       await api.delete(`/admin/members/${memberId}`);
       load();
-    } catch { alert('Failed to remove member'); }
+    } catch { addToast('Failed to remove member', 'error'); }
   };
 
   if (loading) return <Layout><div style={{ padding: '2rem', color: 'var(--text2)' }}>Loading...</div></Layout>;

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 800 },
@@ -26,6 +27,7 @@ const s = {
 };
 
 export default function TeamPage() {
+  const { addToast } = useToast();
   const [org, setOrg] = useState(null);
   const [members, setMembers] = useState([]);
   const [copied, setCopied] = useState(false);
@@ -84,7 +86,7 @@ export default function TeamPage() {
       setSlackConnected(true);
       setSlackWebhook('');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to connect Slack');
+      addToast(err.response?.data?.error || 'Failed to connect Slack', 'error');
     } finally {
       setSavingSlack(false);
     }
@@ -95,7 +97,7 @@ export default function TeamPage() {
       const r = await api.get('/gmail/connect');
       window.location.href = r.data.url;
     } catch (err) {
-      alert(err.response?.data?.error || 'Gmail not configured yet. Add GMAIL_CLIENT_ID to Railway environment variables.');
+      addToast(err.response?.data?.error || 'Gmail not configured yet. Add GMAIL_CLIENT_ID to Railway environment variables.', 'error');
     }
   };
 
@@ -104,7 +106,7 @@ export default function TeamPage() {
       const r = await api.get('/outlook/connect');
       window.location.href = r.data.url;
     } catch (err) {
-      alert(err.response?.data?.error || 'Outlook not configured yet. Add OUTLOOK_CLIENT_ID to Railway environment variables.');
+      addToast(err.response?.data?.error || 'Outlook not configured yet. Add OUTLOOK_CLIENT_ID to Railway environment variables.', 'error');
     }
   };
 
@@ -114,7 +116,7 @@ export default function TeamPage() {
       const r = await api.get('/zoho/connect');
       window.location.href = r.data.url;
     } catch (err) {
-      alert('Failed to initiate Zoho connection: ' + (err.response?.data?.error || err.message));
+      addToast('Failed to initiate Zoho connection: ' + (err.response?.data?.error || err.message), 'error');
       setSavingZoho(false);
     }
   };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const TOUCHPOINT_LABELS = {
   email1: 'Day 1', email2: 'Day 3', email3: 'Day 7', email4: 'Day 14',
@@ -29,6 +30,7 @@ const s = {
 };
 
 export default function TemplatesPage() {
+  const { addToast } = useToast();
   const [templates, setTemplates] = useState([]);
   const [filter, setFilter] = useState('all');
   const [copied, setCopied] = useState({});
@@ -50,7 +52,7 @@ export default function TemplatesPage() {
       setTemplates(t => t.filter(x => x.id !== id));
     } catch (err) {
       console.error(err);
-      alert('Failed to delete template — try again');
+      addToast('Failed to delete template — try again', 'error');
     }
   };
 
