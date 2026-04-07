@@ -193,28 +193,63 @@ export default function PipelinePage() {
   }).length;
   const completed = filteredLeads.filter(l => ['completed','replied','call_booked','linkedin_replied'].includes(l[stageField] || l.sequence_stage || '')).length;
   const notStarted = filteredLeads.filter(l => !l[stageField] && (!l.sequence_stage || l.sequence_stage === 'not_started')).length;
+  const meetingBooked = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'meeting_booked').length;
+  const mefu = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'mefu').length;
+  const engagementRate = total > 0 ? Math.round(((inProgress + completed) / total) * 100) : 0;
+  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  // Average ICP score
+  const scoredLeads = filteredLeads.filter(l => l.icp_score != null);
+  const avgIcp = scoredLeads.length > 0 ? Math.round(scoredLeads.reduce((a, l) => a + l.icp_score, 0) / scoredLeads.length) : 0;
 
   const btnBase = { padding: '7px 14px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', transition: 'all 0.15s' };
 
   return (
     <Layout>
+      <style>{`@media (max-width: 768px) { .pf-stat-grid { grid-template-columns: repeat(2, 1fr) !important; } }`}</style>
       <div style={{ padding: '2rem 2.5rem' }}>
-        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>Pipeline</div>
-        <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: '1.5rem' }}>
-          Drag leads between stages · check boxes for bulk actions
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>Pipeline</div>
+            <div style={{ color: 'var(--text2)', fontSize: 13 }}>
+              Drag leads between stages · check boxes for bulk actions
+            </div>
+          </div>
+          {total > 0 && (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: engagementRate >= 30 ? 'var(--success)' : 'var(--warning)' }}>{engagementRate}%</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Engaged</div>
+              </div>
+              <div style={{ width: 1, height: 30, background: 'var(--border)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent2)' }}>{avgIcp}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Avg ICP</div>
+              </div>
+              <div style={{ width: 1, height: 30, background: 'var(--border)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: meetingBooked > 0 ? 'var(--success)' : 'var(--text3)' }}>{meetingBooked}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Meetings</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Stats */}
-        <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
+        <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: '1.5rem' }}>
           {[
-            { n: total, l: 'Total leads', c: 'var(--text)' },
-            { n: notStarted, l: 'Not started', c: 'var(--text3)' },
-            { n: inProgress, l: 'In progress', c: 'var(--accent2)' },
-            { n: completed, l: 'Completed', c: 'var(--success)' },
+            { n: total, l: 'Total leads', c: 'var(--text)', icon: '👤' },
+            { n: notStarted, l: 'Not started', c: 'var(--text3)', icon: '⏸' },
+            { n: inProgress, l: 'In progress', c: 'var(--accent2)', icon: '▶' },
+            { n: completed, l: 'Completed', c: 'var(--success)', icon: '✓' },
+            { n: mefu, l: 'MEFU', c: 'var(--warning)', icon: '📅' },
           ].map(x => (
-            <div key={x.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem' }}>
-              <div style={{ fontSize: 28, fontWeight: 700, color: x.c }}>{x.n}</div>
-              <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{x.l}</div>
+            <div key={x.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.9rem 1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: x.c }}>{x.n}</div>
+                <span style={{ fontSize: 14, opacity: 0.3 }}>{x.icon}</span>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{x.l}</div>
             </div>
           ))}
         </div>

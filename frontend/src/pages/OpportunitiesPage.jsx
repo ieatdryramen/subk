@@ -194,16 +194,62 @@ export default function OpportunitiesPage() {
     msgStyle: (role) => ({ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start', background: role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: role === 'user' ? '#FFFFFF' : 'var(--text)', border: role === 'user' ? 'none' : '1px solid var(--border)' }),
   };
 
+  // Deadline urgency helper
+  const deadlineUrgency = (deadline) => {
+    if (!deadline) return null;
+    const days = Math.ceil((new Date(deadline) - new Date()) / 86400000);
+    if (days < 0) return { label: 'Expired', color: 'var(--text3)', bg: 'var(--bg3)' };
+    if (days <= 3) return { label: `${days}d left`, color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
+    if (days <= 7) return { label: `${days}d left`, color: 'var(--warning)', bg: 'var(--warning-bg)' };
+    if (days <= 14) return { label: `${days}d left`, color: 'var(--accent2)', bg: 'var(--accent-bg)' };
+    return { label: new Date(deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), color: 'var(--text3)', bg: 'var(--bg3)' };
+  };
+
+  // Stats for tracked tab
+  const highFit = opps.filter(o => o.fit_score >= 70).length;
+  const pursuing = opps.filter(o => ['pursuing', 'teaming', 'submitted'].includes(o.status)).length;
+  const closingSoon = opps.filter(o => {
+    if (!o.response_deadline) return false;
+    const days = Math.ceil((new Date(o.response_deadline) - new Date()) / 86400000);
+    return days >= 0 && days <= 7;
+  }).length;
+
   return (
     <Layout>
       <div style={s.page}>
-        <div style={s.heading}>Opportunities</div>
-        <div style={s.sub}>Live federal contract opportunities scored against your profile</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+          <div>
+            <div style={s.heading}>Opportunities</div>
+            <div style={{ color: 'var(--text2)', fontSize: 13 }}>Live federal contract opportunities scored against your profile</div>
+          </div>
+          {tab === 'tracked' && opps.length > 0 && (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)' }}>{highFit}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>High Fit</div>
+              </div>
+              <div style={{ width: 1, height: 28, background: 'var(--border)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent2)' }}>{pursuing}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Pursuing</div>
+              </div>
+              {closingSoon > 0 && (
+                <>
+                  <div style={{ width: 1, height: 28, background: 'var(--border)' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--danger)' }}>{closingSoon}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Due 7d</div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         <div style={s.tabs}>
           {[
             { key: 'tracked', label: `Tracked (${opps.length})` },
-            { key: 'saved', label: `💾 Saved (${savedOpps.length})` },
+            { key: 'saved', label: `Saved (${savedOpps.length})` },
             { key: 'search', label: '🔍 New Search' },
             ...(searchResults.length ? [{ key: 'results', label: `Results (${searchResults.length})` }] : []),
           ].map(t => (
@@ -371,15 +417,18 @@ export default function OpportunitiesPage() {
               <div style={s.scoreBadge(opp.fit_score)}>{opp.fit_score || '—'}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4, lineHeight: 1.3 }}>{opp.title}</div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12, color: 'var(--text2)' }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, color: 'var(--text2)', alignItems: 'center' }}>
                   <span>{opp.agency}</span>
-                  {opp.naics_code && <span>NAICS {opp.naics_code}</span>}
-                  {opp.set_aside && <span style={{ color: 'var(--accent2)' }}>{opp.set_aside}</span>}
-                  {opp.response_deadline && (
-                    <span style={{ color: new Date(opp.response_deadline) < new Date(Date.now() + 14*24*60*60*1000) ? 'var(--warning)' : 'var(--text3)' }}>
-                      Due {new Date(opp.response_deadline).toLocaleDateString()}
-                    </span>
-                  )}
+                  {opp.naics_code && <span style={{ color: 'var(--text3)' }}>NAICS {opp.naics_code}</span>}
+                  {opp.set_aside && <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, background: 'var(--accent-bg)', color: 'var(--accent2)', fontWeight: 500 }}>{opp.set_aside}</span>}
+                  {opp.response_deadline && (() => {
+                    const urg = deadlineUrgency(opp.response_deadline);
+                    return urg && (
+                      <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 600, background: urg.bg, color: urg.color }}>
+                        {urg.label}
+                      </span>
+                    );
+                  })()}
                 </div>
                 {opp.fit_reason && (
                   <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 4 }}>{opp.fit_reason}</div>
@@ -424,6 +473,20 @@ export default function OpportunitiesPage() {
 
             {expanded === (opp.id || opp.sam_notice_id) && (
               <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.25rem', background: 'var(--bg2)' }}>
+                {/* Fit Score Breakdown */}
+                {opp.fit_score && (
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'center', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
+                    <div style={{ textAlign: 'center', minWidth: 60 }}>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: scoreColor(opp.fit_score).color }}>{opp.fit_score}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Fit Score</div>
+                    </div>
+                    <div style={{ height: 40, width: 1, background: 'var(--border)' }} />
+                    <div style={{ flex: 1, fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
+                      {opp.fit_reason || (opp.fit_score >= 70 ? 'Strong alignment with your company profile, NAICS codes, and capabilities.' : opp.fit_score >= 40 ? 'Moderate alignment — review requirements to determine fit.' : 'Low alignment with current profile. May require teaming.')}
+                    </div>
+                  </div>
+                )}
+
                 {opp.description && (
                   <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem', lineHeight: 1.7 }}>{opp.description}</div>
                 )}
@@ -432,6 +495,7 @@ export default function OpportunitiesPage() {
                     { label: 'Place of Performance', val: opp.place_of_performance },
                     { label: 'Solicitation #', val: opp.solicitation_number },
                     { label: 'Point of Contact', val: opp.primary_contact_name ? `${opp.primary_contact_name}${opp.primary_contact_email ? ` · ${opp.primary_contact_email}` : ''}` : null },
+                    { label: 'Response Deadline', val: opp.response_deadline ? new Date(opp.response_deadline).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : null },
                   ].filter(x => x.val).map(x => (
                     <div key={x.label}>
                       <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>{x.label}</div>

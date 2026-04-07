@@ -126,7 +126,7 @@ export default function TeamingInboxPage() {
           <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>{tab === 'received' ? '📥' : '📤'}</div>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No {tab} requests yet</div>
-            <div style={{ fontSize: 14, marginBottom: 20, maxWidth: 450, margin: '0 auto', marginBottom: 20 }}>
+            <div style={{ fontSize: 14, maxWidth: 450, margin: '0 auto 20px' }}>
               {tab === 'received'
                 ? 'When primes and subs reach out to partner with you, requests will appear here. Accept or decline and connect.'
                 : 'Teaming requests you send will be tracked here. Start by exploring the Marketplace to find partners.'}
