@@ -129,7 +129,7 @@ const CommandPalette = () => {
     } else {
       setSearchResults(null);
     }
-  }, [search, searchLeads]);
+  }, [search, searchAll]);
 
   const handleSelect = (command) => {
     if (command.action) command.action();
