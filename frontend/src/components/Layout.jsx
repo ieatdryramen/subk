@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import UsageBanner from './UsageBanner';
 import TouchBanner from './TouchBanner';
+import NotificationBell from './NotificationBell';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -60,7 +61,7 @@ export default function Layout({ children }) {
         <div>
           <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: '#08A5BF' }}>SumX</span>
           <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}> CRM</span>
-          <span style={{ fontSize: 10, fontFamily: 'Inter', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>GovCon Intelligence Platform</span>
+          <span style={{ fontSize: 10, fontFamily: 'Plus Jakarta Sans, sans-serif', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>GovCon Intelligence Platform</span>
         </div>
         <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
@@ -83,6 +84,9 @@ export default function Layout({ children }) {
           </div>
         ))}
       </nav>
+      <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)' }}>
+        <NotificationBell />
+      </div>
       <TouchBanner />
       <UsageBanner />
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
