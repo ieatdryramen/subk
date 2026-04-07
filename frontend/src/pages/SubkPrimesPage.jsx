@@ -25,11 +25,24 @@ const formatMoney = (n) => {
   return `$${n}`;
 };
 
+function PrimesToast({ message, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', fontSize: 13, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 400 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <span>{message}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 export default function PrimesPage() {
   const [primes, setPrimes] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [tab, setTab] = useState('tracked');
+  const [toast, setToast] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [activeSubTab, setActiveSubTab] = useState({});
   const [generating, setGenerating] = useState({});
@@ -75,7 +88,7 @@ export default function PrimesPage() {
       setSearchResults(r.data);
       setTab('results');
     } catch (err) {
-      alert(err.response?.data?.error || 'Search failed');
+      setToast(err.response?.data?.error || 'Search failed');
     } finally { setSearching(false); }
   };
 
@@ -85,7 +98,7 @@ export default function PrimesPage() {
       setPrimes(p => [r.data, ...p]);
       setTab('tracked');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to add prime');
+      setToast(err.response?.data?.error || 'Failed to add prime');
     }
   };
 
@@ -95,7 +108,7 @@ export default function PrimesPage() {
       const r = await api.post(`/primes/${primeId}/generate`);
       setPrimes(ps => ps.map(p => p.id === primeId ? r.data : p));
     } catch (err) {
-      alert(err.response?.data?.error || 'Generation failed — complete your profile first');
+      setToast(err.response?.data?.error || 'Generation failed — complete your profile first');
     } finally { setGenerating(g => ({ ...g, [primeId]: false })); }
   };
 
@@ -157,7 +170,7 @@ export default function PrimesPage() {
       a.download = 'subk-primes.csv';
       a.click();
     } catch (e) {
-      alert('Export failed');
+      setToast('Export failed');
     }
   };
 
@@ -180,6 +193,7 @@ export default function PrimesPage() {
 
   return (
     <Layout>
+      {toast && <PrimesToast message={toast} onClose={() => setToast(null)} />}
       <div style={s.page}>
         <div style={s.heading}>Prime Tracker</div>
         <div style={s.sub}>Find primes winning federal contracts in your NAICS codes — then get AI-powered teaming outreach</div>

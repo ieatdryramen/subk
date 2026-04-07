@@ -2,6 +2,18 @@ import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 
+function OppsToast({ message, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', fontSize: 13, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 400 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <span>{message}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 const scoreColor = (score) => {
   if (!score) return { color: 'var(--text3)', bg: 'var(--bg3)' };
   if (score >= 70) return { color: 'var(--success)', bg: 'var(--success-bg)' };
@@ -38,6 +50,7 @@ export default function OpportunitiesPage() {
   const [savedMap, setSavedMap] = useState({});
   const [autoSearchConfigs, setAutoSearchConfigs] = useState([]);
   const [loadingAutoSearch, setLoadingAutoSearch] = useState(false);
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     api.get('/opportunities').then(r => setOpps(r.data)).catch(() => {});
@@ -61,9 +74,9 @@ export default function OpportunitiesPage() {
       setTab('results');
     } catch (err) {
       if (err.response?.data?.upgrade) {
-        alert('Search limit reached. Upgrade your plan to continue.');
+        setToast('Search limit reached. Upgrade your plan to continue.');
       } else {
-        alert(err.response?.data?.error || 'Search failed');
+        setToast(err.response?.data?.error || 'Search failed');
       }
     } finally { setSearching(false); }
   };
@@ -90,7 +103,7 @@ export default function OpportunitiesPage() {
         setSavedMap(m => ({ ...m, [id]: true }));
       }
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to save opportunity');
+      setToast(e.response?.data?.error || 'Failed to save opportunity');
     }
   };
 
@@ -120,7 +133,7 @@ export default function OpportunitiesPage() {
       const r = await api.get('/autosearch');
       setAutoSearchConfigs(r.data || []);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update auto-search');
+      setToast(err.response?.data?.error || 'Failed to update auto-search');
     } finally {
       setLoadingAutoSearch(false);
     }
@@ -135,7 +148,7 @@ export default function OpportunitiesPage() {
       a.download = 'subk-opportunities.csv';
       a.click();
     } catch (e) {
-      alert('Export failed');
+      setToast('Export failed');
     }
   };
 
@@ -144,9 +157,9 @@ export default function OpportunitiesPage() {
     try {
       await api.post(`/autosearch/run/${searchId}`);
       api.get('/opportunities').then(r => setOpps(r.data));
-      alert('Search completed! New opportunities have been added.');
+      setToast('Search completed! New opportunities have been added.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to run search');
+      setToast(err.response?.data?.error || 'Failed to run search');
     } finally {
       setLoadingAutoSearch(false);
     }
@@ -180,6 +193,7 @@ export default function OpportunitiesPage() {
 
   return (
     <Layout>
+      {toast && <OppsToast message={toast} onClose={() => setToast(null)} />}
       <div style={s.page}>
         <div style={s.heading}>Opportunities</div>
         <div style={s.sub}>Live federal contract opportunities scored against your profile</div>

@@ -31,6 +31,18 @@ const s = {
 };
 
 // ── Sub Directory Tab ──────────────────────────────────────────────────────
+function Toast({ message, onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, []);
+  return (
+    <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 999, background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '12px 20px', fontSize: 13, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', maxWidth: 400, animation: 'fadeIn 0.2s' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <span style={{ whiteSpace: 'pre-wrap' }}>{message}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 function SubDirectory() {
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +54,7 @@ function SubDirectory() {
   const [teamingMsg, setTeamingMsg] = useState('');
   const [sending, setSending] = useState(false);
   const [addingTracker, setAddingTracker] = useState({});
+  const [toast, setToast] = useState(null);
 
   const load = () => {
     const params = new URLSearchParams();
@@ -60,8 +73,8 @@ function SubDirectory() {
       await api.post('/marketplace/teaming', { to_user_id: teamingModal.user_id, message: teamingMsg, from_type: 'prime' });
       setTeamingModal(null);
       setTeamingMsg('');
-      alert('Teaming request sent!');
-    } catch (e) { alert(e.response?.data?.error || 'Failed to send'); }
+      setToast('Teaming request sent!');
+    } catch (e) { setToast(e.response?.data?.error || 'Failed to send'); }
     finally { setSending(false); }
   };
 
@@ -76,9 +89,9 @@ function SubDirectory() {
         certifications: sub.certifications,
         size_category: 'small_business'
       });
-      alert('Sub added to tracker!');
+      setToast('Sub added to tracker!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to add to tracker');
+      setToast(e.response?.data?.error || 'Failed to add to tracker');
     } finally {
       setAddingTracker(p => ({ ...p, [sub.id]: false }));
     }
@@ -86,6 +99,7 @@ function SubDirectory() {
 
   return (
     <>
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <div style={s.filters}>
         <input style={s.filterInput} placeholder="Search capabilities..." value={q} onChange={e => setQ(e.target.value)} />
         <input style={{ ...s.filterInput, width: 140 }} placeholder="NAICS code..." value={naics} onChange={e => setNaics(e.target.value)} />
@@ -173,6 +187,8 @@ function SharedOpportunities({ myUserId }) {
   const [form, setForm] = useState({ title: '', description: '', naics_codes: '', set_aside: '', agency: '', response_deadline: '', value_min: '', value_max: '', roles_needed: '', requirements: '' });
   const [posting, setPosting] = useState(false);
   const [addingTracker, setAddingTracker] = useState({});
+  const [toast, setToast] = useState(null);
+  const [interestList, setInterestList] = useState(null);
 
   const load = () => {
     api.get('/marketplace/opportunities').then(r => { setOpps(r.data); setLoading(false); }).catch(() => setLoading(false));
@@ -188,7 +204,7 @@ function SharedOpportunities({ myUserId }) {
       setShowPost(false);
       setForm({ title: '', description: '', naics_codes: '', set_aside: '', agency: '', response_deadline: '', value_min: '', value_max: '', roles_needed: '', requirements: '' });
       load();
-    } catch (e) { alert(e.response?.data?.error || 'Failed to post'); }
+    } catch (e) { setToast(e.response?.data?.error || 'Failed to post'); }
     finally { setPosting(false); }
   };
 
@@ -198,8 +214,8 @@ function SharedOpportunities({ myUserId }) {
       await api.post(`/marketplace/opportunities/${interestModal.id}/interest`, { message: interestMsg });
       setInterestModal(null);
       setInterestMsg('');
-      alert('Interest submitted! The prime will be notified.');
-    } catch (e) { alert(e.response?.data?.error || 'Failed to submit'); }
+      setToast('Interest submitted! The prime will be notified.');
+    } catch (e) { setToast(e.response?.data?.error || 'Failed to submit'); }
     finally { setSending(false); }
   };
 
@@ -212,9 +228,9 @@ function SharedOpportunities({ myUserId }) {
         agency_focus: opp.agency,
         size_category: 'prime'
       });
-      alert('Prime added to tracker!');
+      setToast('Prime added to tracker!');
     } catch (e) {
-      alert(e.response?.data?.error || 'Failed to add prime to tracker');
+      setToast(e.response?.data?.error || 'Failed to add prime to tracker');
     } finally {
       setAddingTracker(p => ({ ...p, [opp.id]: false }));
     }
@@ -224,6 +240,25 @@ function SharedOpportunities({ myUserId }) {
 
   return (
     <>
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {interestList && (
+        <div style={s.modal} onClick={() => setInterestList(null)}>
+          <div style={s.modalCard} onClick={e => e.stopPropagation()}>
+            <div style={s.modalTitle}>Interest — {interestList.title}</div>
+            {interestList.interests.length === 0 ? (
+              <div style={{ color: 'var(--text3)', fontSize: 13, padding: '1rem 0' }}>No interest yet.</div>
+            ) : interestList.interests.map((item, i) => (
+              <div key={i} style={{ padding: '10px 0', borderBottom: i < interestList.interests.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{item.company_name || item.full_name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>{item.message || 'No message'}</div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+              <button style={s.btn('default')} onClick={() => setInterestList(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={s.postBanner}>
         <div>
           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--accent2)' }}>Are you a prime looking for subs?</div>
@@ -269,7 +304,7 @@ function SharedOpportunities({ myUserId }) {
                 {isOwn ? (
                   <button style={s.btn('default')} onClick={async () => {
                     const r = await api.get(`/marketplace/opportunities/${opp.id}/interests`).catch(() => ({ data: [] }));
-                    alert(`${r.data.length} sub(s) expressed interest:\n\n${r.data.map(i => `${i.company_name || i.full_name}: ${i.message || 'No message'}`).join('\n\n') || 'None yet'}`);
+                    setInterestList({ title: opp.title, interests: r.data });
                   }}>View Interest</button>
                 ) : (
                   <>
