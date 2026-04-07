@@ -84,7 +84,46 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
       };
     });
 
-    // Post-filter: NAICS code filtering (if provided, since the search API doesn't have a direct NAICS param)
+    // Enrich with NAICS, contact info, set-aside from detail API (5 concurrent)
+    const enrichBatch = async (opps) => {
+      const CONCURRENCY = 5;
+      for (let i = 0; i < opps.length; i += CONCURRENCY) {
+        const batch = opps.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(async (opp) => {
+          try {
+            const detailRes = await axios.get(
+              `https://sam.gov/api/prod/opps/v2/opportunities/${opp.sam_notice_id}`,
+              { timeout: 8000 }
+            );
+            const d = detailRes.data?.data2;
+            if (d) {
+              // NAICS
+              const primaryNaics = d.naics?.find(n => n.type === 'primary');
+              if (primaryNaics?.code?.[0]) opp.naics_code = primaryNaics.code[0];
+              // Classification/PSC code
+              if (d.classificationCode) opp.psc_code = d.classificationCode;
+              // Contact info
+              const poc = d.pointOfContact?.find(c => c.type === 'primary') || d.pointOfContact?.[0];
+              if (poc) {
+                opp.primary_contact_name = poc.fullName || '';
+                opp.primary_contact_email = poc.email || '';
+              }
+              // Place of performance
+              if (d.placeOfPerformance) {
+                const pop = d.placeOfPerformance;
+                opp.place_of_performance = [pop.city, pop.state].filter(Boolean).join(', ') || opp.place_of_performance;
+              }
+              // Set-aside from detail (more reliable)
+              if (d.typeOfSetAside) opp.set_aside = d.typeOfSetAsideDescription || d.typeOfSetAside || opp.set_aside;
+            }
+          } catch { /* detail fetch failed, keep search data */ }
+        }));
+      }
+    };
+    await enrichBatch(mapped);
+    console.log(`Enriched ${mapped.filter(o => o.naics_code).length}/${mapped.length} opportunities with NAICS codes`);
+
+    // Post-filter: NAICS code filtering (now with enriched data)
     if (codes.length > 0 && mapped.length > 0) {
       const naicsFiltered = mapped.filter(opp =>
         codes.some(c => opp.naics_code && opp.naics_code.startsWith(c))
