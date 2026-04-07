@@ -34,6 +34,7 @@ export default function OnboardingPage() {
   const [parseMsg, setParseMsg] = useState('');
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
@@ -117,9 +118,45 @@ export default function OnboardingPage() {
         showToast('Please select NAICS codes', 'error');
         return;
       }
-      setStep(4);
+      await runFirstSearch();
     } else if (step === 4) {
       await saveAndRedirect();
+    }
+  };
+
+  const runFirstSearch = async () => {
+    setSearching(true);
+    try {
+      // First, save the profile
+      await api.post('/sub-profile', { ...form, certifications: selectedCerts.join(', ') });
+
+      // Then run the search with the search parameters
+      const searchPayload = {
+        naics_codes: searchForm.naics_codes,
+        keywords: searchForm.keywords || undefined,
+        agency: searchForm.agency || undefined,
+        set_aside: searchForm.set_aside === 'all' ? undefined : searchForm.set_aside,
+      };
+
+      const result = await api.post('/api/opportunities/search', searchPayload);
+
+      // Optionally enable auto-search if configured
+      if (result.data?.searchId) {
+        try {
+          await api.post(`/api/autosearch/enable/${result.data.searchId}`);
+        } catch (err) {
+          // Auto-search configuration is optional, don't fail if it errors
+          console.warn('Auto-search setup failed:', err);
+        }
+      }
+
+      showToast('Search completed! Redirecting to opportunities...', 'success');
+      // Redirect to opportunities page to see search results
+      setTimeout(() => navigate('/opportunities'), 1000);
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to run search';
+      showToast(errorMsg, 'error');
+      setSearching(false);
     }
   };
 
@@ -476,16 +513,21 @@ export default function OnboardingPage() {
             <button
               style={s.btn(false)}
               onClick={() => setStep(step - 1)}
+              disabled={saving || searching}
             >
               Back
             </button>
           )}
           <button
-            style={{ ...s.btn(true), opacity: saving ? 0.6 : 1 }}
+            style={{ ...s.btn(true), opacity: (saving || searching) ? 0.6 : 1 }}
             onClick={goNext}
-            disabled={saving}
+            disabled={saving || searching}
           >
-            {step === 4 ? (saving ? 'Setting up...' : 'Go to Dashboard →') : 'Next →'}
+            {step === 3
+              ? searching ? 'Running Search...' : 'Run Search →'
+              : step === 4
+              ? saving ? 'Setting up...' : 'Go to Dashboard →'
+              : 'Next →'}
           </button>
         </div>
       </div>

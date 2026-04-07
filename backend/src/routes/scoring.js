@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
+const { createNotification } = require('../services/notify');
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const scoreLeads = async (leads, profile) => {
@@ -87,6 +88,21 @@ router.post('/score-list/:listId', auth, async (req, res) => {
     res.json({ message: 'Scoring started', total: leads.length });
     await scoreLeads(leads, profile);
     console.log(`Scored ${leads.length} leads for list ${req.params.listId}`);
+
+    // Notify user that scoring completed (non-blocking)
+    Promise.resolve().then(async () => {
+      try {
+        const listR = await pool.query('SELECT name FROM lists WHERE id=$1', [req.params.listId]);
+        const listName = listR.rows[0]?.name || 'your list';
+        await createNotification(
+          req.userId,
+          'scoring_complete',
+          'ICP scoring completed',
+          `Scored ${leads.length} leads in "${listName}"`,
+          `/lists/${req.params.listId}`
+        );
+      } catch (e) { console.error('Notification creation error:', e.message); }
+    });
   } catch (err) {
     console.error('Scoring error:', err);
   }

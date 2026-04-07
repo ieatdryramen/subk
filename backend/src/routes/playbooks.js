@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
 const { generatePlaybook } = require('../services/ai');
+const { createNotification } = require('../services/notify');
 
 // Generate playbook for a single lead
 router.post('/generate/:leadId', auth, async (req, res) => {
@@ -202,6 +203,21 @@ router.post('/generate-list/:listId', auth, async (req, res) => {
         }
       }));
     }
+
+    // Notify user that playbook generation completed (non-blocking)
+    Promise.resolve().then(async () => {
+      try {
+        const listR = await pool.query('SELECT name FROM lists WHERE id=$1', [req.params.listId]);
+        const listName = listR.rows[0]?.name || 'your list';
+        await createNotification(
+          req.userId,
+          'playbook_complete',
+          'Playbook generation completed',
+          `Generated playbooks for ${leads.length} leads in "${listName}"`,
+          `/lists/${req.params.listId}`
+        );
+      } catch (e) { console.error('Notification creation error:', e.message); }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Batch generation failed' });

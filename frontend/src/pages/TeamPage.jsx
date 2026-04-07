@@ -121,6 +121,28 @@ export default function TeamPage() {
     }
   };
 
+  const disconnectGmail = async () => {
+    if (!confirm('Disconnect Gmail?')) return;
+    try {
+      await api.delete('/gmail/disconnect');
+      setGmailStatus({ connected: false, email: null });
+      addToast('Gmail disconnected', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to disconnect Gmail', 'error');
+    }
+  };
+
+  const disconnectOutlook = async () => {
+    if (!confirm('Disconnect Outlook?')) return;
+    try {
+      await api.delete('/outlook/disconnect');
+      setOutlookStatus({ connected: false, email: null });
+      addToast('Outlook disconnected', 'success');
+    } catch (err) {
+      addToast(err.response?.data?.error || 'Failed to disconnect Outlook', 'error');
+    }
+  };
+
   return (
     <Layout>
       <div style={s.page}>
@@ -232,12 +254,48 @@ export default function TeamPage() {
           )}
         </div>
 
+        {/* Outlook */}
+        <div style={s.zohoCard}>
+          <div style={s.cardTitle}>Outlook</div>
+          {outlookStatus.connected ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={s.connectedBadge}>✓ Connected — {outlookStatus.email}</span>
+                <button
+                  style={{ fontSize: 12, padding: '5px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--danger)', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer' }}
+                  onClick={disconnectOutlook}>
+                  Disconnect
+                </button>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
+                Send emails directly from any playbook via Outlook. Each send is logged as a completed touchpoint.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem' }}>
+                Connect Outlook to send emails directly from playbooks with one click.
+              </p>
+              <button style={{ ...s.connectBtn, background: '#0078D4' }} onClick={connectOutlook}>
+                Connect Outlook
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Gmail */}
         <div style={s.zohoCard}>
           <div style={s.cardTitle}>Gmail</div>
           {gmailStatus.connected ? (
             <div>
-              <span style={s.connectedBadge}>✓ Connected — {gmailStatus.email}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={s.connectedBadge}>✓ Connected — {gmailStatus.email}</span>
+                <button
+                  style={{ fontSize: 12, padding: '5px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--danger)', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer' }}
+                  onClick={disconnectGmail}>
+                  Disconnect
+                </button>
+              </div>
               <p style={{ fontSize: 13, color: 'var(--text2)', marginTop: 12 }}>
                 Send emails directly from any playbook via Gmail. Each send is logged as a completed touchpoint.
               </p>

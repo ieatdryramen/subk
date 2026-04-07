@@ -119,4 +119,15 @@ router.get('/status', auth, async (req, res) => {
   }
 });
 
+// Disconnect Outlook
+router.delete('/disconnect', auth, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET outlook_refresh_token=NULL, outlook_access_token=NULL, outlook_email=NULL WHERE id=$1', [req.userId]);
+    res.json({ success: true, message: 'Outlook disconnected' });
+  } catch (err) {
+    console.error('Outlook disconnect error:', err.message);
+    res.status(500).json({ error: 'Failed to disconnect Outlook' });
+  }
+});
+
 module.exports = router;

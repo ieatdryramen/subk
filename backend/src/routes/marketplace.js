@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
 const { sendTeamingRequestNotification, sendInterestNotification } = require('../services/email');
+const { createNotification } = require('../services/notify');
 
 // GET /marketplace/subs — browse public sub profiles (visible to primes)
 router.get('/subs', auth, async (req, res) => {
@@ -96,6 +97,14 @@ router.post('/opportunities/:id/interest', auth, async (req, res) => {
               message,
             });
           }
+          // Create in-app notification for prime
+          await createNotification(
+            primeUserId,
+            'opportunity_interest',
+            'Interest in your opportunity',
+            `${subUser.rows[0]?.full_name || 'A subcontractor'} expressed interest in "${opp.rows[0]?.title || 'your opportunity'}"`,
+            `/marketplace/opportunities/${req.params.id}/interests`
+          ).catch(e => console.error('Notification creation error:', e.message));
         }
       } catch (e) { console.error('[EMAIL] interest notify error:', e.message); }
     });
@@ -150,6 +159,14 @@ router.post('/teaming', auth, async (req, res) => {
             message,
           });
         }
+        // Create in-app notification for recipient
+        await createNotification(
+          to_user_id,
+          'teaming_request',
+          'Teaming request received',
+          `${fromUser.rows[0]?.full_name || 'Someone'} sent you a teaming request`,
+          `/marketplace/teaming`
+        ).catch(e => console.error('Notification creation error:', e.message));
       } catch (e) { console.error('[EMAIL] teaming notify error:', e.message); }
     });
 

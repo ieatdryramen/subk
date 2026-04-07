@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
@@ -27,6 +28,7 @@ const s = {
 };
 
 export default function TeamingInboxPage() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -121,10 +123,19 @@ export default function TeamingInboxPage() {
             ))}
           </div>
         ) : current.length === 0 ? (
-          <div style={s.empty}>
-            <div style={{ fontSize: 32, marginBottom: 10 }}>{tab === 'received' ? '📥' : '📤'}</div>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>No {tab} requests yet</div>
-            <div style={{ fontSize: 13 }}>{tab === 'received' ? 'Teaming requests from primes and subs will appear here.' : 'Requests you send from the Marketplace will appear here.'}</div>
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>{tab === 'received' ? '📥' : '📤'}</div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No {tab} requests yet</div>
+            <div style={{ fontSize: 14, marginBottom: 20, maxWidth: 450, margin: '0 auto', marginBottom: 20 }}>
+              {tab === 'received'
+                ? 'When primes and subs reach out to partner with you, requests will appear here. Accept or decline and connect.'
+                : 'Teaming requests you send will be tracked here. Start by exploring the Marketplace to find partners.'}
+            </div>
+            <button
+              onClick={() => navigate('/marketplace')}
+              style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+              Go to Marketplace
+            </button>
           </div>
         ) : current.map(req => <RequestCard key={req.id} req={req} />)}
       </div>

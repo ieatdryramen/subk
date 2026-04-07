@@ -26,6 +26,8 @@ export default function RemindersPage() {
   const [filter, setFilter]   = useState('all');
   const [marking, setMarking] = useState({});
   const [showOutcome, setShowOutcome] = useState({});
+  const [showNotes, setShowNotes] = useState({});
+  const [notes, setNotes] = useState({});
   const [goalData, setGoalData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const navigate = useNavigate();
@@ -51,17 +53,39 @@ export default function RemindersPage() {
   const markDone = async (e, lead, touchpoint, call_outcome) => {
     e.stopPropagation();
     const key = `${lead.id}-${touchpoint}`;
+
+    // For calls, if no outcome selected yet, toggle outcome picker
+    if (call_outcome === undefined && lead.next_touch_type === 'call') {
+      setShowOutcome(s => ({ ...s, [key]: !s[key] }));
+      return;
+    }
+
     setMarking(m => ({ ...m, [key]: true }));
     setShowOutcome(s => ({ ...s, [key]: false }));
+    setShowNotes(n => ({ ...n, [key]: false }));
     try {
-      await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', notes: '', call_outcome });
+      const notesText = notes[key] || '';
+      await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', notes: notesText, call_outcome });
       showToast('Touch completed!', 'success');
+      setNotes(n => ({ ...n, [key]: '' }));
       load(); // reloads both leads and goals
     } catch (err) {
       console.error(err);
       showToast('Failed to mark touch as done — please try again', 'error');
     }
     finally { setMarking(m => ({ ...m, [key]: false })); }
+  };
+
+  const handleSnooze = async (e, lead) => {
+    e.stopPropagation();
+    try {
+      await api.post(`/engagement/${lead.id}/snooze`, { days: 1 });
+      showToast('Touch snoozed until tomorrow', 'success');
+      load();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to snooze — please try again', 'error');
+    }
   };
 
   const filterLeads = (leads) => filter === 'all' ? leads : leads.filter(l => l.next_touch_type === filter);
@@ -117,9 +141,12 @@ export default function RemindersPage() {
     const isCall = lead.next_touch_type === 'call';
     const tc = TYPE_COLORS[lead.next_touch_type] || TYPE_COLORS.email;
     const urgencyBorder = urgency === 'overdue' ? '2px solid var(--danger)' : '1px solid var(--border)';
+    const showingNotes = showNotes[key];
+    const showingOutcome = showOutcome[key];
 
     return (
       <div style={{ background: 'var(--bg2)', border: urgencyBorder, borderRadius: 'var(--radius)', marginBottom: 6 }}>
+        {/* Main row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}
           onClick={() => navigate(`/lists/${lead.list_id}`)}>
           {/* Type icon */}
@@ -147,23 +174,24 @@ export default function RemindersPage() {
               {lead.icp_score}
             </span>
           )}
-          {/* Done button — call gets outcome picker, others mark directly */}
-          {isCall ? (
-            <button onClick={e => { e.stopPropagation(); setShowOutcome(s => ({ ...s, [key]: !s[key] })); }}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer', flexShrink: 0 }}>
-              {isMarking ? '...' : '✓ Done'}
+          {/* Action buttons: Reschedule + Done */}
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={e => handleSnooze(e, lead)}
+              style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+              ⏱ Reschedule
             </button>
-          ) : (
-            <button onClick={e => markDone(e, lead, lead.next_touch, null)}
+            <button onClick={e => markDone(e, lead, lead.next_touch, undefined)}
               disabled={isMarking}
-              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer', flexShrink: 0, opacity: isMarking ? 0.6 : 1 }}>
+              style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer', opacity: isMarking ? 0.6 : 1 }}>
               {isMarking ? '...' : '✓ Done'}
             </button>
-          )}
+          </div>
         </div>
-        {/* Call outcome picker — expands below */}
-        {isCall && showOutcome[key] && (
-          <div style={{ display: 'flex', gap: 6, padding: '0 16px 12px', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+
+        {/* Call outcome pills (inline, below main row) */}
+        {isCall && showingOutcome && (
+          <div style={{ display: 'flex', gap: 6, padding: '0 16px 12px', flexWrap: 'wrap', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+            <span style={{ fontSize: 11, color: 'var(--text2)', fontWeight: 500 }}>Outcome:</span>
             {CALL_OUTCOMES.map(o => (
               <button key={o.key} onClick={e => markDone(e, lead, lead.next_touch, o.key)}
                 style={{ padding: '5px 12px', fontSize: 12, borderRadius: 20, cursor: 'pointer', border: '1px solid var(--border)', background: o.key === 'meeting_booked' ? 'var(--success-bg)' : 'var(--bg3)', color: o.key === 'meeting_booked' ? 'var(--success)' : 'var(--text2)', fontWeight: o.key === 'meeting_booked' ? 600 : 400 }}>
@@ -172,6 +200,38 @@ export default function RemindersPage() {
             ))}
             <button onClick={e => { e.stopPropagation(); setShowOutcome(s => ({ ...s, [key]: false })); }}
               style={{ padding: '5px 10px', fontSize: 11, borderRadius: 20, cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text3)' }}>✕</button>
+          </div>
+        )}
+
+        {/* Notes textarea (shown after outcome selected for calls, or after Done for non-calls) */}
+        {(showingNotes || (showingOutcome && isCall)) && (
+          <div style={{ padding: '0 16px 12px' }} onClick={e => e.stopPropagation()}>
+            <textarea
+              placeholder="Add a quick note (optional)..."
+              value={notes[key] || ''}
+              onChange={e => setNotes(n => ({ ...n, [key]: e.target.value }))}
+              style={{ width: '100%', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontFamily: 'inherit', minHeight: 60, resize: 'none' }}
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={e => markDone(e, lead, lead.next_touch, isCall ? showingOutcome : null)}
+                style={{ flex: 1, padding: '8px 16px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer' }}>
+                {isMarking ? '...' : 'Save'}
+              </button>
+              <button onClick={e => { e.stopPropagation(); setShowNotes(n => ({ ...n, [key]: false })); }}
+                style={{ padding: '8px 16px', fontSize: 12, borderRadius: 'var(--radius)', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Show notes button for non-call touches */}
+        {!isCall && !showingNotes && (
+          <div style={{ padding: '0 16px 12px' }} onClick={e => e.stopPropagation()}>
+            <button onClick={e => { e.stopPropagation(); setShowNotes(n => ({ ...n, [key]: true })); }}
+              style={{ fontSize: 11, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+              + Add note
+            </button>
           </div>
         )}
       </div>
@@ -232,10 +292,15 @@ export default function RemindersPage() {
         ) : filtered.length === 0 ? (
           <div>
             {goalData && <SummaryBar completed={completedToday} total={completedToday} />}
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
-              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text)' }}>All caught up! No touches due today</div>
-              <div style={{ fontSize: 13 }}>Great work on staying on top of your follow-ups.</div>
+            <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+              <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>All caught up! No touches due today</div>
+              <div style={{ fontSize: 14, marginBottom: 20 }}>Great work staying on top of your follow-ups. You're crushing your engagement goals.</div>
+              <button
+                onClick={() => navigate('/pipeline')}
+                style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+                View Pipeline
+              </button>
             </div>
           </div>
         ) : (

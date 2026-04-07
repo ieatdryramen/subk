@@ -66,6 +66,7 @@ export default function PipelinePage() {
   const [bulkStage, setBulkStage] = useState('');
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
+  const [moveError, setMoveError] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -218,140 +219,156 @@ export default function PipelinePage() {
           ))}
         </div>
 
-        {/* View mode tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: '1rem' }}>
-          {VIEW_MODES.map(v => (
-            <button key={v.key}
-              style={{ ...btnBase, background: viewMode === v.key ? 'var(--accent)' : 'var(--bg2)', color: viewMode === v.key ? '#fff' : 'var(--text2)', borderColor: viewMode === v.key ? 'var(--accent)' : 'var(--border)' }}
-              onClick={() => setViewMode(v.key)}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: selectedIds.size > 0 ? 8 : '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
-            style={{ fontSize: 13, padding: '7px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: 200 }} />
-          <select value={selectedList} onChange={e => setSelectedList(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
-            <option value="all">All lists</option>
-            {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={icpFilter} onChange={e => setIcpFilter(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
-            <option value="all">All ICP scores</option>
-            <option value="high">High ICP (70+)</option>
-            <option value="mid">Mid ICP (40-69)</option>
-            <option value="low">Low / Unscored</option>
-          </select>
-          <button style={{ ...btnBase, background: 'var(--bg3)', color: 'var(--text2)', fontSize: 12, padding: '7px 12px' }} onClick={selectAll}>
-            Select all ({filteredLeads.length})
-          </button>
-          <span style={{ fontSize: 12, color: 'var(--text3)' }}>
-            {loading ? 'Loading...' : `${total} leads`}
-          </span>
-        </div>
-
-        {/* Bulk action bar */}
-        {selectedIds.size > 0 && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', padding: '10px 14px', background: 'var(--accent-bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent2)' }}>{selectedIds.size} selected</span>
-            <span style={{ color: 'var(--border)', fontSize: 13 }}>·</span>
-            <span style={{ fontSize: 13, color: 'var(--text2)' }}>Move to:</span>
-            <select value={bulkStage} onChange={e => setBulkStage(e.target.value)}
-              style={{ fontSize: 13, padding: '5px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
-              <option value="">— pick a stage —</option>
-              {STAGES.map(st => <option key={st.key} value={st.key}>{st.label}</option>)}
-            </select>
+        {total === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No leads in pipeline yet</div>
+            <div style={{ fontSize: 14, marginBottom: 20, maxWidth: 400, margin: '0 auto', marginBottom: 20 }}>
+              Start by adding leads to your pipeline. Build a list, assign a playbook, and watch them move through stages as you execute.
+            </div>
             <button
-              style={{ ...btnBase, background: bulkStage ? 'var(--accent)' : 'var(--bg3)', color: bulkStage ? '#fff' : 'var(--text3)', borderColor: bulkStage ? 'var(--accent)' : 'var(--border)', padding: '5px 14px', fontSize: 12 }}
-              onClick={bulkMove} disabled={!bulkStage || bulkMoving}>
-              {bulkMoving ? `Moving... ${bulkMoveProgress}%` : '→ Move'}
-            </button>
-            <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
-              ✕ Clear
+              onClick={() => navigate('/lists')}
+              style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+              Go to Lead Lists
             </button>
           </div>
-        )}
+        ) : (
+          <>
+            {/* View mode tabs */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: '1rem' }}>
+              {VIEW_MODES.map(v => (
+                <button key={v.key}
+                  style={{ ...btnBase, background: viewMode === v.key ? 'var(--accent)' : 'var(--bg2)', color: viewMode === v.key ? '#fff' : 'var(--text2)', borderColor: viewMode === v.key ? 'var(--accent)' : 'var(--border)' }}
+                  onClick={() => setViewMode(v.key)}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
 
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: selectedIds.size > 0 ? 8 : '1.25rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
+                style={{ fontSize: 13, padding: '7px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: 200 }} />
+              <select value={selectedList} onChange={e => setSelectedList(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
+                <option value="all">All lists</option>
+                {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <select value={icpFilter} onChange={e => setIcpFilter(e.target.value)}
+                style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
+                <option value="all">All ICP scores</option>
+                <option value="high">High ICP (70+)</option>
+                <option value="mid">Mid ICP (40-69)</option>
+                <option value="low">Low / Unscored</option>
+              </select>
+              <button style={{ ...btnBase, background: 'var(--bg3)', color: 'var(--text2)', fontSize: 12, padding: '7px 12px' }} onClick={selectAll}>
+                Select all ({filteredLeads.length})
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                {loading ? 'Loading...' : `${total} leads`}
+              </span>
+            </div>
 
-        {/* Kanban board */}
-        <div className="pf-kanban" style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, minmax(180px, 1fr))`, gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
-          {STAGES.map(stage => {
-            const stageLeads = getStageLeads(stage.key);
-            const isOver = dragOverStage === stage.key;
-            return (
-              <div key={stage.key}
-                style={{ background: isOver ? stage.bg : 'var(--bg2)', border: `1px solid ${isOver ? stage.color : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', minHeight: 200, transition: 'all 0.15s' }}
-                onDragOver={e => onDragOver(e, stage.key)}
-                onDrop={e => onDrop(e, stage.key)}
-                onDragLeave={() => setDragOverStage(null)}>
-                <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: stage.color, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{stage.label}</span>
-                  <span style={{ fontSize: 11, background: 'var(--bg3)', color: 'var(--text3)', padding: '1px 6px', borderRadius: 10 }}>{loading ? '—' : stageLeads.length}</span>
-                </div>
-                <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {loading ? (
-                    <>
-                      {[1, 2, 3].map(i => (
-                        <div key={`skeleton-${i}`}
-                          style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 10px', height: 70, animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}
-                        />
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      {stageLeads.map(lead => {
-                        const isSelected = selectedIds.has(lead.id);
-                        return (
-                          <div key={lead.id}
-                            draggable={selectedIds.size === 0}
-                            onDragStart={e => onDragStart(e, lead.id)}
-                            onDragEnd={onDragEnd}
-                            style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
-                            onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={e => toggleSelect(e, lead.id)}
-                                onClick={e => e.stopPropagation()}
-                                style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
-                              />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {lead.full_name || lead.email || '—'}
-                                </div>
-                                <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {lead.company || lead.title || '—'}
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                  {lead.icp_score != null ? (
-                                    <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
-                                      {lead.icp_score}
-                                    </span>
-                                  ) : <span />}
-                                  <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
-                                    onClick={e => { e.stopPropagation(); navigate(`/lists/${lead.list_id}`); }}>→</button>
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', alignItems: 'center', padding: '10px 14px', background: 'var(--accent-bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent2)' }}>{selectedIds.size} selected</span>
+                <span style={{ color: 'var(--border)', fontSize: 13 }}>·</span>
+                <span style={{ fontSize: 13, color: 'var(--text2)' }}>Move to:</span>
+                <select value={bulkStage} onChange={e => setBulkStage(e.target.value)}
+                  style={{ fontSize: 13, padding: '5px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+                  <option value="">— pick a stage —</option>
+                  {STAGES.map(st => <option key={st.key} value={st.key}>{st.label}</option>)}
+                </select>
+                <button
+                  style={{ ...btnBase, background: bulkStage ? 'var(--accent)' : 'var(--bg3)', color: bulkStage ? '#fff' : 'var(--text3)', borderColor: bulkStage ? 'var(--accent)' : 'var(--border)', padding: '5px 14px', fontSize: 12 }}
+                  onClick={bulkMove} disabled={!bulkStage || bulkMoving}>
+                  {bulkMoving ? `Moving... ${bulkMoveProgress}%` : '→ Move'}
+                </button>
+                <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
+                  ✕ Clear
+                </button>
+              </div>
+            )}
+
+            {/* Kanban board */}
+            <div className="pf-kanban" style={{ display: 'grid', gridTemplateColumns: `repeat(${STAGES.length}, minmax(180px, 1fr))`, gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
+              {STAGES.map(stage => {
+                const stageLeads = getStageLeads(stage.key);
+                const isOver = dragOverStage === stage.key;
+                return (
+                  <div key={stage.key}
+                    style={{ background: isOver ? stage.bg : 'var(--bg2)', border: `1px solid ${isOver ? stage.color : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', minHeight: 200, transition: 'all 0.15s' }}
+                    onDragOver={e => onDragOver(e, stage.key)}
+                    onDrop={e => onDrop(e, stage.key)}
+                    onDragLeave={() => setDragOverStage(null)}>
+                    <div style={{ padding: '10px 10px 8px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: stage.color, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{stage.label}</span>
+                      <span style={{ fontSize: 11, background: 'var(--bg3)', color: 'var(--text3)', padding: '1px 6px', borderRadius: 10 }}>{loading ? '—' : stageLeads.length}</span>
+                    </div>
+                    <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {loading ? (
+                        <>
+                          {[1, 2, 3].map(i => (
+                            <div key={`skeleton-${i}`}
+                              style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '9px 10px', height: 70, animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}
+                            />
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          {stageLeads.map(lead => {
+                            const isSelected = selectedIds.has(lead.id);
+                            return (
+                              <div key={lead.id}
+                                draggable={selectedIds.size === 0}
+                                onDragStart={e => onDragStart(e, lead.id)}
+                                onDragEnd={onDragEnd}
+                                style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
+                                onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={e => toggleSelect(e, lead.id)}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
+                                  />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {lead.full_name || lead.email || '—'}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {lead.company || lead.title || '—'}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                      {lead.icp_score != null ? (
+                                        <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: lead.icp_score >= 70 ? 'rgba(34,197,94,0.15)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.15)' : 'var(--bg3)', color: lead.icp_score >= 70 ? '#22c55e' : lead.icp_score >= 40 ? '#f59e0b' : 'var(--text3)' }}>
+                                          {lead.icp_score}
+                                        </span>
+                                      ) : <span />}
+                                      <button style={{ fontSize: 10, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}
+                                        onClick={e => { e.stopPropagation(); navigate(`/lists/${lead.list_id}`); }}>→</button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
+                            );
+                          })}
+                          {stageLeads.length === 0 && (
+                            <div style={{ fontSize: 11, color: isOver ? stage.color : 'var(--text3)', textAlign: 'center', padding: '20px 0', opacity: 0.7 }}>
+                              {isOver ? 'Drop here' : 'Empty'}
                             </div>
-                          </div>
-                        );
-                      })}
-                      {stageLeads.length === 0 && (
-                        <div style={{ fontSize: 11, color: isOver ? stage.color : 'var(--text3)', textAlign: 'center', padding: '20px 0', opacity: 0.7 }}>
-                          {isOver ? 'Drop here' : 'Empty'}
-                        </div>
+                          )}
+                        </>
                       )}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );

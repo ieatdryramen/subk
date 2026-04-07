@@ -37,6 +37,22 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Update a template
+router.put('/:id', auth, async (req, res) => {
+  const { name, subject, body, touchpoint } = req.body;
+  if (!name || !body) return res.status(400).json({ error: 'Name and body required' });
+  try {
+    const result = await pool.query(
+      'UPDATE email_templates SET name=$1, subject=$2, body=$3, touchpoint=$4 WHERE id=$5 AND user_id=$6 RETURNING *',
+      [name, subject, body, touchpoint, req.params.id, req.userId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Template not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete a template
 router.delete('/:id', auth, async (req, res) => {
   try {

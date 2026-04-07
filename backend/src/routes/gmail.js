@@ -109,4 +109,14 @@ router.get('/status', auth, async (req, res) => {
   }
 });
 
+router.delete('/disconnect', auth, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET gmail_refresh_token=NULL, gmail_email=NULL WHERE id=$1', [req.userId]);
+    res.json({ success: true, message: 'Gmail disconnected' });
+  } catch (err) {
+    console.error('Gmail disconnect error:', err.message);
+    res.status(500).json({ error: 'Failed to disconnect Gmail' });
+  }
+});
+
 module.exports = router;

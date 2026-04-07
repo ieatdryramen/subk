@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { pool } = require('../db');
 const { searchOpportunities } = require('../services/govdata');
 const { scoreOpportunity } = require('../services/ai');
+const { createNotification } = require('../services/notify');
 
 // Get all opportunities for org
 router.get('/', auth, async (req, res) => {
@@ -100,6 +101,22 @@ router.post('/search', auth, async (req, res) => {
 
       // Increment usage
       await pool.query('UPDATE organizations SET searches_used=searches_used+1 WHERE id=$1', [orgId]);
+    }
+
+    // Notify user if high-fit opportunities found (fit_score >= 70) (non-blocking)
+    const highFitCount = scored.filter(o => (o.fit_score || 0) >= 70).length;
+    if (highFitCount > 0) {
+      Promise.resolve().then(async () => {
+        try {
+          await createNotification(
+            req.userId,
+            'high_fit_opportunities',
+            'High-fit opportunities found',
+            `Found ${highFitCount} opportunity(ies) with fit score >= 70 from "${search_name || 'search'}"`,
+            `/opportunities`
+          );
+        } catch (e) { console.error('Notification creation error:', e.message); }
+      });
     }
 
     res.json({ opportunities: scored, search_id: searchId, count: scored.length, sam_error: samError });
