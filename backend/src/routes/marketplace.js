@@ -70,7 +70,7 @@ router.post('/opportunities/:id/interest', auth, async (req, res) => {
     const r = await pool.query(
       `INSERT INTO opportunity_interests (shared_opp_id, sub_user_id, message)
        VALUES ($1,$2,$3)
-       ON CONFLICT (shared_opp_id, sub_user_id) DO UPDATE SET message=$3, updated_at=NOW()
+       ON CONFLICT (shared_opp_id, sub_user_id) DO UPDATE SET message=$3
        RETURNING *`,
       [req.params.id, req.userId, message]
     );

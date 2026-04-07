@@ -106,7 +106,7 @@ router.post('/generate/:leadId', auth, async (req, res) => {
       const existing = await pool.query('SELECT id FROM playbooks WHERE lead_id=$1', [lead.id]);
       if (existing.rows.length) {
         await pool.query(
-          `UPDATE playbooks SET ${setClauses}, updated_at=NOW() WHERE lead_id=$1`,
+          `UPDATE playbooks SET ${setClauses}, generated_at=NOW() WHERE lead_id=$1`,
           [lead.id, ...values]
         );
       } else {

@@ -61,7 +61,7 @@ export default function OpportunitiesPage() {
     setSearching(true);
     try {
       const r = await api.post('/opportunities/search', searchForm);
-      setSearchResults(r.data.opportunities || []);
+      setSearchResults(Array.isArray(r.data) ? r.data : r.data.opportunities || []);
       if (searchForm.save_search) {
         api.get('/opportunities').then(r2 => setOpps(Array.isArray(r2.data) ? r2.data : r2.data.opportunities || []));
       }

@@ -107,7 +107,7 @@ export default function LeadListDetailPage() {
         api.get(`/lists/${id}/leads`),
       ]);
       setList(listRes);
-      setLeads(leadsRes.data);
+      setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : leadsRes.data.leads || []);
     } catch (err) {
       console.error(err);
       setLoadError('Failed to load leads');
@@ -136,15 +136,16 @@ export default function LeadListDetailPage() {
     if (generating || scoring) {
       pollRef.current = setInterval(() => {
         api.get(`/lists/${id}/leads`).then(r => {
-          setLeads(r.data);
-          const total = r.data.length;
-          const done = r.data.filter(l => l.status === 'done' || l.status === 'error').length;
+          const data = Array.isArray(r.data) ? r.data : r.data.leads || [];
+          setLeads(data);
+          const total = data.length;
+          const done = data.filter(l => l.status === 'done' || l.status === 'error').length;
           if (generating) {
             setProgress(total ? Math.round((done / total) * 100) : 0);
             if (done === total) { setGenerating(false); setProgress(100); clearInterval(pollRef.current); }
           }
           if (scoring) {
-            const scored = r.data.filter(l => l.icp_score != null).length;
+            const scored = data.filter(l => l.icp_score != null).length;
             setProgress(total ? Math.round((scored / total) * 100) : 0);
             if (scored === total) { setScoring(false); setProgress(100); clearInterval(pollRef.current); }
           }
@@ -340,7 +341,8 @@ export default function LeadListDetailPage() {
     if (!addForm.full_name && !addForm.company) return;
     try {
       const r = await api.post(`/lists/${id}/leads`, { leads: [addForm] });
-      setLeads(ls => [...ls, ...r.data]);
+      const newLeads = Array.isArray(r.data) ? r.data : r.data.leads || [];
+      setLeads(ls => [...ls, ...newLeads]);
       setAddForm({ full_name: '', company: '', title: '', email: '', linkedin: '', notes: '' });
       setModal(null);
     } catch (err) { console.error(err); }

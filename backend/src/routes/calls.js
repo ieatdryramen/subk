@@ -52,12 +52,13 @@ router.post('/:leadId/log', auth, async (req, res) => {
       [lead.id, req.userId, duration_seconds || 0, outcome || 'connected', notes || '', called_at || new Date()]
     );
 
-    // Mark call touchpoint as done in sequence
-    await pool.query(`
-      INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, notes, completed_at)
-      VALUES ($1,$2,'call',$3,$4,NOW())
-      ON CONFLICT (lead_id, touchpoint) DO UPDATE SET status=$3, notes=$4, completed_at=NOW()
-    `, [lead.id, req.userId, outcome === 'connected' ? 'done' : 'done', `${outcome}${notes ? ': ' + notes : ''}`]);
+    // Log activity for goals tracking (call logging is separate from the sequence cadence
+    // which uses specific touchpoints like call1, call2, etc. managed via /sequence/:leadId/touch)
+    await pool.query(
+      `INSERT INTO activity_log (user_id, lead_id, activity_type, touchpoint, logged_at)
+       VALUES ($1,$2,'call','call_log',NOW())`,
+      [req.userId, lead.id]
+    ).catch(() => {}); // non-fatal
 
     // Sync to Zoho if connected
     if (lead.zoho_contact_id) {

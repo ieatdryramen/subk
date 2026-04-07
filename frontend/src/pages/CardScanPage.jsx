@@ -107,7 +107,8 @@ export default function CardScanPage() {
       showToast('Lead added successfully', 'success');
       // Auto-generate in background
       api.get(`/lists/${listId}/leads`).then(r => {
-        const newLead = r.data[r.data.length - 1];
+        const leads = Array.isArray(r.data) ? r.data : r.data.leads || [];
+        const newLead = leads[leads.length - 1];
         if (newLead) api.post(`/playbooks/generate/${newLead.id}`).catch(e => console.warn('Auto-generate failed for scanned card:', e.message));
       }).catch(e => console.warn('Could not fetch leads for auto-generate:', e.message));
     } catch (err) {

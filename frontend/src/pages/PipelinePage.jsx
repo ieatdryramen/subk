@@ -81,7 +81,7 @@ export default function PipelinePage() {
     if (!lists.length) return;
     setLoading(true);
     const toLoad = selectedList === 'all' ? lists : lists.filter(l => String(l.id) === selectedList);
-    Promise.all(toLoad.map(list => api.get(`/lists/${list.id}/leads`).then(r => r.data)))
+    Promise.all(toLoad.map(list => api.get(`/lists/${list.id}/leads`).then(r => Array.isArray(r.data) ? r.data : r.data.leads || [])))
       .then(results => { setLeads(results.flat().filter(l => l.status === 'done')); setLoading(false); })
       .catch(() => setLoading(false));
   }, [selectedList, lists]);
