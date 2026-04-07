@@ -22,6 +22,13 @@ const timeAgo = (date) => {
   return new Date(date).toLocaleDateString();
 };
 
+const greeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
 export default function Dashboard() {
   const [opps, setOpps] = useState([]);
   const [primes, setPrimes] = useState([]);
@@ -30,16 +37,26 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/opportunities').then(r => setOpps(Array.isArray(r.data) ? r.data : r.data.opportunities || [])).catch(() => {});
-    api.get('/primes').then(r => setPrimes(r.data)).catch(() => {});
-    api.get('/profile').then(r => setProfile(r.data)).catch(() => {});
-    api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
-    api.get('/subk-dashboard/stats').then(r => setStats(r.data)).catch(() => {});
-    api.get('/subk-dashboard/analytics').then(r => setAnalytics(r.data)).catch(() => {});
-    api.get('/subk-dashboard/activity').then(r => setActivity(r.data || [])).catch(() => {});
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          api.get('/opportunities').then(r => setOpps(Array.isArray(r.data) ? r.data : r.data.opportunities || [])).catch(() => {}),
+          api.get('/primes').then(r => setPrimes(r.data)).catch(() => {}),
+          api.get('/profile').then(r => setProfile(r.data)).catch(() => {}),
+          api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {}),
+          api.get('/subk-dashboard/stats').then(r => setStats(r.data)).catch(() => {}),
+          api.get('/subk-dashboard/analytics').then(r => setAnalytics(r.data)).catch(() => {}),
+          api.get('/subk-dashboard/activity').then(r => setActivity(r.data || [])).catch(() => {}),
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   const topOpps = opps.filter(o => o.fit_score >= 70).slice(0, 5);
@@ -69,12 +86,31 @@ export default function Dashboard() {
     setupCard: { background: 'var(--accent-bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     btn: (v) => ({ padding: '9px 18px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', cursor: 'pointer', background: v === 'primary' ? 'var(--accent)' : 'var(--bg3)', color: v === 'primary' ? '#fff' : 'var(--text2)' }),
     miniStat: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    skeleton: { background: 'var(--bg3)', borderRadius: 'var(--radius)', animation: 'pulse 1.5s ease-in-out infinite' },
+    activityIcon: (type) => {
+      const bgMap = {
+        opportunity: 'var(--accent-bg)',
+        prime: 'var(--success-bg)',
+        teaming: 'var(--warning-bg)',
+      };
+      return { width: 32, height: 32, borderRadius: 8, background: bgMap[type] || 'var(--bg3)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
+    },
   };
+
+  const SkeletonCard = () => (
+    <div style={{ ...s.statCard, opacity: 0.6 }}>
+      <div style={{ ...s.skeleton, height: 40, marginBottom: 12 }} />
+      <div style={{ ...s.skeleton, height: 12, width: '60%' }} />
+    </div>
+  );
+
+  const userName = JSON.parse(localStorage.getItem('sumx_user') || '{}')?.full_name?.split(' ')[0] || 'there';
 
   return (
     <Layout>
+      <style>{`@keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }`}</style>
       <div style={s.page}>
-        <div style={s.heading}>Dashboard</div>
+        <div style={s.heading}>{greeting()}, {userName}</div>
         <div style={s.sub}>Your GovCon teaming command center</div>
 
         {!profile && (
@@ -89,21 +125,43 @@ export default function Dashboard() {
 
         {/* Main Stats */}
         <div style={s.grid4}>
-          {[
-            { n: stats?.opportunities ?? opps.length, l: 'Opportunities tracked', c: 'var(--text)', click: '/opportunities' },
-            { n: stats?.high_fit ?? topOpps.length, l: 'High fit (70+)', c: 'var(--success)', click: '/opportunities' },
-            { n: stats?.primes_tracked ?? primes.length, l: 'Primes tracked', c: 'var(--accent2)', click: '/primes' },
-            { n: stats?.deadlines_14d ?? deadlineSoon, l: 'Deadlines in 14 days', c: (stats?.deadlines_14d || deadlineSoon) > 0 ? 'var(--warning)' : 'var(--text3)', click: '/opportunities' },
-          ].map(x => (
-            <div key={x.l} style={{ ...s.statCard, cursor: 'pointer' }} onClick={() => navigate(x.click)}>
-              <div style={{ ...s.statNum, color: x.c }}>{x.n}</div>
-              <div style={s.statLabel}>{x.l}</div>
-            </div>
-          ))}
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            [
+              { n: stats?.opportunities ?? opps.length, l: 'Opportunities tracked', c: 'var(--text)', click: '/opportunities' },
+              { n: stats?.high_fit ?? topOpps.length, l: 'High fit (70+)', c: 'var(--success)', click: '/opportunities' },
+              { n: stats?.primes_tracked ?? primes.length, l: 'Primes tracked', c: 'var(--accent2)', click: '/primes' },
+              { n: stats?.deadlines_14d ?? deadlineSoon, l: 'Deadlines in 14 days', c: (stats?.deadlines_14d || deadlineSoon) > 0 ? 'var(--warning)' : 'var(--text3)', click: '/opportunities' },
+            ].map(x => {
+              const trend = x.n > 0 ? '↑' : '—';
+              const trendColor = x.n > 0 ? x.c : 'var(--text3)';
+              return (
+                <div key={x.l} style={{ ...s.statCard, cursor: 'pointer' }} onClick={() => navigate(x.click)}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <div style={{ ...s.statNum, color: x.c }}>{x.n}</div>
+                    <div style={{ fontSize: 16, color: trendColor, fontWeight: 600 }}>{trend}</div>
+                  </div>
+                  <div style={s.statLabel}>{x.l}</div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Teaming & Profile Stats Row */}
-        {stats && (
+        {loading ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: '2rem' }}>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </div>
+        ) : stats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: '2rem' }}>
             <div style={s.miniStat} onClick={() => navigate('/teaming')}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
@@ -384,7 +442,7 @@ export default function Dashboard() {
               {activity.map((a, i) => (
                 <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 0', borderBottom: i < activity.length - 1 ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}
                   onClick={() => navigate(a.link)}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--bg3)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                  <div style={s.activityIcon(a.type)}>
                     {a.type === 'opportunity' ? '🎯' : a.type === 'prime' ? '🏢' : '🤝'}
                   </div>
                   <div style={{ flex: 1 }}>

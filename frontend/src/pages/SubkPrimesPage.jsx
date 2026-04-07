@@ -55,9 +55,12 @@ export default function PrimesPage() {
   const [searchForm, setSearchForm] = useState({ naics_codes: '', agency: '' });
   const [statusFilter, setStatusFilter] = useState('all');
   const [copied, setCopied] = useState({});
+  const [loadingPrimes, setLoadingPrimes] = useState(true);
+  const [searchQ, setSearchQ] = useState('');
 
   useEffect(() => {
-    api.get('/subk-primes').then(r => setPrimes(r.data)).catch(() => {});
+    setLoadingPrimes(true);
+    api.get('/subk-primes').then(r => setPrimes(r.data)).catch(() => {}).finally(() => setLoadingPrimes(false));
   }, []);
 
   const loadSequence = async (primeId) => {
@@ -179,8 +182,25 @@ export default function PrimesPage() {
     }
   };
 
-  const filteredPrimes = primes.filter(p => statusFilter === 'all' || p.outreach_status === statusFilter);
+  const filteredPrimes = primes.filter(p => {
+    const statusMatch = statusFilter === 'all' || p.outreach_status === statusFilter;
+    const nameMatch = !searchQ || p.company_name?.toLowerCase().includes(searchQ.toLowerCase());
+    return statusMatch && nameMatch;
+  });
   const displayPrimes = tab === 'results' ? searchResults : filteredPrimes;
+
+  const getSequenceProgress = (prime) => {
+    if (!Array.isArray(sequence[prime.id]) || sequence[prime.id].length === 0) return 0;
+    const done = sequence[prime.id].filter(tp => tp.status === 'done').length;
+    return Math.round((done / sequence[prime.id].length) * 100);
+  };
+
+  const headerStats = {
+    in_sequence: filteredPrimes.filter(p => p.outreach_status === 'in_sequence').length,
+    responded: filteredPrimes.filter(p => p.outreach_status === 'responded').length,
+    meeting_set: filteredPrimes.filter(p => p.outreach_status === 'meeting_set').length,
+    teaming_agreement: filteredPrimes.filter(p => p.outreach_status === 'teaming_agreement').length,
+  };
 
   const s = {
     page: { padding: '2rem 2.5rem' },
@@ -194,10 +214,20 @@ export default function PrimesPage() {
     subTab: (active) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 20, cursor: 'pointer', background: active ? 'var(--accent-bg)' : 'transparent', color: active ? 'var(--accent2)' : 'var(--text2)', border: active ? '1px solid var(--accent)' : '1px solid transparent' }),
     pre: { whiteSpace: 'pre-wrap', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, lineHeight: 1.75, color: 'var(--text)' },
     msgStyle: (role) => ({ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start', background: role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: role === 'user' ? '#fff' : 'var(--text)', border: role === 'user' ? 'none' : '1px solid var(--border)' }),
+    skeletonCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', marginBottom: 8, padding: '1rem 1.25rem', display: 'flex', gap: 12, alignItems: 'flex-start' },
+    skeletonBar: (w) => ({ background: 'var(--bg3)', borderRadius: 'var(--radius)', height: 10, width: w || '100%', animation: 'pulse 2s infinite' }),
+    emptyState: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '2.5rem', textAlign: 'center' },
+    statBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 20px', background: 'var(--bg3)', borderRadius: 'var(--radius)', minWidth: 100 },
   };
 
   return (
     <Layout>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
+      `}</style>
       {toast && <PrimesToast message={toast} onClose={() => setToast(null)} />}
       <div style={s.page}>
         <div style={s.heading}>Prime Tracker</div>
@@ -248,25 +278,70 @@ export default function PrimesPage() {
           </div>
         ))}
 
-        {/* Filters for tracked */}
+        {/* Header stats and filters for tracked */}
         {tab === 'tracked' && (
-          <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', alignItems: 'center' }}>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-              style={{ fontSize: 13, padding: '7px 10px', width: 'auto', minWidth: 160 }}>
-              <option value="all">All statuses</option>
-              {OUTREACH_STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-            </select>
-            <span style={{ fontSize: 12, color: 'var(--text3)', alignSelf: 'center' }}>{filteredPrimes.length} primes</span>
-            <button onClick={exportCSV} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', marginLeft: 'auto' }}>
-              📥 Export CSV
-            </button>
+          <>
+            <div style={{ display: 'flex', gap: 8, marginBottom: '1.5rem', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={s.statBox}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent2)' }}>{headerStats.in_sequence}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>In Sequence</div>
+                </div>
+                <div style={s.statBox}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--warning)' }}>{headerStats.responded}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Responded</div>
+                </div>
+                <div style={s.statBox}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--success)' }}>{headerStats.meeting_set}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Meeting Set</div>
+                </div>
+                <div style={s.statBox}>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--gold)' }}>{headerStats.teaming_agreement}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>Teaming</div>
+                </div>
+              </div>
+              <button onClick={exportCSV} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)' }}>
+                📥 Export CSV
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', alignItems: 'center' }}>
+              <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Search by company name..." style={{ flex: 1, fontSize: 13, padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)' }} />
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                style={{ fontSize: 13, padding: '8px 12px', width: 'auto', minWidth: 160, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', cursor: 'pointer' }}>
+                <option value="all">All statuses</option>
+                {OUTREACH_STATUSES.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+              </select>
+              <span style={{ fontSize: 12, color: 'var(--text3)', whiteSpace: 'nowrap' }}>{filteredPrimes.length} primes</span>
+            </div>
+          </>
+        )}
+
+        {/* Skeleton loading */}
+        {tab === 'tracked' && loadingPrimes && (
+          <div>
+            {[...Array(3)].map((_, i) => (
+              <div key={i} style={s.skeletonCard}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--bg3)' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ ...s.skeletonBar('60%'), marginBottom: 10 }} />
+                  <div style={{ ...s.skeletonBar('40%') }} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Prime cards */}
-        {tab === 'tracked' && displayPrimes.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text2)' }}>
-            No primes tracked yet — use Find Primes to discover who's winning in your NAICS codes
+        {/* Empty state */}
+        {tab === 'tracked' && !loadingPrimes && displayPrimes.length === 0 && (
+          <div style={s.emptyState}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>🎯</div>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No primes to show</div>
+            <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 16 }}>
+              {searchQ ? 'No primes match your search' : 'Use Find Primes to discover who\'s winning in your NAICS codes'}
+            </div>
+            <button style={{ ...s.btn('primary'), padding: '8px 16px', fontSize: 13 }} onClick={() => setTab('search')}>
+              🔍 Find Primes
+            </button>
           </div>
         )}
 
@@ -278,11 +353,19 @@ export default function PrimesPage() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>{prime.company_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
                   <span>{prime.agency_focus || 'Federal'}</span>
                   <span>{formatMoney(prime.total_awards_value)} awarded</span>
                   {prime.naics_codes && <span>NAICS {prime.naics_codes}</span>}
                 </div>
+                {prime.email1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', minWidth: 50 }}>Sequence: {getSequenceProgress(prime)}%</div>
+                    <div style={{ height: 4, flex: 1, maxWidth: 150, background: 'var(--bg3)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <div style={{ height: '100%', width: `${getSequenceProgress(prime)}%`, background: 'var(--accent2)', transition: 'width 0.3s ease' }} />
+                    </div>
+                  </div>
+                )}
                 {prime.fit_reason && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 3 }}>{prime.fit_reason}</div>}
               </div>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>

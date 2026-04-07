@@ -106,7 +106,12 @@ export default function RemindersPage() {
     return (
       <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{completed}/{total} touches completed today</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+            {completed}/{total} touches completed today
+            {completed > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--warning)', marginLeft: 8 }}>🔥 {completed} done</span>
+            )}
+          </span>
           <span style={{ fontSize: 12, fontWeight: 500, color: pct >= 100 ? 'var(--success)' : 'var(--text2)' }}>{pct}%</span>
         </div>
         <div style={{ height: 8, background: 'var(--bg3)', borderRadius: 4, overflow: 'hidden' }}>
@@ -127,6 +132,11 @@ export default function RemindersPage() {
         <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--success)' : color, borderRadius: 3, transition: 'width 0.3s' }} />
         </div>
+        {actual > 0 && goal > 0 && (
+          <div style={{ fontSize: 10, color: pct >= 100 ? 'var(--success)' : pct >= 50 ? 'var(--text3)' : 'var(--warning)', marginTop: 2 }}>
+            {pct >= 100 ? '✓ Goal met!' : pct >= 50 ? 'On pace' : 'Behind pace'}
+          </div>
+        )}
       </div>
     );
   };
@@ -241,10 +251,36 @@ export default function RemindersPage() {
   return (
     <Layout>
       <div style={{ padding: '2rem 2.5rem', maxWidth: 860 }}>
-        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>Today's Touches</div>
+        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>
+          Today's Touches
+          <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text3)', marginLeft: 12 }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          </span>
+        </div>
         <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: '1.5rem' }}>
           {data.overdue.length > 0 ? `${data.overdue.length} overdue · ${data.due.length} due today` : `${data.due.length} due today`}
         </div>
+
+        {/* Quick stats summary */}
+        {!loading && allLeads.length > 0 && (
+          <div style={{ display: 'flex', gap: 20, marginBottom: '1.5rem' }}>
+            {data.overdue.length > 0 && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--danger)' }}>{data.overdue.length}</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Overdue</div>
+              </div>
+            )}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--warning)' }}>{data.due.length}</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Due Today</div>
+            </div>
+            <div style={{ width: 1, background: 'var(--border)' }} />
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--success)' }}>{completedToday}</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Completed</div>
+            </div>
+          </div>
+        )}
 
         {/* Goal progress */}
         {goalData && (
@@ -309,8 +345,9 @@ export default function RemindersPage() {
           <>
             {overdueFiltered.length > 0 && (
               <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  ⚠ Overdue ({overdueFiltered.length})
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  <span>OVERDUE ({overdueFiltered.length})</span>
                 </div>
                 {overdueFiltered.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="overdue" />)}
               </div>

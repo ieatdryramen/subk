@@ -8,7 +8,8 @@ const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 900 },
   heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
   sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '2rem' },
-  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' },
+  topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: '1.25rem' },
+  searchInput: { flex: 1, maxWidth: 250, padding: '9px 12px', background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13 },
   newBtn: { padding: '9px 18px', background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 500 },
   grid: { display: 'flex', flexDirection: 'column', gap: 10 },
   card: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', transition: 'border-color 0.15s' },
@@ -18,7 +19,12 @@ const s = {
   cardRight: { display: 'flex', gap: 8, alignItems: 'center' },
   openBtn: { padding: '7px 14px', background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text)', fontSize: 13, borderRadius: 'var(--radius)' },
   delBtn: { padding: '7px 10px', background: 'transparent', border: '1px solid transparent', color: 'var(--text3)', fontSize: 13, borderRadius: 'var(--radius)' },
-  empty: { textAlign: 'center', padding: '3rem', color: 'var(--text2)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' },
+  countBadge: { background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 10px', fontSize: 12, color: 'var(--text2)' },
+  statsRow: { display: 'flex', gap: 24, marginBottom: '1.5rem' },
+  statItem: { textAlign: 'center' },
+  statValue: { fontSize: 22, fontWeight: 700 },
+  statLabel: { fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 4 },
+  statDivider: { width: 1, background: 'var(--border)' },
   modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
   modalCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', width: '100%', maxWidth: 420 },
   modalTitle: { fontSize: 17, fontWeight: 600, marginBottom: '1.25rem' },
@@ -27,7 +33,6 @@ const s = {
   modalBtns: { display: 'flex', gap: 8, marginTop: '1.25rem' },
   cancelBtn: { flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)' },
   createBtn: { flex: 1, padding: 10, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontWeight: 500 },
-  countBadge: { background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 20, padding: '2px 10px', fontSize: 12, color: 'var(--text2)' },
 };
 
 export default function LeadListsPage() {
@@ -39,6 +44,7 @@ export default function LeadListsPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [editingList, setEditingList] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', description: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
 
   const [loadError, setLoadError] = useState(null);
@@ -102,14 +108,44 @@ export default function LeadListsPage() {
     }
   };
 
+  const filteredLists = lists.filter(list =>
+    list.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const totalLeads = filteredLists.reduce((a, l) => a + (Number(l.lead_count) || 0), 0);
+
   return (
     <Layout>
       <div style={s.page}>
         <div style={s.heading}>Lead Lists</div>
         <div style={s.sub}>Organize your prospects into lists — import via CSV or add manually, then generate playbooks for everyone.</div>
 
+        {lists.length > 0 && (
+          <div style={s.statsRow}>
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--accent2)' }}>{lists.length}</div>
+              <div style={s.statLabel}>Lists</div>
+            </div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--text)' }}>{lists.reduce((a, l) => a + (Number(l.lead_count) || 0), 0)}</div>
+              <div style={s.statLabel}>Total Leads</div>
+            </div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--text)' }}>{Math.round(lists.reduce((a, l) => a + (Number(l.lead_count) || 0), 0) / lists.length)}</div>
+              <div style={s.statLabel}>Avg per List</div>
+            </div>
+          </div>
+        )}
+
         <div style={s.topBar}>
-          <span style={{ fontSize: 13, color: 'var(--text2)' }}>{lists.length} list{lists.length !== 1 ? 's' : ''}</span>
+          <input
+            type="text"
+            placeholder="Search lists..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={s.searchInput}
+          />
           <button style={s.newBtn} onClick={() => setShowModal(true)}>+ New List</button>
         </div>
 
@@ -125,32 +161,52 @@ export default function LeadListsPage() {
             <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
           </div>
         ) : lists.length === 0 ? (
-          <div style={s.empty}>
-            <div style={{ fontSize: 24, marginBottom: 12 }}>◉</div>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 8 }}>No lists yet</div>
-            <div style={{ fontSize: 13 }}>Create your first lead list to get started</div>
+          <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No lead lists yet</div>
+            <div style={{ fontSize: 14, maxWidth: 450, margin: '0 auto 20px', color: 'var(--text2)' }}>
+              Create your first list to start organizing prospects. Import leads via CSV, add them manually, then generate AI-powered playbooks for everyone.
+            </div>
+            <button onClick={() => setShowModal(true)}
+              style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+              + Create Your First List
+            </button>
+          </div>
+        ) : filteredLists.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text2)', fontSize: 14 }}>
+            No lists match "{searchTerm}"
           </div>
         ) : (
           <div style={s.grid}>
-            {lists.map(list => (
-              <div key={list.id} style={s.card}
-                onClick={() => navigate(`/lists/${list.id}`)}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border2)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
-                <div style={s.cardLeft}>
-                  <div style={s.cardName}>{list.name}</div>
-                  <div style={s.cardMeta}>
-                    {list.description || 'No description'} · Created {new Date(list.created_at).toLocaleDateString()}
+            {filteredLists.map(list => {
+              const leadCount = Number(list.lead_count) || 0;
+              let dotColor = 'var(--border)';
+              if (leadCount > 10) dotColor = '#10b981';
+              else if (leadCount > 0) dotColor = '#f59e0b';
+
+              return (
+                <div key={list.id} style={s.card}
+                  onClick={() => navigate(`/lists/${list.id}`)}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border2)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
+                  <div style={s.cardLeft}>
+                    <div style={s.cardName}>{list.name}</div>
+                    <div style={s.cardMeta}>
+                      {list.description || 'No description'} · Created {new Date(list.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div style={s.cardRight}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+                      <span style={s.countBadge}>{list.lead_count} lead{Number(list.lead_count) !== 1 ? 's' : ''}</span>
+                    </div>
+                    <button style={{ ...s.openBtn, fontSize: 12 }} onClick={e => startEdit(e, list)} title="Edit list">✎</button>
+                    <button style={s.openBtn}>Open →</button>
+                    <button style={s.delBtn} onClick={e => deleteList(e, list.id)} title="Delete list">✕</button>
                   </div>
                 </div>
-                <div style={s.cardRight}>
-                  <span style={s.countBadge}>{list.lead_count} lead{Number(list.lead_count) !== 1 ? 's' : ''}</span>
-                  <button style={{ ...s.openBtn, fontSize: 12 }} onClick={e => startEdit(e, list)} title="Edit list">✎</button>
-                  <button style={s.openBtn}>Open →</button>
-                  <button style={s.delBtn} onClick={e => deleteList(e, list.id)} title="Delete list">✕</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

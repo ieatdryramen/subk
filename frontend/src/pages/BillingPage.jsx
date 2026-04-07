@@ -15,14 +15,14 @@ const s = {
   barFill: (pct) => ({ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct > 80 ? 'var(--danger)' : pct > 60 ? 'var(--warning)' : 'var(--accent)', borderRadius: 3, transition: 'width 0.3s' }),
   barLabel: { display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text2)', marginBottom: 4 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: '2rem' },
-  planCard: (featured, current) => ({ background: '#FFFFFF', border: current ? '2px solid var(--accent)' : featured ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', position: 'relative' }),
+  planCard: (featured, current) => ({ background: 'var(--bg2)', border: current ? '2px solid var(--accent)' : featured ? '2px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', position: 'relative' }),
   planCardBadge: { position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: 'var(--accent)', color: '#fff', fontSize: 10, fontWeight: 600, padding: '3px 12px', borderRadius: 20, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.5px' },
   planTitle: { fontSize: 17, fontWeight: 600, marginBottom: 6, color: 'var(--text)' },
   price: { fontSize: 34, fontWeight: 700, marginBottom: 2, color: 'var(--text)' },
   pricePer: { fontSize: 12, color: 'var(--text2)', marginBottom: '1.25rem', fontWeight: 500 },
   feature: { fontSize: 13, color: 'var(--text)', marginBottom: 7, paddingLeft: 18, position: 'relative' },
   featureDot: { position: 'absolute', left: 0, color: 'var(--accent2)', fontWeight: 700 },
-  btn: (featured, current) => ({ width: '100%', padding: '11px', marginTop: '1.5rem', background: current ? '#f5f5f5' : featured ? 'var(--accent)' : '#FFFFFF', border: current ? '1px solid var(--border)' : featured ? 'none' : '1px solid var(--border)', color: current ? 'var(--text3)' : featured ? '#fff' : 'var(--text)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 500, cursor: current ? 'default' : 'pointer' }),
+  btn: (featured, current) => ({ width: '100%', padding: '11px', marginTop: '1.5rem', background: current ? 'var(--bg3)' : featured ? 'var(--accent)' : 'var(--bg2)', border: current ? '1px solid var(--border)' : featured ? 'none' : '1px solid var(--border)', color: current ? 'var(--text3)' : featured ? '#fff' : 'var(--text)', borderRadius: 'var(--radius)', fontSize: 14, fontWeight: 500, cursor: current ? 'default' : 'pointer' }),
   faqCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' },
   faqItem: { marginBottom: '1.25rem', paddingBottom: '1.25rem', borderBottom: '1px solid var(--border)' },
   faqQ: { fontSize: 14, fontWeight: 500, marginBottom: 6 },
@@ -30,12 +30,10 @@ const s = {
 };
 
 const PLANS = [
-  { key: 'starter', name: 'Starter', price: '$99', playbooks: 'Opportunity search + scoring', users: '1 user', featured: false },
-  { key: 'team', name: 'Professional', price: '$249', playbooks: 'Unlimited AI proposals', users: '5 users', featured: true },
-  { key: 'pro', name: 'Team', price: '$449', playbooks: 'Multi-user collaboration', users: 'Unlimited users', featured: false },
+  { key: 'starter', name: 'Starter', price: '$99', features: ['10 AI proposals/month', '1 user', 'Opportunity search + scoring', 'Teaming marketplace', 'AI GovCon coach', 'Email templates'] },
+  { key: 'team', name: 'Professional', price: '$249', features: ['50 AI proposals/month', '5 users', 'BD outreach sequences', 'Teaming marketplace', 'Zoho CRM sync', 'AI GovCon coach', 'Compliance checker', 'Prime tracker', 'Priority support'] },
+  { key: 'pro', name: 'Team', price: '$449', features: ['Unlimited AI proposals', 'Unlimited users', 'Everything in Professional', 'Custom integrations', 'Team analytics dashboard', 'Dedicated account manager', 'API access', 'SSO & audit logs'] },
 ];
-
-const FEATURES = ['Teaming marketplace', 'BD outreach sequences', 'Zoho CRM sync', 'AI GovCon coach', 'Compliance checker', 'Prime tracker'];
 
 export default function BillingPage() {
   const { addToast } = useToast();
@@ -108,6 +106,9 @@ export default function BillingPage() {
                   <span>{status.playbooks_used} / {status.playbooks_limit}</span>
                 </div>
                 <div style={s.barBg}><div style={s.barFill(pct)} /></div>
+                <div style={{ display: 'flex', gap: 16, marginTop: 10, fontSize: 11, color: 'var(--text3)' }}>
+                  <span>Proposals · Scoring · Sequences · Research</span>
+                </div>
                 {pct >= 80 && (
                   <div style={{ fontSize: 12, color: 'var(--warning)', marginTop: 6 }}>
                     ⚠ Running low — upgrade to avoid interruption
@@ -119,8 +120,15 @@ export default function BillingPage() {
         )}
 
         {status?.plan === 'trial' && (
-          <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.5rem', fontSize: 13, color: 'var(--warning)' }}>
-            ⚠ Free trial: {10 - (status.playbooks_used || 0)} playbooks remaining. Upgrade to keep generating.
+          <div style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--warning)', marginBottom: 2 }}>Free Trial</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)' }}>{10 - (status.playbooks_used || 0)} of 10 free proposals remaining. Upgrade to unlock unlimited AI generation.</div>
+            </div>
+            <div style={{ textAlign: 'center', flexShrink: 0, marginLeft: 16 }}>
+              <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--warning)' }}>{10 - (status.playbooks_used || 0)}</div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Remaining</div>
+            </div>
           </div>
         )}
 
@@ -134,9 +142,7 @@ export default function BillingPage() {
                 <div style={s.planTitle}>{plan.name}</div>
                 <div style={s.price}>{plan.price}</div>
                 <div style={s.pricePer}>per month, billed monthly</div>
-                <div style={s.feature}><span style={s.featureDot}>✓</span> {plan.playbooks}</div>
-                <div style={s.feature}><span style={s.featureDot}>✓</span> {plan.users}</div>
-                {FEATURES.map(f => (
+                {plan.features.map(f => (
                   <div key={f} style={s.feature}><span style={s.featureDot}>✓</span> {f}</div>
                 ))}
                 <button style={s.btn(plan.featured, isCurrent)} onClick={() => !isCurrent && upgrade(plan.key)} disabled={loading || isCurrent}>
@@ -160,6 +166,10 @@ export default function BillingPage() {
               <div style={s.faqA}>{faq.a}</div>
             </div>
           ))}
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)', fontSize: 13, marginTop: '1.5rem' }}>
+          Questions about plans? <a href="mailto:jack@sumxai.com" style={{ color: 'var(--accent2)', textDecoration: 'none' }}>Contact us</a>
         </div>
       </div>
     </Layout>

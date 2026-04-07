@@ -7,7 +7,7 @@ cmds = ["npm install --prefix backend && npm install --prefix frontend"]
 [phases.build]
 cmds = ["npm run build --prefix frontend"]
 
-# cache-bust: 2026-04-07-v5
+# cache-bust: 2026-04-07-v6
 
 [start]
 cmd = "npm start --prefix backend"
