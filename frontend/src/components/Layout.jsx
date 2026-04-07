@@ -84,8 +84,12 @@ export default function Layout({ children }) {
           </div>
         ))}
       </nav>
-      <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)' }}>
+      <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <NotificationBell />
+        <div style={{ fontSize: 10, color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <kbd style={{ padding: '1px 5px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 3, fontSize: 9, fontFamily: 'monospace' }}>⌘K</kbd>
+          <span>Navigate</span>
+        </div>
       </div>
       <TouchBanner />
       <UsageBanner />

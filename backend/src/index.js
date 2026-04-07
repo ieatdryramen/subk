@@ -38,11 +38,28 @@ setInterval(() => {
   }
 }, 30 * 60 * 1000);
 
+// Rate limiter for AI-heavy endpoints (chat, playbooks, search)
+const aiAttempts = new Map();
+const aiRateLimit = (req, res, next) => {
+  const key = req.ip + ':ai';
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 minute window
+  const maxAttempts = 10; // 10 AI calls per minute
+  const attempts = aiAttempts.get(key) || [];
+  const recent = attempts.filter(t => now - t < windowMs);
+  if (recent.length >= maxAttempts) {
+    return res.status(429).json({ error: 'Too many AI requests — slow down a bit' });
+  }
+  recent.push(now);
+  aiAttempts.set(key, recent);
+  next();
+};
+
 app.use('/api/auth', authRateLimit, require('./routes/auth'));
 app.use('/api/profile', require('./routes/profile'));
 app.use('/api/lists', require('./routes/lists'));
-app.use('/api/playbooks', require('./routes/playbooks'));
-app.use('/api/chat', require('./routes/chat'));
+app.use('/api/playbooks', aiRateLimit, require('./routes/playbooks'));
+app.use('/api/chat', aiRateLimit, require('./routes/chat'));
 app.use('/api/zoho', require('./routes/zoho'));
 app.use('/api/scoring', require('./routes/scoring'));
 app.use('/api/export', require('./routes/export'));
@@ -74,7 +91,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/seed', require('./routes/seed'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.0.0', app: 'SumX CRM' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.1.0', app: 'SumX CRM', uptime: process.uptime() }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
@@ -98,7 +115,7 @@ initDb().then(async () => {
     }
   } catch(e) { console.error('Cleanup error:', e.message); }
 
-  app.listen(PORT, () => console.log(`ProspectForge v2.4 running on port ${PORT}`));
+  app.listen(PORT, () => console.log(`SumX CRM v3.1 running on port ${PORT}`));
 }).catch(err => {
   console.error('DB init failed:', err);
   process.exit(1);
