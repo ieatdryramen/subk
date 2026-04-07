@@ -110,15 +110,27 @@ router.get('/debug/sam-test', auth, async (req, res) => {
     const fmt = d => `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`;
     const params = { api_key: SAM_API_KEY, limit: 5, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) };
     console.log('SAM debug params:', JSON.stringify(params).replace(SAM_API_KEY, '***'));
-    const response = await axios.get('https://api.sam.gov/opportunities/v2/search', { params, timeout: 15000 });
+
+    // Try multiple URL variants
+    const urls = [
+      'https://api.sam.gov/opportunities/v2/search',
+      'https://api.sam.gov/prod/opportunities/v2/search',
+      'https://api.sam.gov/opportunities/v1/search',
+    ];
+    const results = [];
+    for (const url of urls) {
+      try {
+        const r2 = await axios.get(url, { params, timeout: 15000 });
+        results.push({ url, status: r2.status, totalRecords: r2.data?.totalRecords, oppCount: r2.data?.opportunitiesData?.length || 0, keys: Object.keys(r2.data || {}), sample: r2.data?.opportunitiesData?.[0]?.title || null });
+      } catch (e2) {
+        results.push({ url, error: e2.message, status: e2.response?.status, body: typeof e2.response?.data === 'string' ? e2.response.data.substring(0, 200) : JSON.stringify(e2.response?.data)?.substring(0, 200) });
+      }
+    }
     res.json({
-      status: response.status,
-      totalRecords: response.data?.totalRecords,
-      oppCount: response.data?.opportunitiesData?.length || 0,
-      keys: Object.keys(response.data || {}),
-      firstOpp: response.data?.opportunitiesData?.[0]?.title || null,
+      results,
       hasApiKey: !!SAM_API_KEY,
       apiKeyPrefix: SAM_API_KEY ? SAM_API_KEY.substring(0, 8) + '...' : 'NOT SET',
+      apiKeyLength: SAM_API_KEY?.length,
     });
   } catch (err) {
     res.json({
