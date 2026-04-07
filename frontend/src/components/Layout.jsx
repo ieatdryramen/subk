@@ -2,7 +2,7 @@ import { useState } from 'react';
 import UsageBanner from './UsageBanner';
 import TouchBanner from './TouchBanner';
 import NotificationBell from './NotificationBell';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const navSections = [
@@ -49,8 +49,26 @@ export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'admin';
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const handleLogout = () => { logout(); navigate('/login'); };
+
+  // Auto-open sections that contain the active route, collapse the rest
+  const getInitialOpen = () => {
+    const open = {};
+    navSections.forEach(section => {
+      const hasActive = section.items.some(item => location.pathname.startsWith(item.to));
+      open[section.label] = hasActive;
+    });
+    // Always open at least Intelligence if nothing matches
+    if (!Object.values(open).some(Boolean)) open['INTELLIGENCE'] = true;
+    return open;
+  };
+  const [openSections, setOpenSections] = useState(getInitialOpen);
+
+  const toggleSection = (label) => {
+    setOpenSections(prev => ({ ...prev, [label]: !prev[label] }));
+  };
 
   const sidebar = (
     <aside style={{
@@ -66,23 +84,51 @@ export default function Layout({ children }) {
         <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
       <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
-        {navSections.map(section => (
-          <div key={section.label}>
-            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', letterSpacing: '1px', padding: '12px 12px 4px', textTransform: 'uppercase' }}>{section.label}</div>
-            {section.items.filter(item => !item.adminOnly || isAdmin).map(item => (
-              <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
-                style={({ isActive }) => ({
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
-                  borderRadius: 'var(--radius)', color: isActive ? 'var(--accent2)' : 'var(--text2)',
-                  fontSize: 13, fontWeight: 500, textDecoration: 'none',
-                  background: isActive ? 'var(--accent-bg)' : 'transparent',
-                })}>
-                <span style={{ fontSize: 15 }}>{item.icon}</span>
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-        ))}
+        {navSections.map(section => {
+          const visibleItems = section.items.filter(item => !item.adminOnly || isAdmin);
+          if (visibleItems.length === 0) return null;
+          const isOpen = openSections[section.label];
+          const hasActive = visibleItems.some(item => location.pathname.startsWith(item.to));
+          return (
+            <div key={section.label}>
+              <button
+                onClick={() => toggleSection(section.label)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '10px 12px 6px', background: 'none', border: 'none',
+                  cursor: 'pointer', fontSize: 10, fontWeight: 600,
+                  color: hasActive ? 'var(--accent2)' : 'var(--text3)',
+                  letterSpacing: '1px', textTransform: 'uppercase',
+                  transition: 'color 0.15s',
+                }}>
+                <span>{section.label}</span>
+                <span style={{
+                  fontSize: 9, transition: 'transform 0.2s',
+                  transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  opacity: 0.7,
+                }}>▼</span>
+              </button>
+              <div style={{
+                overflow: 'hidden',
+                maxHeight: isOpen ? `${visibleItems.length * 40}px` : '0px',
+                transition: 'max-height 0.2s ease-in-out',
+              }}>
+                {visibleItems.map(item => (
+                  <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
+                    style={({ isActive }) => ({
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                      borderRadius: 'var(--radius)', color: isActive ? 'var(--accent2)' : 'var(--text2)',
+                      fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                      background: isActive ? 'var(--accent-bg)' : 'transparent',
+                    })}>
+                    <span style={{ fontSize: 15 }}>{item.icon}</span>
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </nav>
       <div style={{ padding: '0.5rem 0.75rem', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <NotificationBell />
