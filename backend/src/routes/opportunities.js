@@ -111,12 +111,13 @@ router.get('/debug/sam-test', auth, async (req, res) => {
     const params = { api_key: SAM_API_KEY, limit: 5, offset: 0, postedFrom: fmt(ago90), postedTo: fmt(today) };
     console.log('SAM debug params:', JSON.stringify(params).replace(SAM_API_KEY, '***'));
 
-    // Try multiple URL variants
+    // Try multiple URL variants + entity API to check if key works at all
     const urls = [
       'https://api.sam.gov/prod/opportunities/v2/search',
       'https://api.sam.gov/opportunities/v2/search',
-      'https://api-alpha.sam.gov/prodlike/opportunities/v2/search',
     ];
+    // Also test entity API to see if key works there
+    urls.push('https://api.sam.gov/entity-information/v3/entities?ueiSAM=ZQNHWAHG3BE7');
     const results = [];
     for (const url of urls) {
       try {
