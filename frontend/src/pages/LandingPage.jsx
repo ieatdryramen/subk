@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 
 const s = {
-  page: { minHeight: '100vh', background: '#F4F7FA', color: '#1A202C', fontFamily: "'Inter', sans-serif" },
+  page: { minHeight: '100vh', background: '#F4F7FA', color: '#1A202C', fontFamily: "'Plus Jakarta Sans', sans-serif" },
   nav: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 3rem', borderBottom: '1px solid rgba(0,0,0,0.06)', position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(10px)', zIndex: 100 },
   navLogo: { fontFamily: 'Syne, sans-serif', fontSize: 20, fontWeight: 700, color: '#1A202C' },
   navRight: { display: 'flex', gap: 12, alignItems: 'center' },
@@ -67,7 +67,7 @@ export default function LandingPage() {
 
   return (
     <div style={s.page}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
 
       <nav style={s.nav}>
         <div style={s.navLogo}>SumX CRM</div>

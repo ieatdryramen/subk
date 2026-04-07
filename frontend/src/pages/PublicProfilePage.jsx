@@ -25,7 +25,7 @@ export default function PublicProfilePage() {
   };
 
   const s = {
-    page: { minHeight: '100vh', background: '#F4F7FA', color: '#1A202C', fontFamily: "'Inter', sans-serif" },
+    page: { minHeight: '100vh', background: '#F4F7FA', color: '#1A202C', fontFamily: "'Plus Jakarta Sans', sans-serif" },
     container: { maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem' },
     header: { textAlign: 'center', marginBottom: '2.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid rgba(0,0,0,0.08)' },
     logo: { fontFamily: 'Syne, sans-serif', fontSize: 24, fontWeight: 700, color: '#08A5BF', letterSpacing: '-0.5px' },

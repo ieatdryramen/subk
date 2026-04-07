@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const s = {
-  page: { minHeight: '100vh', background: '#F4F7FA', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: "'Inter', sans-serif" },
+  page: { minHeight: '100vh', background: '#F4F7FA', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: "'Plus Jakarta Sans', sans-serif" },
   card: { width: '100%', maxWidth: 420, background: '#FFFFFF', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 16, padding: '2.5rem', boxShadow: '0 24px 48px rgba(0,0,0,0.08)' },
   logo: { fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 700, color: '#1A202C', marginBottom: 8 },
   tagline: { fontSize: 13, color: '#6060788', marginBottom: '2rem' },
@@ -64,7 +64,7 @@ export default function AuthPage({ mode: initialMode }) {
 
   return (
     <div style={s.page}>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
       <div style={s.card}>
         <div style={s.logo} onClick={() => navigate('/')} role="button">SumX CRM</div>
 

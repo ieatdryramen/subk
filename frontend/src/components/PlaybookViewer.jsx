@@ -45,7 +45,7 @@ const s = {
     cursor: 'pointer', transition: 'all 0.15s',
   }),
   content: { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', position: 'relative' },
-  pre: { whiteSpace: 'pre-wrap', fontFamily: 'Inter, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', wordBreak: 'break-word' },
+  pre: { whiteSpace: 'pre-wrap', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', wordBreak: 'break-word' },
   actionRow: { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' },
   btn: (variant) => ({
     padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer',
@@ -470,7 +470,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
               value={contentDraft}
               onChange={e => setContentDraft(e.target.value)}
               onBlur={saveContent}
-              style={{ width: '100%', minHeight: 320, fontFamily: 'Inter, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '1rem', resize: 'vertical', boxSizing: 'border-box' }}
+              style={{ width: '100%', minHeight: 320, fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13.5, lineHeight: 1.75, color: 'var(--text)', background: 'var(--bg2)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '1rem', resize: 'vertical', boxSizing: 'border-box' }}
             />
           ) : (
             <pre

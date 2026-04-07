@@ -187,7 +187,7 @@ export default function PrimesPage() {
     cardHeader: { padding: '1rem 1.25rem', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' },
     btn: (v) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: v === 'primary' ? 'var(--accent)' : v === 'success' ? 'var(--success-bg)' : 'var(--bg3)', color: v === 'primary' ? '#fff' : v === 'success' ? 'var(--success)' : 'var(--text2)', borderColor: v === 'success' ? 'var(--success)' : 'var(--border)' }),
     subTab: (active) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 20, cursor: 'pointer', background: active ? 'var(--accent-bg)' : 'transparent', color: active ? 'var(--accent2)' : 'var(--text2)', border: active ? '1px solid var(--accent)' : '1px solid transparent' }),
-    pre: { whiteSpace: 'pre-wrap', fontFamily: 'Inter, sans-serif', fontSize: 13, lineHeight: 1.75, color: 'var(--text)' },
+    pre: { whiteSpace: 'pre-wrap', fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, lineHeight: 1.75, color: 'var(--text)' },
     msgStyle: (role) => ({ padding: '8px 12px', borderRadius: 'var(--radius)', fontSize: 13, maxWidth: '85%', whiteSpace: 'pre-wrap', alignSelf: role === 'user' ? 'flex-end' : 'flex-start', background: role === 'user' ? 'var(--accent)' : 'var(--bg3)', color: role === 'user' ? '#fff' : 'var(--text)', border: role === 'user' ? 'none' : '1px solid var(--border)' }),
   };
 
