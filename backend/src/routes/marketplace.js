@@ -55,7 +55,7 @@ router.post('/opportunities', auth, async (req, res) => {
     const r = await pool.query(
       `INSERT INTO shared_opportunities (prime_user_id, title, description, naics_codes, set_aside, agency, response_deadline, value_min, value_max, roles_needed, requirements)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [req.userId, title, description, naics_codes, set_aside, agency, response_deadline, value_min, value_max, roles_needed, requirements]
+      [req.userId, title || null, description || null, naics_codes || null, set_aside || null, agency || null, response_deadline || null, value_min ? Number(value_min) : null, value_max ? Number(value_max) : null, roles_needed || null, requirements || null]
     );
     res.json(r.rows[0]);
   } catch (err) {
