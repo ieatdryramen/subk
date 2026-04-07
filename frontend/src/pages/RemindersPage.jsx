@@ -26,12 +26,20 @@ export default function RemindersPage() {
   const [filter, setFilter]   = useState('all');
   const [marking, setMarking] = useState({});
   const [showOutcome, setShowOutcome] = useState({});
-  const [showNotes, setShowNotes] = useState({});
-  const [notes, setNotes] = useState({});
   const [goalData, setGoalData] = useState(null);
   const [loadError, setLoadError] = useState(null);
+
+  // New state for power features
+  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState('default');
+  const [bulkActing, setBulkActing] = useState(null);
+  const [doneModal, setDoneModal] = useState(null);
+  const [doneNotes, setDoneNotes] = useState('');
+
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  const PER_PAGE = 20;
 
   const load = () => {
     setLoadError(null);
@@ -62,13 +70,10 @@ export default function RemindersPage() {
 
     setMarking(m => ({ ...m, [key]: true }));
     setShowOutcome(s => ({ ...s, [key]: false }));
-    setShowNotes(n => ({ ...n, [key]: false }));
     try {
-      const notesText = notes[key] || '';
-      await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', notes: notesText, call_outcome });
+      await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', call_outcome });
       showToast('Touch completed!', 'success');
-      setNotes(n => ({ ...n, [key]: '' }));
-      load(); // reloads both leads and goals
+      load();
     } catch (err) {
       console.error(err);
       showToast('Failed to mark touch as done — please try again', 'error');
@@ -88,11 +93,85 @@ export default function RemindersPage() {
     }
   };
 
+  const bulkMarkDone = async () => {
+    setBulkActing('done');
+    try {
+      for (const lead of overdueFiltered) {
+        await api.post(`/sequence/${lead.id}/touch`, {
+          touchpoint: lead.next_touch,
+          status: 'done',
+          notes: 'Bulk completed'
+        });
+      }
+      showToast(`Marked ${overdueFiltered.length} items as done!`, 'success');
+      load();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to mark items as done', 'error');
+    } finally {
+      setBulkActing(null);
+    }
+  };
+
+  const bulkReschedule = async () => {
+    setBulkActing('reschedule');
+    try {
+      for (const lead of overdueFiltered) {
+        await api.post(`/engagement/${lead.id}/snooze`, { days: 1 });
+      }
+      showToast(`Rescheduled ${overdueFiltered.length} items!`, 'success');
+      load();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to reschedule items', 'error');
+    } finally {
+      setBulkActing(null);
+    }
+  };
+
+  const bulkSkip = async () => {
+    setBulkActing('skip');
+    try {
+      for (const lead of overdueFiltered) {
+        await api.post(`/sequence/${lead.id}/touch`, {
+          touchpoint: lead.next_touch,
+          status: 'skipped'
+        });
+      }
+      showToast(`Skipped ${overdueFiltered.length} items!`, 'success');
+      load();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to skip items', 'error');
+    } finally {
+      setBulkActing(null);
+    }
+  };
+
   const filterLeads = (leads) => filter === 'all' ? leads : leads.filter(l => l.next_touch_type === filter);
+
+  const sortLeads = (leads) => {
+    if (sortBy === 'company') return [...leads].sort((a, b) => (a.company || '').localeCompare(b.company || ''));
+    if (sortBy === 'name') return [...leads].sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+    if (sortBy === 'overdue') return [...leads].sort((a, b) => (b.days_overdue || 0) - (a.days_overdue || 0));
+    return leads;
+  };
+
   const allLeads = [...data.overdue, ...data.due];
   const filtered = filterLeads(allLeads);
-  const overdueFiltered = filterLeads(data.overdue);
-  const dueFiltered = filterLeads(data.due);
+  let overdueFiltered = filterLeads(data.overdue);
+  let dueFiltered = filterLeads(data.due);
+
+  // Apply sorting
+  overdueFiltered = sortLeads(overdueFiltered);
+  dueFiltered = sortLeads(dueFiltered);
+
+  // Apply pagination
+  const paginatedOverdue = overdueFiltered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalOverduePages = Math.ceil(overdueFiltered.length / PER_PAGE);
+  const paginatedDue = dueFiltered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const totalDuePages = Math.ceil(dueFiltered.length / PER_PAGE);
+
   const typeCounts = {
     email:    allLeads.filter(l => l.next_touch_type === 'email').length,
     call:     allLeads.filter(l => l.next_touch_type === 'call').length,
@@ -100,6 +179,32 @@ export default function RemindersPage() {
   };
   const completedToday = goalData ? (goalData.today.calls + goalData.today.emails + (goalData.today.linkedin || 0)) : 0;
   const totalTouchesRemaining = filtered.length;
+
+  const bulkBtn = {
+    padding: '10px 14px',
+    fontSize: 12,
+    fontWeight: 500,
+    borderRadius: 'var(--radius)',
+    background: 'var(--success-bg)',
+    color: 'var(--success)',
+    border: '1px solid var(--success)',
+    cursor: 'pointer',
+    opacity: bulkActing ? 0.6 : 1,
+    disabled: bulkActing !== null
+  };
+
+  const bulkBtn2 = {
+    padding: '10px 14px',
+    fontSize: 12,
+    fontWeight: 500,
+    borderRadius: 'var(--radius)',
+    background: 'var(--bg3)',
+    color: 'var(--text2)',
+    border: '1px solid var(--border)',
+    cursor: 'pointer',
+    opacity: bulkActing ? 0.6 : 1,
+    disabled: bulkActing !== null
+  };
 
   const SummaryBar = ({ completed, total }) => {
     const pct = Math.min(Math.round((completed / Math.max(total, 1)) * 100), 100);
@@ -145,13 +250,31 @@ export default function RemindersPage() {
     <div className="pf-skeleton" style={{ height: 72, borderRadius: 'var(--radius)', marginBottom: 6, background: 'var(--bg3)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
   );
 
+  const Pagination = ({ current, total, onChange }) => {
+    if (total <= 1) return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 4, padding: '1rem 0' }}>
+        <button onClick={() => onChange(Math.max(1, current - 1))} disabled={current === 1}
+          style={{ padding: '6px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: current === 1 ? 'var(--text3)' : 'var(--text)', cursor: current === 1 ? 'default' : 'pointer' }}>
+          ← Prev
+        </button>
+        <span style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text2)' }}>
+          Page {current} of {total}
+        </span>
+        <button onClick={() => onChange(Math.min(total, current + 1))} disabled={current === total}
+          style={{ padding: '6px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: current === total ? 'var(--text3)' : 'var(--text)', cursor: current === total ? 'default' : 'pointer' }}>
+          Next →
+        </button>
+      </div>
+    );
+  };
+
   const LeadRow = ({ lead, urgency }) => {
     const key = `${lead.id}-${lead.next_touch}`;
     const isMarking = marking[key];
     const isCall = lead.next_touch_type === 'call';
     const tc = TYPE_COLORS[lead.next_touch_type] || TYPE_COLORS.email;
     const urgencyBorder = urgency === 'overdue' ? '2px solid var(--danger)' : '1px solid var(--border)';
-    const showingNotes = showNotes[key];
     const showingOutcome = showOutcome[key];
 
     return (
@@ -190,7 +313,7 @@ export default function RemindersPage() {
               style={{ padding: '6px 12px', fontSize: 11, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>
               ⏱ Reschedule
             </button>
-            <button onClick={e => markDone(e, lead, lead.next_touch, undefined)}
+            <button onClick={e => { e.stopPropagation(); if (isCall) { markDone(e, lead, lead.next_touch, undefined); } else { setDoneModal({ lead, touchpoint: lead.next_touch }); setDoneNotes(''); } }}
               disabled={isMarking}
               style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer', opacity: isMarking ? 0.6 : 1 }}>
               {isMarking ? '...' : '✓ Done'}
@@ -213,35 +336,15 @@ export default function RemindersPage() {
           </div>
         )}
 
-        {/* Notes textarea (shown after outcome selected for calls, or after Done for non-calls) */}
-        {(showingNotes || (showingOutcome && isCall)) && (
+        {/* Notes textarea for calls after outcome selected */}
+        {isCall && showingOutcome && (
           <div style={{ padding: '0 16px 12px' }} onClick={e => e.stopPropagation()}>
             <textarea
               placeholder="Add a quick note (optional)..."
-              value={notes[key] || ''}
-              onChange={e => setNotes(n => ({ ...n, [key]: e.target.value }))}
+              value={''}
+              onChange={() => {}}
               style={{ width: '100%', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontFamily: 'inherit', minHeight: 60, resize: 'none' }}
             />
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button onClick={e => markDone(e, lead, lead.next_touch, isCall ? showingOutcome : null)}
-                style={{ flex: 1, padding: '8px 16px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', cursor: 'pointer' }}>
-                {isMarking ? '...' : 'Save'}
-              </button>
-              <button onClick={e => { e.stopPropagation(); setShowNotes(n => ({ ...n, [key]: false })); }}
-                style={{ padding: '8px 16px', fontSize: 12, borderRadius: 'var(--radius)', background: 'var(--bg3)', color: 'var(--text2)', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Show notes button for non-call touches */}
-        {!isCall && !showingNotes && (
-          <div style={{ padding: '0 16px 12px' }} onClick={e => e.stopPropagation()}>
-            <button onClick={e => { e.stopPropagation(); setShowNotes(n => ({ ...n, [key]: true })); }}
-              style={{ fontSize: 11, color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
-              + Add note
-            </button>
           </div>
         )}
       </div>
@@ -296,15 +399,15 @@ export default function RemindersPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        {/* Filters and Sort */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             { key: 'all',      label: `All (${allLeads.length})` },
             { key: 'call',     label: `📞 Calls (${typeCounts.call})` },
             { key: 'email',    label: `✉ Emails (${typeCounts.email})` },
             { key: 'linkedin', label: `🔗 LinkedIn (${typeCounts.linkedin})` },
           ].map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
+            <button key={f.key} onClick={() => { setFilter(f.key); setPage(1); }}
               style={{ padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer',
                 background: filter === f.key ? 'var(--accent)' : 'var(--bg2)',
                 color: filter === f.key ? '#fff' : 'var(--text2)',
@@ -312,6 +415,13 @@ export default function RemindersPage() {
               {f.label}
             </button>
           ))}
+          <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }}
+            style={{ fontSize: 12, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+            <option value="default">Sort: Default</option>
+            <option value="company">Sort: Company</option>
+            <option value="name">Sort: Lead Name</option>
+            <option value="overdue">Sort: Most Overdue</option>
+          </select>
         </div>
 
         {loading ? (
@@ -342,26 +452,83 @@ export default function RemindersPage() {
         ) : (
           <>
             {goalData && <SummaryBar completed={completedToday} total={completedToday + totalTouchesRemaining} />}
-          <>
-            {overdueFiltered.length > 0 && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                  <span>OVERDUE ({overdueFiltered.length})</span>
+            <>
+              {overdueFiltered.length > 0 && (
+                <div style={{ marginBottom: '1.5rem' }}>
+                  {/* Bulk actions bar */}
+                  {!loading && overdueFiltered.length > 0 && (
+                    <div style={{ display: 'flex', gap: 8, marginBottom: '1rem', padding: '10px 14px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+                      <button onClick={bulkMarkDone} disabled={bulkActing !== null} style={bulkBtn}>
+                        {bulkActing === 'done' ? 'Marking...' : `✓ Mark All Done (${overdueFiltered.length})`}
+                      </button>
+                      <button onClick={bulkReschedule} disabled={bulkActing !== null} style={bulkBtn2}>
+                        {bulkActing === 'reschedule' ? 'Rescheduling...' : '⏱ Reschedule All'}
+                      </button>
+                      <button onClick={bulkSkip} disabled={bulkActing !== null} style={bulkBtn2}>
+                        {bulkActing === 'skip' ? 'Skipping...' : '⏭ Skip to Next Touch'}
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                    <span>OVERDUE ({overdueFiltered.length})</span>
+                  </div>
+                  {paginatedOverdue.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="overdue" />)}
+                  <Pagination current={page} total={totalOverduePages} onChange={setPage} />
                 </div>
-                {overdueFiltered.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="overdue" />)}
-              </div>
-            )}
-            {dueFiltered.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  Due Today ({dueFiltered.length})
+              )}
+              {dueFiltered.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                    Due Today ({dueFiltered.length})
+                  </div>
+                  {paginatedDue.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="due" />)}
+                  <Pagination current={page} total={totalDuePages} onChange={setPage} />
                 </div>
-                {dueFiltered.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="due" />)}
+              )}
+            </>
+          </>
+        )}
+
+        {/* Done modal for non-call items */}
+        {doneModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+            onClick={() => setDoneModal(null)}>
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', width: '100%', maxWidth: 420 }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Complete Touch</div>
+              <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1.25rem' }}>
+                {doneModal.lead.next_touch_label} for {doneModal.lead.full_name || doneModal.lead.company}
               </div>
-            )}
-          </>
-          </>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>Notes (optional)</label>
+              <textarea value={doneNotes} onChange={e => setDoneNotes(e.target.value)}
+                placeholder="What happened? Any follow-up needed?"
+                style={{ width: '100%', padding: '10px 12px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontFamily: 'inherit', minHeight: 80, resize: 'none', marginBottom: '1.25rem' }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={async () => {
+                  const key = `${doneModal.lead.id}-${doneModal.touchpoint}`;
+                  setMarking(m => ({ ...m, [key]: true }));
+                  try {
+                    await api.post(`/sequence/${doneModal.lead.id}/touch`, { touchpoint: doneModal.touchpoint, status: 'done', notes: doneNotes });
+                    showToast('Touch completed!', 'success');
+                    setDoneModal(null);
+                    load();
+                  } catch (err) {
+                    console.error(err);
+                    showToast('Failed — try again', 'error');
+                  }
+                  finally { setMarking(m => ({ ...m, [key]: false })); }
+                }} style={{ flex: 1, padding: 10, background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', borderRadius: 'var(--radius)', fontWeight: 500, cursor: 'pointer', fontSize: 13 }}>
+                  ✓ Mark Complete
+                </button>
+                <button onClick={() => setDoneModal(null)}
+                  style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 13 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

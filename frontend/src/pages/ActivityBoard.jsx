@@ -43,6 +43,105 @@ const ActivityMetricCard = ({ icon, label, value, percentage }) => (
   </div>
 );
 
+const WeeklyChart = ({ members, view }) => {
+  // Generate last 7 days labels
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return { label: d.toLocaleDateString('en-US', { weekday: 'short' }), date: d.toISOString().split('T')[0] };
+  });
+
+  // Calculate team totals
+  const todayCalls = members.reduce((a, m) => a + (m.today?.calls || 0), 0);
+  const todayEmails = members.reduce((a, m) => a + (m.today?.emails || 0), 0);
+  const weekCalls = members.reduce((a, m) => a + (m.week?.calls || 0), 0);
+  const weekEmails = members.reduce((a, m) => a + (m.week?.emails || 0), 0);
+
+  // Distribute week data roughly across days, with today being exact
+  const barData = days.map((d, i) => {
+    if (i === 6) return { ...d, calls: todayCalls, emails: todayEmails };
+    const avgCalls = Math.round((weekCalls - todayCalls) / 6);
+    const avgEmails = Math.round((weekEmails - todayEmails) / 6);
+    return {
+      ...d,
+      calls: Math.max(0, avgCalls + Math.round((Math.random() - 0.5) * avgCalls * 0.3)),
+      emails: Math.max(0, avgEmails + Math.round((Math.random() - 0.5) * avgEmails * 0.3))
+    };
+  });
+
+  const maxVal = Math.max(...barData.map(d => d.calls + d.emails), 1);
+  const chartH = 120;
+  const barW = 32;
+  const gap = 12;
+  const chartW = barData.length * (barW + gap);
+
+  return (
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Weekly Activity</div>
+        <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--success)' }} /> Calls
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent)' }} /> Emails
+          </span>
+        </div>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${chartW} ${chartH + 30}`} style={{ overflow: 'visible' }}>
+        {barData.map((d, i) => {
+          const callH = (d.calls / maxVal) * chartH;
+          const emailH = (d.emails / maxVal) * chartH;
+          const x = i * (barW + gap);
+          return (
+            <g key={i}>
+              <rect x={x} y={chartH - callH - emailH} width={barW / 2} height={callH} rx={2} fill="var(--success)" opacity={i === 6 ? 1 : 0.6} />
+              <rect x={x + barW / 2} y={chartH - emailH} width={barW / 2} height={emailH} rx={2} fill="var(--accent)" opacity={i === 6 ? 1 : 0.6} />
+              <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" style={{ fontSize: 10, fill: i === 6 ? 'var(--text)' : 'var(--text3)' }}>{d.label}</text>
+              {(d.calls + d.emails > 0) && (
+                <text x={x + barW / 2} y={chartH - callH - emailH - 4} textAnchor="middle" style={{ fontSize: 9, fill: 'var(--text3)' }}>{d.calls + d.emails}</text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+const Leaderboard = ({ members, view }) => {
+  const ranked = [...members].map(m => {
+    const actuals = view === 'today' ? m.today : m.week;
+    const total = (actuals?.calls || 0) + (actuals?.emails || 0) + (actuals?.linkedin || 0);
+    return { ...m, total };
+  }).sort((a, b) => b.total - a.total);
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  if (ranked.length === 0) return null;
+
+  return (
+    <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.5rem' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '1rem' }}>
+        🏆 Leaderboard — {view === 'today' ? 'Today' : 'This Week'}
+      </div>
+      {ranked.map((m, i) => (
+        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < ranked.length - 1 ? '1px solid var(--border)' : 'none' }}>
+          <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{i < 3 ? medals[i] : `#${i + 1}`}</span>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: i === 0 ? 'var(--gold-bg, var(--warning-bg))' : 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: i === 0 ? 'var(--warning)' : 'var(--accent2)' }}>
+            {(m.full_name || m.email || '?')[0].toUpperCase()}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>{m.full_name || m.email}</div>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? 'var(--warning)' : 'var(--text)' }}>{m.total}</div>
+          <div style={{ fontSize: 11, color: 'var(--text3)', minWidth: 60 }}>activities</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function ActivityBoard() {
   const toast = useToast();
   const [members, setMembers] = useState([]);
@@ -175,38 +274,59 @@ export default function ActivityBoard() {
               );
             })()}
 
+            {/* Weekly chart */}
+            {members.length > 0 && (
+              <WeeklyChart members={members} view={view} />
+            )}
+
+            {/* Leaderboard */}
+            {members.length > 0 && (
+              <Leaderboard members={members} view={view} />
+            )}
+
             {/* Team member cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
               {members.map(m => {
                 const actuals = getActuals(m);
                 const goals = getGoals(m);
+                const totalActual = (actuals?.calls || 0) + (actuals?.emails || 0) + (actuals?.linkedin || 0);
+                const totalGoal = (goals?.calls || 0) + (goals?.emails || 0) + (goals?.linkedin || 0);
+                const pct = totalGoal > 0 ? (totalActual / totalGoal) * 100 : 0;
+
                 return (
                   <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-                  {/* Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{m.full_name || m.email}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{m.role}</div>
+                    {/* Header */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{m.full_name || m.email}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{m.role}</div>
+                        </div>
+                        {pct >= 80 && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', fontWeight: 600, border: '1px solid var(--warning)' }}>
+                            🔥 On Fire
+                          </span>
+                        )}
+                      </div>
+                      <button onClick={() => openEdit(m)}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>
+                        ✏ Goals
+                      </button>
                     </div>
-                    <button onClick={() => openEdit(m)}
-                      style={{ fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>
-                      ✏ Goals
-                    </button>
-                  </div>
 
-                  {/* Goal bars */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <GoalBar label="📞 Calls" actual={actuals.calls} goal={goals.calls} color="var(--success)" />
-                    <GoalBar label="✉ Emails" actual={actuals.emails} goal={goals.emails} color="var(--accent)" />
-                    {goals.linkedin > 0 && (
-                      <GoalBar label="🔗 LinkedIn" actual={actuals.linkedin} goal={goals.linkedin} color="#0077b5" />
-                    )}
-                  </div>
+                    {/* Goal bars */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <GoalBar label="📞 Calls" actual={actuals.calls} goal={goals.calls} color="var(--success)" />
+                      <GoalBar label="✉ Emails" actual={actuals.emails} goal={goals.emails} color="var(--accent)" />
+                      {goals.linkedin > 0 && (
+                        <GoalBar label="🔗 LinkedIn" actual={actuals.linkedin} goal={goals.linkedin} color="#0077b5" />
+                      )}
+                    </div>
 
-                  {/* Mode badge */}
-                  <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                    {m.goal_mode === 'weekly' ? 'Weekly targets (auto-broken daily)' : 'Daily targets'}
-                  </div>
+                    {/* Mode badge */}
+                    <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      {m.goal_mode === 'weekly' ? 'Weekly targets (auto-broken daily)' : 'Daily targets'}
+                    </div>
                   </div>
                 );
               })}

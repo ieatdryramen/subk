@@ -16,7 +16,7 @@ const s = {
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: '2rem' },
   card: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' },
   cardTitle: { fontSize: 11, fontWeight: 600, color: 'var(--text)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  memberRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' },
+  memberRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)', transition: 'background 0.2s' },
   avatar: (name) => ({ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: 'var(--accent2)', flexShrink: 0 }),
   memberInfo: { flex: 1 },
   memberName: { fontSize: 13, fontWeight: 500 },
@@ -25,14 +25,17 @@ const s = {
   memberStat: { textAlign: 'center' },
   memberStatNum: { fontSize: 14, fontWeight: 600 },
   memberStatLabel: { fontSize: 10, color: 'var(--text3)' },
-  roleSelect: { fontSize: 12, padding: '3px 8px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', cursor: 'pointer' },
+  roleBadge: (isAdmin) => ({ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 20, background: isAdmin ? 'var(--accent-bg)' : 'var(--bg3)', color: isAdmin ? 'var(--accent2)' : 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', cursor: 'pointer', border: '1px solid', borderColor: isAdmin ? 'var(--accent)' : 'var(--border)', transition: 'all 0.2s' }),
   removeBtn: { padding: '3px 8px', fontSize: 11, borderRadius: 'var(--radius)', border: '1px solid var(--danger)', background: 'var(--danger-bg)', color: 'var(--danger)', cursor: 'pointer' },
   activityItem: { display: 'flex', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)', alignItems: 'flex-start' },
-  activityDot: (type) => ({ width: 8, height: 8, borderRadius: '50%', background: type === 'playbook' ? 'var(--accent)' : 'var(--success)', marginTop: 4, flexShrink: 0 }),
+  activityIcon: (type) => ({ width: 28, height: 28, borderRadius: '50%', background: type === 'playbook' ? 'var(--accent-bg)' : 'var(--success-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: type === 'playbook' ? 'var(--accent2)' : 'var(--success)', fontWeight: 600, flexShrink: 0 }),
   activityText: { fontSize: 13, flex: 1 },
   activityTime: { fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap' },
   leadRow: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid var(--border)' },
   score: (s) => ({ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: s >= 70 ? 'var(--success-bg)' : s >= 40 ? 'var(--warning-bg)' : 'var(--danger-bg)', color: s >= 70 ? 'var(--success)' : s >= 40 ? 'var(--warning)' : 'var(--danger)', flexShrink: 0 }),
+  progressBar: { height: 3, background: 'var(--border)', borderRadius: 1.5, marginTop: 6, overflow: 'hidden' },
+  progressFill: (pct) => ({ height: '100%', background: 'var(--accent2)', width: `${pct}%`, borderRadius: 1.5, transition: 'width 0.3s' }),
+  lastActive: { fontSize: 10, color: 'var(--text3)', marginTop: 4 },
 };
 
 const timeAgo = (ts) => {
@@ -53,6 +56,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   const [loadError, setLoadError] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -65,6 +69,7 @@ export default function AdminDashboard() {
   const changeRole = async (memberId, role) => {
     try {
       await api.put(`/admin/members/${memberId}/role`, { role });
+      setRoleMenuOpen(null);
       load();
     } catch { addToast('Failed to update role', 'error'); }
   };
@@ -89,38 +94,83 @@ export default function AdminDashboard() {
 
   const { stats, members, activity, topLeads } = data;
 
+  // Calculate metrics for stats
+  const totalPlaybooksWeek = stats.playbooks_this_week || 0;
+  const totalLeadsWeek = stats.leads_this_week || 0;
+  const maxWeeklyPlaybooks = Math.max(totalPlaybooksWeek, 50);
+  const maxWeeklyLeads = Math.max(totalLeadsWeek, 100);
+
   return (
     <Layout>
       <div style={s.page}>
         <div style={s.heading}>Team Dashboard</div>
         <div style={s.sub}>Overview of team activity and performance</div>
 
-        {/* Stats */}
+        {/* Team Overview Section */}
+        <div style={{ ...s.card, marginBottom: '2rem', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Team</div>
+            <div style={{ display: 'flex', gap: -4 }}>
+              {members.slice(0, 8).map((m, i) => (
+                <div key={m.id} style={{ ...s.avatar(m.full_name), marginLeft: i > 0 ? -8 : 0, border: '2px solid var(--bg2)', zIndex: 8 - i }}>
+                  {initials(m.full_name || m.email)}
+                </div>
+              ))}
+              {members.length > 8 && <div style={{ ...s.avatar(''), marginLeft: -8, background: 'var(--bg3)', color: 'var(--text3)' }}>+{members.length - 8}</div>}
+            </div>
+          </div>
+          <div style={{ width: 1, height: 40, background: 'var(--border)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent2)' }}>{members.filter(m => m.role === 'admin').length}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Admins</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{members.filter(m => m.role !== 'admin').length}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Members</div>
+          </div>
+          <div style={{ width: 1, height: 40, background: 'var(--border)' }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--success)' }}>{stats.touchpoints_completed || 0}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Total Touches</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--warning)' }}>{stats.playbooks_this_week || 0}</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>This Week</div>
+          </div>
+        </div>
+
+        {/* Stats with trend indicators and progress bars */}
         <div className="pf-stat-grid" style={s.statsGrid}>
           {[
-            { num: stats.total_playbooks || 0, label: 'Total playbooks', sub: `+${stats.playbooks_this_week || 0} this week` },
-            { num: stats.total_leads || 0, label: 'Total leads', sub: `+${stats.leads_this_week || 0} this week` },
-            { num: stats.high_score_leads || 0, label: 'High ICP leads', sub: 'Score 70+' },
-            { num: stats.touchpoints_completed || 0, label: 'Touchpoints sent', sub: 'Across all reps' },
-          ].map(s => (
-            <div key={s.label} style={s.statCard || { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-              <div style={{ fontSize: 30, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 2 }}>{s.num}</div>
-              <div style={{ fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{s.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{s.sub}</div>
+            { num: stats.total_playbooks || 0, label: 'Total playbooks', sub: `+${stats.playbooks_this_week || 0} this week`, trend: stats.playbooks_this_week || 0, max: maxWeeklyPlaybooks, trendColor: 'var(--accent2)' },
+            { num: stats.total_leads || 0, label: 'Total leads', sub: `+${stats.leads_this_week || 0} this week`, trend: stats.leads_this_week || 0, max: maxWeeklyLeads, trendColor: 'var(--success)' },
+            { num: stats.high_score_leads || 0, label: 'High ICP leads', sub: 'Score 70+', trend: null, max: 100, trendColor: 'var(--warning)' },
+            { num: stats.touchpoints_completed || 0, label: 'Touchpoints sent', sub: 'Across all reps', trend: null, max: 100, trendColor: 'var(--accent2)' },
+          ].map(stat => (
+            <div key={stat.label} style={{ ...s.statCard }}>
+              <div style={{ fontSize: 30, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 2 }}>{stat.num}</div>
+              <div style={{ fontSize: 12, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{stat.label}</div>
+              <div style={{ fontSize: 11, color: stat.trendColor, marginTop: 2, fontWeight: 500 }}>{stat.sub}</div>
+              {stat.trend !== null && (
+                <div style={s.progressBar}>
+                  <div style={s.progressFill(Math.min((stat.trend / stat.max) * 100, 100))} />
+                </div>
+              )}
             </div>
           ))}
         </div>
 
         <div style={s.grid2}>
-          {/* Team members */}
+          {/* Team members with role badges and last active */}
           <div style={s.card}>
             <div style={s.cardTitle}>Team members</div>
             {members.map(m => (
-              <div key={m.id} style={s.memberRow}>
+              <div key={m.id} style={s.memberRow} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg3)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                 <div style={s.avatar(m.full_name)}>{initials(m.full_name || m.email)}</div>
                 <div style={s.memberInfo}>
                   <div style={s.memberName}>{m.full_name || m.email}</div>
                   <div style={s.memberEmail}>{m.email}</div>
+                  {m.last_active && <div style={s.lastActive}>Active {timeAgo(m.last_active)}</div>}
                 </div>
                 <div style={s.memberStats}>
                   <div style={s.memberStat}>
@@ -136,22 +186,47 @@ export default function AdminDashboard() {
                     <div style={s.memberStatLabel}>touches</div>
                   </div>
                 </div>
-                <select style={s.roleSelect} value={m.role} onChange={e => changeRole(m.id, e.target.value)}>
-                  <option value="member">Member</option>
-                  <option value="admin">Admin</option>
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <button
+                    style={s.roleBadge(m.role === 'admin')}
+                    onClick={() => setRoleMenuOpen(roleMenuOpen === m.id ? null : m.id)}
+                  >
+                    {m.role === 'admin' ? 'Admin' : 'Member'}
+                  </button>
+                  {roleMenuOpen === m.id && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', zIndex: 10, minWidth: 120, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                      <button
+                        onClick={() => changeRole(m.id, 'admin')}
+                        style={{ display: 'block', width: '100%', padding: '8px 12px', fontSize: 12, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: m.role === 'admin' ? 'var(--accent2)' : 'var(--text)', fontWeight: m.role === 'admin' ? 600 : 400, borderBottom: '1px solid var(--border)' }}
+                      >
+                        ✓ Admin
+                      </button>
+                      <button
+                        onClick={() => changeRole(m.id, 'member')}
+                        style={{ display: 'block', width: '100%', padding: '8px 12px', fontSize: 12, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: m.role === 'member' ? 'var(--text)' : 'var(--text3)', fontWeight: m.role === 'member' ? 600 : 400 }}
+                      >
+                        ✓ Member
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <button style={s.removeBtn} onClick={() => removeMember(m.id, m.full_name || m.email)}>✕</button>
               </div>
             ))}
           </div>
 
-          {/* Recent activity */}
+          {/* Recent activity with better styling */}
           <div style={s.card}>
-            <div style={s.cardTitle}>Recent activity</div>
+            <div style={{ ...s.cardTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Recent activity</span>
+              {activity.length > 5 && <a href="#" style={{ fontSize: 10, color: 'var(--accent2)', textDecoration: 'none', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px' }}>View all</a>}
+            </div>
             {activity.length === 0 && <div style={{ fontSize: 13, color: 'var(--text3)' }}>No activity yet</div>}
-            {activity.map((a, i) => (
+            {activity.slice(0, 8).map((a, i) => (
               <div key={i} style={s.activityItem}>
-                <div style={s.activityDot(a.type)} />
+                <div style={s.activityIcon(a.type)}>
+                  {a.type === 'playbook' ? '📋' : '✓'}
+                </div>
                 <div style={s.activityText}>
                   <strong>{a.user_name || 'Someone'}</strong> {a.type === 'playbook' ? 'generated a playbook for' : 'completed a touchpoint with'} <strong>{[a.lead_name, a.company].filter(Boolean).join(' at ') || 'a lead'}</strong>
                 </div>

@@ -8,8 +8,8 @@ const s = {
   page: { padding: '2rem 2.5rem', maxWidth: 900 },
   heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
   sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '2rem' },
-  uploadZone: { border: '2px dashed var(--border2)', borderRadius: 'var(--radius-lg)', padding: '3rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s', marginBottom: '1.5rem', background: 'var(--bg2)' },
-  uploadIcon: { fontSize: 40, marginBottom: 12 },
+  uploadZone: { border: '2px dashed var(--border2)', borderRadius: 'var(--radius-lg)', padding: '3rem', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s', marginBottom: '1.5rem', background: 'var(--bg2)' },
+  uploadIcon: { fontSize: 40, marginBottom: 12, transition: 'all 0.2s' },
   uploadText: { fontSize: 15, fontWeight: 500, marginBottom: 6 },
   uploadSub: { fontSize: 13, color: 'var(--text2)' },
   label: { display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 },
@@ -17,9 +17,27 @@ const s = {
   addBtn: { width: '100%', padding: '11px', background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success)', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500, cursor: 'pointer' },
   btn: (v) => ({ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: v === 'primary' ? 'none' : '1px solid var(--border)', background: v === 'primary' ? 'var(--accent)' : v === 'danger' ? 'var(--danger-bg)' : 'var(--bg3)', color: v === 'primary' ? '#fff' : v === 'danger' ? 'var(--danger)' : 'var(--text2)' }),
   statusBadge: (s) => ({ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: s === 'done' ? 'var(--success-bg)' : s === 'error' ? 'var(--danger-bg)' : s === 'scanning' ? 'var(--warning-bg)' : s === 'added' ? 'var(--accent-bg)' : 'var(--bg3)', color: s === 'done' ? 'var(--success)' : s === 'error' ? 'var(--danger)' : s === 'scanning' ? 'var(--warning)' : s === 'added' ? 'var(--accent2)' : 'var(--text3)' }),
+  statsRow: { display: 'flex', gap: 20, marginBottom: '1.5rem' },
+  statItem: { textAlign: 'center' },
+  statValue: { fontSize: 20, fontWeight: 700, marginBottom: 4 },
+  statLabel: { fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' },
+  statDivider: { width: 1, background: 'var(--border)' },
+  fieldIcon: { marginRight: 6 },
+  fieldInput: { fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' },
+  badgeContainer: { display: 'flex', gap: 6, justifyContent: 'center', marginTop: 8 },
+  badge: { fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'var(--bg3)', color: 'var(--text3)', border: '1px solid var(--border)' },
 };
 
 const EMPTY_RESULT = { name: '', company: '', title: '', email: '', phone: '', linkedin: '' };
+
+const FIELD_CONFIG = [
+  { key: 'name', label: 'Name', icon: '👤' },
+  { key: 'company', label: 'Company', icon: '🏢' },
+  { key: 'title', label: 'Title', icon: '💼' },
+  { key: 'email', label: 'Email', icon: '✉️' },
+  { key: 'phone', label: 'Phone', icon: '📞' },
+  { key: 'linkedin', label: 'LinkedIn', icon: '🔗' },
+];
 
 export default function CardScanPage() {
   const [queue, setQueue] = useState([]); // [{ id, preview, imageData, status, result, error }]
@@ -28,6 +46,8 @@ export default function CardScanPage() {
   const [newListName, setNewListName] = useState('');
   const [scanningAll, setScanningAll] = useState(false);
   const [addingAll, setAddingAll] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [justAdded, setJustAdded] = useState(null); // Track last added for animation
   const fileRef = useRef();
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -104,6 +124,8 @@ export default function CardScanPage() {
     try {
       await api.post(`/lists/${listId}/leads`, { leads: [{ full_name: card.result.name, company: card.result.company, title: card.result.title, email: card.result.email, phone: card.result.phone, linkedin: card.result.linkedin, notes: 'Scanned business card' }] });
       setQueue(q => q.map(c => c.id === id ? { ...c, status: 'added' } : c));
+      setJustAdded(id);
+      setTimeout(() => setJustAdded(null), 2000);
       showToast('Lead added successfully', 'success');
       // Auto-generate in background
       api.get(`/lists/${listId}/leads`).then(r => {
@@ -144,21 +166,69 @@ export default function CardScanPage() {
   const addedCount = queue.filter(c => c.status === 'added').length;
   const pendingCount = queue.filter(c => c.status === 'pending' || c.status === 'error').length;
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    addFiles(e.dataTransfer.files);
+  };
+
   return (
     <Layout>
       <div style={s.page}>
         <div style={s.heading}>Card Scanner</div>
         <div style={s.sub}>Upload multiple business cards — scan them all at once, edit the results, then add to a list</div>
 
+        {/* Stats Header */}
+        {queue.length > 0 && (
+          <div style={s.statsRow}>
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--accent2)' }}>{queue.length}</div>
+              <div style={s.statLabel}>Uploaded</div>
+            </div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--success)' }}>{doneCount}</div>
+              <div style={s.statLabel}>Scanned</div>
+            </div>
+            <div style={s.statDivider} />
+            <div style={s.statItem}>
+              <div style={{ ...s.statValue, color: 'var(--warning)' }}>{addedCount}</div>
+              <div style={s.statLabel}>Added</div>
+            </div>
+          </div>
+        )}
+
         {/* Upload zone */}
-        <div style={s.uploadZone}
+        <div style={{
+          ...s.uploadZone,
+          borderColor: dragging ? 'var(--accent)' : 'var(--border2)',
+          background: dragging ? 'var(--accent-bg)' : 'var(--bg2)',
+          transform: dragging ? 'scale(1.01)' : 'scale(1)',
+        }}
           onClick={() => fileRef.current.click()}
-          onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--accent)'; }}
-          onDragLeave={e => e.currentTarget.style.borderColor = 'var(--border2)'}
-          onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--border2)'; addFiles(e.dataTransfer.files); }}>
-          <div style={s.uploadIcon}>📇</div>
-          <div style={s.uploadText}>{queue.length > 0 ? `${queue.length} card${queue.length !== 1 ? 's' : ''} loaded — drop more to add` : 'Drop business card images here'}</div>
-          <div style={s.uploadSub}>Select multiple files at once · JPG, PNG, HEIC</div>
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}>
+          <div style={s.uploadIcon}>{dragging ? '📥' : '📇'}</div>
+          <div style={s.uploadText}>
+            {dragging ? 'Drop cards here!' : queue.length > 0 ? `${queue.length} card${queue.length !== 1 ? 's' : ''} loaded — drop more to add` : 'Drop business card images here'}
+          </div>
+          <div style={s.uploadSub}>Select multiple files at once</div>
+          <div style={s.badgeContainer}>
+            {['JPG', 'PNG', 'HEIC'].map(t => (
+              <span key={t} style={s.badge}>{t}</span>
+            ))}
+          </div>
         </div>
         <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
           onChange={e => { addFiles(e.target.files); e.target.value = ''; }} />
@@ -206,7 +276,7 @@ export default function CardScanPage() {
         {/* Card queue */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {queue.map(card => (
-            <div key={card.id} style={{ background: 'var(--bg2)', border: `1px solid ${card.status === 'added' ? 'var(--success)' : card.status === 'error' ? 'var(--danger)' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+            <div key={card.id} style={{ background: 'var(--bg2)', border: `1px solid ${card.status === 'added' ? 'var(--success)' : card.status === 'error' ? 'var(--danger)' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', padding: '1.25rem', opacity: card.status === 'added' ? 0.8 : 1, transition: 'all 0.3s' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '1.25rem' }}>
                 {/* Image */}
                 <div>
@@ -248,42 +318,24 @@ export default function CardScanPage() {
                   ) : card.status === 'done' || card.status === 'added' ? (
                     <>
                       <div style={s.row2}>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>Name</label>
-                          <input value={card.result?.name || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'name', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>Company</label>
-                          <input value={card.result?.company || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'company', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>Title</label>
-                          <input value={card.result?.title || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'title', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>Email</label>
-                          <input value={card.result?.email || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'email', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>Phone</label>
-                          <input value={card.result?.phone || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'phone', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
-                        <div style={{ marginBottom: 10 }}>
-                          <label style={s.label}>LinkedIn</label>
-                          <input value={card.result?.linkedin || ''} disabled={card.status === 'added'}
-                            onChange={e => updateResult(card.id, 'linkedin', e.target.value)}
-                            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: '100%' }} />
-                        </div>
+                        {FIELD_CONFIG.map(field => (
+                          <div key={field.key} style={{ marginBottom: 10 }}>
+                            <label style={s.label}>
+                              <span style={s.fieldIcon}>{field.icon}</span>
+                              {field.label}
+                            </label>
+                            <input
+                              value={card.result?.[field.key] || ''}
+                              disabled={card.status === 'added'}
+                              onChange={e => updateResult(card.id, field.key, e.target.value)}
+                              style={{
+                                ...s.fieldInput,
+                                borderColor: card.result?.[field.key] ? 'var(--success)' : 'var(--border)',
+                                borderWidth: card.result?.[field.key] ? '2px' : '1px',
+                              }}
+                            />
+                          </div>
+                        ))}
                       </div>
                       {card.status === 'done' && (
                         <button style={s.addBtn} onClick={() => addOne(card.id)}>
@@ -291,7 +343,34 @@ export default function CardScanPage() {
                         </button>
                       )}
                       {card.status === 'added' && (
-                        <div style={{ fontSize: 12, color: 'var(--success)', fontWeight: 500 }}>✓ Added to list</div>
+                        <div style={{
+                          fontSize: 12,
+                          color: 'var(--success)',
+                          fontWeight: 500,
+                          padding: '8px 12px',
+                          background: 'var(--success-bg)',
+                          borderRadius: 'var(--radius)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          animation: justAdded === card.id ? 'pulse 0.5s ease-out' : 'none',
+                        }}>
+                          <span>✓ Added to {lists.find(l => l.id === Number(selectedList))?.name || 'list'}</span>
+                          <button
+                            onClick={() => navigate(`/lists/${selectedList}`)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--success)',
+                              cursor: 'pointer',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: 0,
+                              marginLeft: 8,
+                            }}>
+                            View in List →
+                          </button>
+                        </div>
                       )}
                     </>
                   ) : (
