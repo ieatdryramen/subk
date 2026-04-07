@@ -382,8 +382,9 @@ export default function OpportunitiesPage() {
                     {savedMap[opp.id] ? '★' : '☆'}
                   </button>
                 )}
-                {opp.opportunity_url && (
-                  <a href={opp.opportunity_url} target="_blank" rel="noreferrer"
+                {(opp.opportunity_url || opp.solicitation_number) && (
+                  <a href={opp.opportunity_url || `https://sam.gov/search/?keywords=${encodeURIComponent(opp.solicitation_number || opp.title)}&sort=-modifiedDate&index=opp`}
+                    target="_blank" rel="noreferrer"
                     onClick={e => e.stopPropagation()}
                     style={{ fontSize: 11, padding: '4px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--accent2)', whiteSpace: 'nowrap' }}>
                     SAM.gov ↗
