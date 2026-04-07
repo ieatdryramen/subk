@@ -140,7 +140,7 @@ export default function ProfilePage() {
     <Layout>
       <style>{`
         input, textarea, select {
-          background: var(--bg1);
+          background: var(--bg2);
           color: var(--text);
           border: 1px solid var(--border);
           padding: 10px 12px;

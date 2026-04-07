@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const GoalBar = ({ label, actual, goal, color }) => {
   const pct = Math.min(Math.round((actual / Math.max(goal, 1)) * 100), 100);
@@ -22,7 +23,28 @@ const GoalBar = ({ label, actual, goal, color }) => {
   );
 };
 
+const SkeletonLoader = () => (
+  <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 280 }} />
+);
+
+const ActivityMetricCard = ({ icon, label, value, percentage }) => (
+  <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', flex: 1, minWidth: 160 }}>
+    <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+      {icon} {label}
+    </div>
+    <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+      {value}
+    </div>
+    {percentage !== undefined && (
+      <div style={{ fontSize: 12, color: percentage >= 100 ? 'var(--success)' : 'var(--accent)' }}>
+        {percentage}% of target
+      </div>
+    )}
+  </div>
+);
+
 export default function ActivityBoard() {
+  const toast = useToast();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingMember, setEditingMember] = useState(null);
@@ -76,8 +98,9 @@ export default function ActivityBoard() {
     try {
       await api.put(`/goals/team/${editingMember.id}`, editForm);
       setEditingMember(null);
+      toast.addToast('Goals updated successfully', 'success');
       load();
-    } catch (err) { alert('Failed to save goals'); }
+    } catch (err) { toast.addToast('Failed to save goals', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -85,6 +108,27 @@ export default function ActivityBoard() {
   const getGoals = (m) => view === 'today'
     ? { calls: m.daily_calls, emails: m.daily_emails, linkedin: m.daily_linkedin }
     : { calls: m.weekly_calls, emails: m.weekly_emails, linkedin: m.weekly_linkedin };
+
+  const calculateTeamMetrics = () => {
+    if (members.length === 0) return { totalCalls: 0, totalEmails: 0, teamCompletion: 0 };
+
+    const actuals = view === 'today'
+      ? members.reduce((acc, m) => ({ calls: acc.calls + (m.today?.calls || 0), emails: acc.emails + (m.today?.emails || 0) }), { calls: 0, emails: 0 })
+      : members.reduce((acc, m) => ({ calls: acc.calls + (m.week?.calls || 0), emails: acc.emails + (m.week?.emails || 0) }), { calls: 0, emails: 0 });
+
+    const targets = view === 'today'
+      ? members.reduce((acc, m) => ({ calls: acc.calls + (m.daily_calls || 0), emails: acc.emails + (m.daily_emails || 0) }), { calls: 0, emails: 0 })
+      : members.reduce((acc, m) => ({ calls: acc.calls + (m.weekly_calls || 0), emails: acc.emails + (m.weekly_emails || 0) }), { calls: 0, emails: 0 });
+
+    const completion = targets.calls > 0 ? Math.round((actuals.calls / targets.calls) * 100) : 0;
+
+    return {
+      totalCalls: actuals.calls,
+      totalEmails: actuals.emails,
+      teamCompletion: completion,
+      callTarget: targets.calls,
+    };
+  };
 
   return (
     <Layout>
@@ -111,14 +155,33 @@ export default function ActivityBoard() {
         </div>
 
         {loading ? (
-          <div style={{ color: 'var(--text3)', marginTop: '2rem' }}>Loading...</div>
+          <div style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: '2rem' }}>
+              {[1, 2, 3, 4].map(i => <SkeletonLoader key={i} />)}
+            </div>
+          </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginTop: '1.5rem' }}>
-            {members.map(m => {
-              const actuals = getActuals(m);
-              const goals = getGoals(m);
+          <>
+            {/* Summary metrics */}
+            {members.length > 0 && (() => {
+              const metrics = calculateTeamMetrics();
               return (
-                <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: '2rem', marginTop: '1.5rem' }}>
+                  <ActivityMetricCard icon="📞" label="Calls" value={metrics.totalCalls} percentage={metrics.teamCompletion} />
+                  <ActivityMetricCard icon="✉" label="Emails" value={metrics.totalEmails} />
+                  <ActivityMetricCard icon="👥" label="Team Size" value={members.length} />
+                  <ActivityMetricCard icon="🎯" label="Avg Completion" value={`${metrics.teamCompletion}%`} />
+                </div>
+              );
+            })()}
+
+            {/* Team member cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {members.map(m => {
+                const actuals = getActuals(m);
+                const goals = getGoals(m);
+                return (
+                  <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
                   {/* Header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
                     <div>
@@ -144,10 +207,11 @@ export default function ActivityBoard() {
                   <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
                     {m.goal_mode === 'weekly' ? 'Weekly targets (auto-broken daily)' : 'Daily targets'}
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Edit goals modal */}

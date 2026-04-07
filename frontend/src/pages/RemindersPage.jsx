@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import { useToast } from '../components/Toast';
 
 const TYPE_ICONS = { email: '✉', call: '📞', linkedin: '🔗', mefu: '📅' };
 
@@ -28,6 +29,7 @@ export default function RemindersPage() {
   const [goalData, setGoalData] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const load = () => {
     setLoadError(null);
@@ -53,10 +55,11 @@ export default function RemindersPage() {
     setShowOutcome(s => ({ ...s, [key]: false }));
     try {
       await api.post(`/sequence/${lead.id}/touch`, { touchpoint, status: 'done', notes: '', call_outcome });
+      showToast('Touch completed!', 'success');
       load(); // reloads both leads and goals
     } catch (err) {
       console.error(err);
-      alert('Failed to mark touch as done — please try again');
+      showToast('Failed to mark touch as done — please try again', 'error');
     }
     finally { setMarking(m => ({ ...m, [key]: false })); }
   };
@@ -70,6 +73,23 @@ export default function RemindersPage() {
     email:    allLeads.filter(l => l.next_touch_type === 'email').length,
     call:     allLeads.filter(l => l.next_touch_type === 'call').length,
     linkedin: allLeads.filter(l => l.next_touch_type === 'linkedin').length,
+  };
+  const completedToday = goalData ? (goalData.today.calls + goalData.today.emails + (goalData.today.linkedin || 0)) : 0;
+  const totalTouchesRemaining = filtered.length;
+
+  const SummaryBar = ({ completed, total }) => {
+    const pct = Math.min(Math.round((completed / Math.max(total, 1)) * 100), 100);
+    return (
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{completed}/{total} touches completed today</span>
+          <span style={{ fontSize: 12, fontWeight: 500, color: pct >= 100 ? 'var(--success)' : 'var(--text2)' }}>{pct}%</span>
+        </div>
+        <div style={{ height: 8, background: 'var(--bg3)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? 'var(--success)' : 'var(--accent)', borderRadius: 4, transition: 'width 0.3s' }} />
+        </div>
+      </div>
+    );
   };
 
   const GoalBar = ({ label, actual, goal, color }) => {
@@ -86,6 +106,10 @@ export default function RemindersPage() {
       </div>
     );
   };
+
+  const SkeletonRow = () => (
+    <div className="pf-skeleton" style={{ height: 72, borderRadius: 'var(--radius)', marginBottom: 6, background: 'var(--bg3)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+  );
 
   const LeadRow = ({ lead, urgency }) => {
     const key = `${lead.id}-${lead.next_touch}`;
@@ -195,19 +219,28 @@ export default function RemindersPage() {
         </div>
 
         {loading ? (
-          <div style={{ color: 'var(--text3)', fontSize: 13 }}>Loading...</div>
+          <div>
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
+          </div>
         ) : loadError ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--danger)', border: '1px dashed var(--danger)', borderRadius: 'var(--radius-lg)' }}>
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>{loadError}</div>
             <button onClick={load} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', padding: '6px 16px', cursor: 'pointer' }}>Retry</button>
           </div>
         ) : filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
-            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>You're all caught up</div>
-            <div style={{ fontSize: 13 }}>No touches due right now.</div>
+          <div>
+            {goalData && <SummaryBar completed={completedToday} total={completedToday} />}
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)' }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6, color: 'var(--text)' }}>All caught up! No touches due today</div>
+              <div style={{ fontSize: 13 }}>Great work on staying on top of your follow-ups.</div>
+            </div>
           </div>
         ) : (
+          <>
+            {goalData && <SummaryBar completed={completedToday} total={completedToday + totalTouchesRemaining} />}
           <>
             {overdueFiltered.length > 0 && (
               <div style={{ marginBottom: '1.5rem' }}>
@@ -225,6 +258,7 @@ export default function RemindersPage() {
                 {dueFiltered.map(l => <LeadRow key={`${l.id}-${l.next_touch}`} lead={l} urgency="due" />)}
               </div>
             )}
+          </>
           </>
         )}
       </div>
