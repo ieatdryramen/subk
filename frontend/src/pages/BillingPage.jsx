@@ -29,12 +29,12 @@ const s = {
 };
 
 const PLANS = [
-  { key: 'starter', name: 'Starter', price: '$49', playbooks: '100 playbooks/mo', users: '1 user', featured: false },
-  { key: 'team', name: 'Team', price: '$149', playbooks: '500 playbooks/mo', users: '5 users', featured: true },
-  { key: 'pro', name: 'Pro', price: '$299', playbooks: 'Unlimited', users: 'Unlimited users', featured: false },
+  { key: 'starter', name: 'Starter', price: '$99', playbooks: 'Opportunity search + scoring', users: '1 user', featured: false },
+  { key: 'team', name: 'Professional', price: '$249', playbooks: 'Unlimited AI proposals', users: '5 users', featured: true },
+  { key: 'pro', name: 'Team', price: '$449', playbooks: 'Multi-user collaboration', users: 'Unlimited users', featured: false },
 ];
 
-const FEATURES = ['PDF & CSV exports', 'Zoho CRM sync', 'AI sales coach', 'Sequence tracker', 'ICP lead scoring', 'ZoomInfo CSV import'];
+const FEATURES = ['Teaming marketplace', 'BD outreach sequences', 'Zoho CRM sync', 'AI GovCon coach', 'Compliance checker', 'Prime tracker'];
 
 export default function BillingPage() {
   const [status, setStatus] = useState(null);

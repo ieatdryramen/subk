@@ -23,6 +23,9 @@ router.get('/dashboard', auth, async (req, res) => {
       userIds = orgR.rows.map(r => parseInt(r.id));
     }
 
+    // Set a statement timeout for safety
+    await pool.query('SET statement_timeout = 5000');
+
     // Use Promise.allSettled so one slow/failing query doesn't kill the whole dashboard
     const results = await Promise.allSettled([
       pool.query('SELECT COUNT(*) as n, COUNT(CASE WHEN created_at > NOW()-INTERVAL \'7 days\' THEN 1 END) as week FROM leads WHERE user_id = ANY($1)', [userIds]),
@@ -59,7 +62,11 @@ router.get('/dashboard', auth, async (req, res) => {
         ORDER BY timestamp DESC LIMIT 12
       `, [userIds]),
       pool.query('SELECT full_name, company, title, icp_score, status FROM leads WHERE user_id = ANY($1) AND icp_score IS NOT NULL ORDER BY icp_score DESC LIMIT 8', [userIds]),
+      pool.query('SELECT COUNT(*) as n FROM leads WHERE user_id = ANY($1) AND icp_score >= 70', [userIds]),
     ]);
+
+    // Reset statement timeout
+    await pool.query('SET statement_timeout = 0');
 
     // Extract values with graceful fallbacks for any failed queries
     const val = (idx) => results[idx].status === 'fulfilled' ? results[idx].value : null;
@@ -70,6 +77,7 @@ router.get('/dashboard', auth, async (req, res) => {
     const members = val(4);
     const recentActivity = val(5);
     const topLeads = val(6);
+    const highScoreLeads = val(7);
 
     // Log any failures for debugging
     results.forEach((r, i) => {
@@ -84,6 +92,7 @@ router.get('/dashboard', auth, async (req, res) => {
         playbooks_this_week: totalPlaybooks?.rows[0]?.week || 0,
         total_lists: totalLists?.rows[0]?.n || 0,
         touchpoints_completed: totalTouches?.rows[0]?.n || 0,
+        high_score_leads: highScoreLeads?.rows[0]?.n || 0,
       },
       members: members?.rows || [],
       activity: recentActivity?.rows || [],

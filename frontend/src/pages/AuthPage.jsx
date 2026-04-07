@@ -66,7 +66,7 @@ export default function AuthPage({ mode: initialMode }) {
     <div style={s.page}>
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
       <div style={s.card}>
-        <div style={s.logo} onClick={() => navigate('/')} role="button">ProspectForge</div>
+        <div style={s.logo} onClick={() => navigate('/')} role="button">SumX CRM</div>
 
         <div style={s.heading}>{mode === 'login' ? 'Welcome back' : 'Create your account'}</div>
         <div style={s.sub}>
