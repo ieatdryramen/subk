@@ -47,9 +47,10 @@ input, textarea, select {
   border-radius: var(--radius);
   padding: 10px 12px;
   outline: none;
-  width: 100%;
   transition: border-color 0.15s;
 }
+input, textarea { width: 100%; }
+select { width: auto; }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
 select option { background: #FFFFFF; }
@@ -67,6 +68,28 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+/* Card shadow utility */
+.pf-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+}
+
+/* Hover lift for interactive cards */
+.pf-card-hover {
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.pf-card-hover:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  border-color: var(--border2);
+}
+
+/* Sidebar nav link hover */
+.pf-sidebar a:hover {
+  background: var(--bg) !important;
+}
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

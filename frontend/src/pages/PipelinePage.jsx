@@ -234,12 +234,12 @@ export default function PipelinePage() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads..."
             style={{ fontSize: 13, padding: '7px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', width: 200 }} />
           <select value={selectedList} onChange={e => setSelectedList(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
             <option value="all">All lists</option>
             {lists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
           <select value={icpFilter} onChange={e => setIcpFilter(e.target.value)}
-            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}>
+            style={{ fontSize: 13, padding: '7px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)', width: 'auto' }}>
             <option value="all">All ICP scores</option>
             <option value="high">High ICP (70+)</option>
             <option value="mid">Mid ICP (40-69)</option>
