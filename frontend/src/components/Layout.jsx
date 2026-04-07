@@ -4,18 +4,44 @@ import TouchBanner from './TouchBanner';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: '▦' },
-  { to: '/reminders', label: "Today's Touches", icon: '🎯' },
-  { to: '/profile', label: 'Profile', icon: '◈' },
-  { to: '/lists', label: 'Lead Lists', icon: '◉' },
-  { to: '/pipeline', label: 'Pipeline', icon: '▤' },
-  { to: '/templates', label: 'Templates', icon: '◧' },
-  { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
-  { to: '/team', label: 'Team & Integrations', icon: '◎' },
-  { to: '/billing', label: 'Billing', icon: '◇' },
-  { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
-  { to: '/activity', label: 'Activity Board', icon: '📊', adminOnly: true },
+const navSections = [
+  {
+    label: 'INTELLIGENCE',
+    items: [
+      { to: '/dashboard', label: 'Dashboard', icon: '▦' },
+      { to: '/opportunities', label: 'Opportunities', icon: '🔍' },
+      { to: '/pipeline', label: 'Pipeline', icon: '▤' },
+    ],
+  },
+  {
+    label: 'TEAMING',
+    items: [
+      { to: '/marketplace', label: 'Marketplace', icon: '🏪' },
+      { to: '/teaming', label: 'Teaming Inbox', icon: '🤝' },
+      { to: '/primes', label: 'Prime Tracker', icon: '🏢' },
+    ],
+  },
+  {
+    label: 'BD / OUTREACH',
+    items: [
+      { to: '/reminders', label: "Today's Touches", icon: '🎯' },
+      { to: '/lists', label: 'Lead Lists', icon: '◉' },
+      { to: '/templates', label: 'Templates', icon: '◧' },
+    ],
+  },
+  {
+    label: 'SETTINGS',
+    items: [
+      { to: '/profile', label: 'Company Profile', icon: '◈' },
+      { to: '/sub-profile', label: 'Sub Profile', icon: '📋' },
+      { to: '/coach', label: 'AI Coach', icon: '🤖' },
+      { to: '/team', label: 'Team & Integrations', icon: '◎' },
+      { to: '/billing', label: 'Billing', icon: '◇' },
+      { to: '/cardscan', label: 'Card Scanner', icon: '📇' },
+      { to: '/admin', label: 'Team Dashboard', icon: '◫', adminOnly: true },
+      { to: '/activity', label: 'Activity Board', icon: '📊', adminOnly: true },
+    ],
+  },
 ];
 
 export default function Layout({ children }) {
@@ -27,28 +53,34 @@ export default function Layout({ children }) {
 
   const sidebar = (
     <aside style={{
-      width: 220, background: 'var(--bg2)', borderRight: '1px solid var(--border)',
+      width: 230, background: 'var(--bg2)', borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', flexShrink: 0,
     }}>
-      <div style={{ padding: '1.25rem 1.25rem 1rem', fontFamily: 'Syne', fontSize: 18, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          ProspectForge
-          <span style={{ fontSize: 10, fontFamily: 'Inter', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>Sales Intelligence</span>
+          <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: 'var(--accent2)' }}>SumX</span>
+          <span style={{ fontFamily: 'Syne', fontSize: 20, fontWeight: 700, color: 'var(--text)' }}> CRM</span>
+          <span style={{ fontSize: 10, fontFamily: 'Inter', fontWeight: 400, color: 'var(--text3)', display: 'block', letterSpacing: '0.5px', textTransform: 'uppercase' }}>GovCon Intelligence Platform</span>
         </div>
         <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
-      <nav style={{ flex: 1, padding: '0.5rem 0.75rem', display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {navItems.filter(item => !item.adminOnly || isAdmin).map(item => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={() => setMobileOpen(false)}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-              borderRadius: 'var(--radius)', color: isActive ? 'var(--accent2)' : 'var(--text2)',
-              fontSize: 13, fontWeight: 500, textDecoration: 'none',
-              background: isActive ? 'var(--accent-bg)' : 'transparent',
-            })}>
-            <span style={{ fontSize: 16 }}>{item.icon}</span>
-            {item.label}
-          </NavLink>
+      <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+        {navSections.map(section => (
+          <div key={section.label}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', letterSpacing: '1px', padding: '12px 12px 4px', textTransform: 'uppercase' }}>{section.label}</div>
+            {section.items.filter(item => !item.adminOnly || isAdmin).map(item => (
+              <NavLink key={item.to} to={item.to} onClick={() => setMobileOpen(false)}
+                style={({ isActive }) => ({
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
+                  borderRadius: 'var(--radius)', color: isActive ? 'var(--accent2)' : 'var(--text2)',
+                  fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                  background: isActive ? 'var(--accent-bg)' : 'transparent',
+                })}>
+                <span style={{ fontSize: 15 }}>{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
       <TouchBanner />
@@ -56,7 +88,7 @@ export default function Layout({ children }) {
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
         <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{user?.role || 'member'}</div>
         <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email}</div>
-        <button onClick={handleLogout} style={{ width: '100%', padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 13, borderRadius: 'var(--radius)' }}>Sign out</button>
+        <button onClick={handleLogout} style={{ width: '100%', padding: '8px', background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 13, borderRadius: 'var(--radius)', cursor: 'pointer' }}>Sign out</button>
       </div>
     </aside>
   );
@@ -81,7 +113,7 @@ export default function Layout({ children }) {
 
       {/* Mobile top bar */}
       <div className="pf-mobile-bar" style={{ display: 'none', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <span style={{ fontFamily: 'Syne', fontSize: 16, fontWeight: 700 }}>ProspectForge</span>
+        <span style={{ fontFamily: 'Syne', fontSize: 16, fontWeight: 700 }}><span style={{ color: 'var(--accent2)' }}>SumX</span> CRM</span>
         <button onClick={() => setMobileOpen(true)} style={{ background: 'none', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 10px', borderRadius: 'var(--radius)', fontSize: 13, cursor: 'pointer' }}>☰ Menu</button>
       </div>
 
@@ -119,17 +151,16 @@ export default function Layout({ children }) {
             border-top-color: var(--accent);
           }
           .pf-bottom-nav a span.icon { font-size: 18px; }
-          /* Add padding to main content so it clears the bottom nav */
           main { padding-bottom: 60px !important; }
         }
       `}</style>
       <nav className="pf-bottom-nav">
         {[
-          { to: '/dashboard',  icon: '▦', label: 'Home' },
-          { to: '/reminders',  icon: '🎯', label: 'Touches' },
-          { to: '/lists',      icon: '◉', label: 'Leads' },
-          { to: '/pipeline',   icon: '▤', label: 'Pipeline' },
-          { to: '/profile',    icon: '◈', label: 'Profile' },
+          { to: '/dashboard',     icon: '▦', label: 'Home' },
+          { to: '/opportunities', icon: '🔍', label: 'Opps' },
+          { to: '/marketplace',   icon: '🏪', label: 'Teaming' },
+          { to: '/reminders',     icon: '🎯', label: 'Touches' },
+          { to: '/pipeline',      icon: '▤', label: 'Pipeline' },
         ].map(item => (
           <NavLink key={item.to} to={item.to}
             className={({ isActive }) => isActive ? 'active' : ''}>
@@ -148,6 +179,3 @@ export default function Layout({ children }) {
     </>
   );
 }
-
-
-

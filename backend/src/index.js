@@ -63,7 +63,17 @@ app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
 app.use('/api/cardscan', require('./routes/cardscan'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '2.3.0' }));
+// ── SubK Routes (teaming, marketplace, opportunities) ──
+app.use('/api/opportunities', require('./routes/opportunities'));
+app.use('/api/marketplace', require('./routes/marketplace'));
+app.use('/api/sub-profile', require('./routes/sub-profile'));
+app.use('/api/subk-primes', require('./routes/subk-primes'));
+app.use('/api/subk-dashboard', require('./routes/subk-dashboard'));
+app.use('/api/autosearch', require('./routes/autosearch'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/public', require('./routes/public'));
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.0.0', app: 'SumX CRM' }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));

@@ -327,8 +327,246 @@ const initDb = async () => {
       AND se.status = 'done'
       AND al.lead_id IS NOT NULL
       AND DATE(al.logged_at) != DATE(se.completed_at);
+
+    -- ═══════════════════════════════════════════════════════════════
+    -- SubK tables (teaming marketplace, opportunities, sub profiles)
+    -- ═══════════════════════════════════════════════════════════════
+
+    -- Sub contractor profiles for the teaming marketplace
+    CREATE TABLE IF NOT EXISTS sub_profiles (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      company_name VARCHAR(255),
+      website_url VARCHAR(500),
+      naics_codes TEXT,
+      cage_code VARCHAR(20),
+      uei VARCHAR(20),
+      certifications TEXT,
+      past_performance TEXT,
+      capabilities TEXT,
+      target_agencies TEXT,
+      contract_min INTEGER DEFAULT 0,
+      contract_max INTEGER DEFAULT 10000000,
+      set_aside_prefs TEXT,
+      state VARCHAR(50),
+      is_public BOOLEAN DEFAULT false,
+      tagline VARCHAR(255),
+      uei_verified BOOLEAN DEFAULT false,
+      sam_data JSONB,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Opportunity searches (saved search configs)
+    CREATE TABLE IF NOT EXISTS opportunity_searches (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(255),
+      naics_codes TEXT,
+      keywords TEXT,
+      agency TEXT,
+      set_aside TEXT,
+      status VARCHAR(50) DEFAULT 'active',
+      auto_frequency VARCHAR(20) DEFAULT NULL,
+      last_auto_run TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Federal opportunities from SAM.gov
+    CREATE TABLE IF NOT EXISTS opportunities (
+      id SERIAL PRIMARY KEY,
+      search_id INTEGER REFERENCES opportunity_searches(id) ON DELETE CASCADE,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      sam_notice_id VARCHAR(255) UNIQUE,
+      title TEXT,
+      agency VARCHAR(255),
+      sub_agency VARCHAR(255),
+      naics_code VARCHAR(20),
+      set_aside VARCHAR(100),
+      posted_date DATE,
+      response_deadline TIMESTAMP,
+      value_min BIGINT,
+      value_max BIGINT,
+      description TEXT,
+      place_of_performance VARCHAR(255),
+      primary_contact_name VARCHAR(255),
+      primary_contact_email VARCHAR(255),
+      solicitation_number VARCHAR(255),
+      opportunity_url TEXT,
+      fit_score INTEGER,
+      fit_reason TEXT,
+      status VARCHAR(50) DEFAULT 'new',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Prime contractor tracking
+    CREATE TABLE IF NOT EXISTS primes (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      company_name VARCHAR(255) NOT NULL,
+      cage_code VARCHAR(20),
+      uei VARCHAR(20),
+      website VARCHAR(500),
+      naics_codes TEXT,
+      certifications TEXT,
+      recent_awards TEXT,
+      total_awards_value BIGINT DEFAULT 0,
+      award_count INTEGER DEFAULT 0,
+      agency_focus TEXT,
+      size_category VARCHAR(50),
+      fit_score INTEGER,
+      fit_reason TEXT,
+      research TEXT,
+      outreach_status VARCHAR(50) DEFAULT 'not_contacted',
+      contact_name VARCHAR(255),
+      contact_email VARCHAR(255),
+      contact_title VARCHAR(255),
+      notes TEXT,
+      teaming_pitch TEXT,
+      email1 TEXT,
+      email2 TEXT,
+      email3 TEXT,
+      call_opener TEXT,
+      capability_statement TEXT,
+      zoho_contact_id VARCHAR(255),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS prime_notes (
+      id SERIAL PRIMARY KEY,
+      prime_id INTEGER REFERENCES primes(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS outreach_events (
+      id SERIAL PRIMARY KEY,
+      prime_id INTEGER REFERENCES primes(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      touchpoint VARCHAR(50) NOT NULL,
+      status VARCHAR(50) DEFAULT 'pending',
+      notes TEXT,
+      completed_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS outreach_events_prime_touchpoint ON outreach_events(prime_id, touchpoint);
+
+    -- Structured past performance records
+    CREATE TABLE IF NOT EXISTS past_performance (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      contract_number VARCHAR(100),
+      contract_title VARCHAR(255),
+      agency VARCHAR(255),
+      prime_or_sub VARCHAR(20) DEFAULT 'prime',
+      award_amount BIGINT,
+      period_start DATE,
+      period_end DATE,
+      naics_code VARCHAR(20),
+      set_aside VARCHAR(100),
+      description TEXT,
+      relevance_tags TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- UEI lookup cache
+    CREATE TABLE IF NOT EXISTS uei_cache (
+      uei VARCHAR(20) PRIMARY KEY,
+      data JSONB,
+      cached_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Prime-side accounts (primes register to find subs)
+    CREATE TABLE IF NOT EXISTS prime_accounts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      company_name VARCHAR(255) NOT NULL,
+      cage_code VARCHAR(20),
+      uei VARCHAR(20),
+      website VARCHAR(500),
+      naics_codes TEXT,
+      certifications TEXT,
+      capabilities TEXT,
+      agency_focus TEXT,
+      teaming_needs TEXT,
+      is_public BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Teaming requests
+    CREATE TABLE IF NOT EXISTS teaming_requests (
+      id SERIAL PRIMARY KEY,
+      from_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      to_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL,
+      message TEXT,
+      status VARCHAR(50) DEFAULT 'pending',
+      from_type VARCHAR(20) DEFAULT 'sub',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Shared opportunities posted by primes
+    CREATE TABLE IF NOT EXISTS shared_opportunities (
+      id SERIAL PRIMARY KEY,
+      prime_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      naics_codes TEXT,
+      set_aside VARCHAR(100),
+      agency VARCHAR(255),
+      response_deadline TIMESTAMP,
+      value_min BIGINT,
+      value_max BIGINT,
+      roles_needed TEXT,
+      requirements TEXT,
+      status VARCHAR(50) DEFAULT 'open',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Sub expressions of interest on shared opportunities
+    CREATE TABLE IF NOT EXISTS opportunity_interests (
+      id SERIAL PRIMARY KEY,
+      shared_opp_id INTEGER REFERENCES shared_opportunities(id) ON DELETE CASCADE,
+      sub_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      message TEXT,
+      status VARCHAR(50) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(shared_opp_id, sub_user_id)
+    );
+
+    -- Saved/bookmarked opportunities
+    CREATE TABLE IF NOT EXISTS saved_opportunities (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE CASCADE,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, opportunity_id)
+    );
+
+    -- Notifications system
+    CREATE TABLE IF NOT EXISTS notifications (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(50) NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      message TEXT,
+      link VARCHAR(500),
+      is_read BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+
+    -- Add searches tracking to organizations for SubK features
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_used INTEGER DEFAULT 0;
+    ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_limit INTEGER DEFAULT 100;
   `);
-  console.log('Database initialized');
+  console.log('SumX CRM database initialized');
 };
 
 module.exports = { pool, initDb };

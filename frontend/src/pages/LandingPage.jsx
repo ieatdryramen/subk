@@ -45,21 +45,21 @@ const s = {
 };
 
 const FEATURES = [
-  { icon: '🔍', title: 'AI prospect research', desc: 'Claude researches every lead before writing — company intel, role context, industry pressures. No generic outreach.' },
-  { icon: '✉️', title: '4-touch email cadence', desc: 'Day 1, 3, 7, and 14 emails — each a completely different angle. Written to sound human, not AI.' },
-  { icon: '📞', title: 'Call openers & callbacks', desc: 'Exactly what to say in the first 20 seconds. Discovery questions. Brush-off responses. 8 conversation callbacks.' },
-  { icon: '🎭', title: 'Role-based messaging', desc: 'SDR, AE, AM, CSM, and SE all get completely different playbooks. The right message for your role.' },
-  { icon: '💬', title: 'AI sales coach', desc: 'Chat with an AI coach per lead. Rewrite any section, prep for objections, ask anything about the prospect.' },
-  { icon: '🔗', title: 'Zoho CRM sync', desc: 'Push contacts and full playbooks to Zoho CRM with one click. Keep your CRM in sync automatically.' },
-  { icon: '📊', title: 'ICP lead scoring', desc: 'Score your entire lead list against your ICP. Sorted by fit so you work the best leads first.' },
-  { icon: '📁', title: 'ZoomInfo CSV import', desc: 'Drop in your ZoomInfo export and we handle the rest. All column formats supported automatically.' },
-  { icon: '👥', title: 'Team accounts', desc: 'Invite your whole team. Shared company profile, individual roles and accounts. One invite link.' },
+  { icon: '🔍', title: 'Opportunity Intelligence', desc: 'Auto-discover federal opportunities from SAM.gov. AI scores every opportunity against your NAICS, certs, and capabilities.' },
+  { icon: '🤝', title: 'Teaming Marketplace', desc: 'Two-sided marketplace connecting primes and subs. Search by NAICS, certifications, past performance, and clearance.' },
+  { icon: '📝', title: 'AI Proposal Writer', desc: 'Upload an RFP and let AI draft compliance matrices, technical approaches, and past performance volumes. (Coming soon)' },
+  { icon: '🏢', title: 'Prime Tracker', desc: 'Research prime contractors using USASpending data. AI generates teaming pitches and outreach emails tailored to each prime.' },
+  { icon: '✉️', title: 'BD Outreach Cadences', desc: 'AI-written email sequences, call openers, and LinkedIn messages — personalized to each prospect using real research.' },
+  { icon: '📊', title: 'Capture Pipeline', desc: 'GovCon-specific pipeline from Lead through Award. Track opportunities, proposals, and BD activity in one place.' },
+  { icon: '💬', title: 'AI GovCon Coach', desc: 'Chat with an AI coach about any opportunity, prime, or teaming strategy. Practical advice, not generic tips.' },
+  { icon: '📋', title: 'Sub Profile & Vetting Card', desc: 'Build a rich sub profile with UEI verification, SAM.gov data, and structured past performance. Share a public vetting link.' },
+  { icon: '🔗', title: 'Integrations', desc: 'Zoho CRM sync, Gmail connect, Stripe billing, and more. Built to work alongside your existing tools.' },
 ];
 
 const PLANS = [
-  { name: 'Starter', price: '$49', per: '/month', playbooks: '100 playbooks/mo', users: '1 user', exports: 'PDF exports', zoho: 'Zoho CRM sync', featured: false },
-  { name: 'Team', price: '$149', per: '/month', playbooks: '500 playbooks/mo', users: '5 users', exports: 'PDF exports', zoho: 'Zoho CRM sync', featured: true },
-  { name: 'Pro', price: '$299', per: '/month', playbooks: 'Unlimited playbooks', users: 'Unlimited users', exports: 'PDF exports', zoho: 'Zoho CRM sync', featured: false },
+  { name: 'Starter', price: '$99', per: '/user/month', playbooks: 'Opportunity search + scoring', users: '1 user', exports: '5 AI proposals/mo', zoho: 'Teaming marketplace', featured: false },
+  { name: 'Professional', price: '$249', per: '/user/month', playbooks: 'Unlimited AI proposals', users: '5 users', exports: 'BD outreach sequences', zoho: 'Compliance checker', featured: true },
+  { name: 'Team', price: '$449', per: '/user/month', playbooks: 'Multi-user collaboration', users: 'Unlimited users', exports: 'Advanced analytics', zoho: 'Priority support', featured: false },
 ];
 
 export default function LandingPage() {
@@ -70,7 +70,7 @@ export default function LandingPage() {
       <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700&display=swap" rel="stylesheet" />
 
       <nav style={s.nav}>
-        <div style={s.navLogo}>ProspectForge</div>
+        <div style={s.navLogo}>SumX CRM</div>
         <div style={s.navRight}>
           <button style={s.loginBtn} onClick={() => navigate('/login')}>Sign in</button>
           <button style={s.signupBtn} onClick={() => navigate('/signup')}>Start free trial</button>
@@ -78,18 +78,18 @@ export default function LandingPage() {
       </nav>
 
       <div style={s.hero}>
-        <div style={s.eyebrow}>AI-Powered Sales Intelligence</div>
+        <div style={s.eyebrow}>GovCon Intelligence Platform</div>
         <h1 style={s.h1}>
-          Personalized playbooks for <span style={s.h1Accent}>every prospect</span>
+          Find, team, and win <span style={s.h1Accent}>federal contracts</span>
         </h1>
         <p style={s.heroSub}>
-          ProspectForge researches your leads, then generates fully personalized email sequences, call openers, objection handling, and LinkedIn messages — tailored to each person's company, role, and situation.
+          SumX CRM combines opportunity intelligence, AI-powered proposals, prime-sub teaming, and BD outreach in one platform built for government contractors.
         </p>
         <div style={s.heroBtns}>
           <button style={s.ctaPrimary} onClick={() => navigate('/signup')}>Start free trial →</button>
           <button style={s.ctaSecondary} onClick={() => navigate('/login')}>Sign in</button>
         </div>
-        <div style={s.trialNote}>10 free playbooks · No credit card required · Work email required</div>
+        <div style={s.trialNote}>Free trial · No credit card required · GovCon focused</div>
       </div>
 
       <div style={s.howItWorks}>
@@ -97,10 +97,10 @@ export default function LandingPage() {
         <div style={s.sectionSub}>From lead list to personalized playbook in under a minute</div>
         <div style={s.steps}>
           {[
-            { n: 1, t: 'Set up your profile', d: 'Enter your company, product, ICP, and value props. Paste your website URL to auto-fill.' },
-            { n: 2, t: 'Import your leads', d: 'Drop in a CSV from ZoomInfo or add leads manually. We handle any column format.' },
-            { n: 3, t: 'Generate playbooks', d: 'AI researches each prospect and writes a fully personalized playbook in ~20 seconds.' },
-            { n: 4, t: 'Go sell', d: 'Send emails, make calls, push to Zoho. Your AI coach is always one click away.' },
+            { n: 1, t: 'Build your profile', d: 'Upload your cap statement or enter your UEI. We auto-populate NAICS, certs, and past performance from SAM.gov.' },
+            { n: 2, t: 'Find opportunities', d: 'AI searches SAM.gov and USASpending for opportunities that match your capabilities and scores them automatically.' },
+            { n: 3, t: 'Build your team', d: 'Find teaming partners in the marketplace. Primes find subs, subs find primes. Real data, real past performance.' },
+            { n: 4, t: 'Win contracts', d: 'AI helps write proposals, generates outreach to primes, and manages your full capture pipeline.' },
           ].map(step => (
             <div key={step.n} style={s.step}>
               <div style={s.stepNum}>{step.n}</div>
@@ -112,8 +112,8 @@ export default function LandingPage() {
       </div>
 
       <div style={s.features}>
-        <div style={s.sectionTitle}>Everything you need to prospect better</div>
-        <div style={s.sectionSub}>Built for sales teams that need to move fast without sacrificing personalization</div>
+        <div style={s.sectionTitle}>Everything you need to win GovCon</div>
+        <div style={s.sectionSub}>Built for government contractors who need intelligence, teaming, and proposals in one place</div>
         <div style={s.featuresGrid}>
           {FEATURES.map(f => (
             <div key={f.title} style={s.featureCard}>
@@ -152,8 +152,8 @@ export default function LandingPage() {
       </div>
 
       <footer style={s.footer}>
-        <div style={s.footerLeft}>© 2026 ProspectForge. All rights reserved.</div>
-        <div style={{ fontSize: 13, color: '#5a5a70' }}>Built for modern sales teams</div>
+        <div style={s.footerLeft}>© 2026 SumX CRM. All rights reserved.</div>
+        <div style={{ fontSize: 13, color: '#5a5a70' }}>Built by SumX AI for government contractors</div>
       </footer>
     </div>
   );

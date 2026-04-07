@@ -245,7 +245,7 @@ export default function LeadListDetailPage() {
   };
 
   const exportSelected = () => {
-    const token = localStorage.getItem('pf_token');
+    const token = localStorage.getItem('sumx_token');
     const ids = [...selectedIds].join(',');
     window.open(`/api/export/list/${id}/html?token=${token}&ids=${ids}`, '_blank');
   };
@@ -291,7 +291,7 @@ export default function LeadListDetailPage() {
   };
 
   const exportList = (format) => {
-    const token = localStorage.getItem('pf_token');
+    const token = localStorage.getItem('sumx_token');
     window.open(`/api/export/list/${id}/${format}?token=${token}`, '_blank');
     setShowExportMenu(false);
   };

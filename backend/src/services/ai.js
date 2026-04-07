@@ -391,5 +391,197 @@ You have the full playbook. When asked to rewrite something, rewrite it complete
   return response.content[0].text;
 };
 
-module.exports = { generatePlaybook, chatWithPlaybook };
+// ─────────────────────────────────────────────────────────────
+// SubK AI Functions (opportunity scoring, prime outreach, cap statements, coach)
+// ─────────────────────────────────────────────────────────────
+
+// Score an opportunity against a sub's profile — structured match first, AI for nuance
+const scoreOpportunity = async (opportunity, subProfile) => {
+  let structuredScore = 0;
+  const reasons = [];
+
+  const subNaics = (subProfile.naics_codes || '').split(',').map(n => n.trim()).filter(Boolean);
+  const oppNaics = opportunity.naics_code?.trim();
+  if (oppNaics && subNaics.length) {
+    const exact = subNaics.includes(oppNaics);
+    const prefix3 = subNaics.some(n => n.substring(0, 3) === oppNaics.substring(0, 3));
+    if (exact) { structuredScore += 40; reasons.push(`Exact NAICS match (${oppNaics})`); }
+    else if (prefix3) { structuredScore += 20; reasons.push(`Partial NAICS match (${oppNaics.substring(0, 3)}xx)`); }
+    else { reasons.push(`NAICS mismatch — they want ${oppNaics}, you have ${subNaics.slice(0, 2).join(', ')}`); }
+  }
+
+  const subCerts = (subProfile.certifications || '').toLowerCase();
+  const setAside = (opportunity.set_aside || '').toLowerCase();
+  const certMap = [
+    { key: '8(a)', label: '8(a)' }, { key: 'hubzone', label: 'HUBZone' },
+    { key: 'sdvosb', label: 'SDVOSB' }, { key: 'vosb', label: 'VOSB' },
+    { key: 'wosb', label: 'WOSB' }, { key: 'edwosb', label: 'EDWOSB' },
+    { key: 'small business', label: 'Small Business' },
+  ];
+  if (!setAside || setAside === 'none' || setAside.includes('full and open')) {
+    structuredScore += 15; reasons.push('Full & open — no set-aside restriction');
+  } else {
+    const match = certMap.find(c => setAside.includes(c.key) && subCerts.includes(c.key));
+    if (match) { structuredScore += 30; reasons.push(`${match.label} set-aside — you qualify`); }
+    else {
+      const req = certMap.find(c => setAside.includes(c.key));
+      reasons.push(`Set-aside requires ${req?.label || setAside} — verify eligibility`);
+    }
+  }
+
+  const subAgencies = (subProfile.target_agencies || '').toLowerCase();
+  const oppAgency = (opportunity.agency || '').toLowerCase();
+  if (subAgencies && oppAgency) {
+    const agencyMatch = subAgencies.split(',').some(a => oppAgency.includes(a.trim()) || a.trim().includes(oppAgency.split(' ')[0]));
+    if (agencyMatch) { structuredScore += 15; reasons.push(`Target agency match (${opportunity.agency})`); }
+  }
+
+  const minV = subProfile.contract_min || 0;
+  const maxV = subProfile.contract_max || 999999999;
+  const oppMin = opportunity.value_min || 0;
+  const oppMax = opportunity.value_max || oppMin;
+  if (oppMin || oppMax) {
+    const inRange = oppMin <= maxV && (oppMax === 0 || oppMax >= minV);
+    if (inRange) { structuredScore += 15; reasons.push('Contract value in range'); }
+    else { reasons.push('Contract value outside your range'); }
+  } else {
+    structuredScore += 8;
+  }
+
+  structuredScore = Math.min(structuredScore, 100);
+
+  if (structuredScore >= 30 && structuredScore <= 70 && subProfile.capabilities) {
+    try {
+      const msg = await withTimeout(
+        client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 150,
+          messages: [{ role: 'user', content: `Adjust this opportunity fit score (currently ${structuredScore}/100) up or down by max 15 points based on capabilities match only. Return JSON: {"adjustment": -10, "reason": "one sentence"}\n\nSub capabilities: ${subProfile.capabilities?.substring(0, 300)}\nOpportunity: ${opportunity.title} — ${opportunity.description?.substring(0, 200)}` }],
+        }),
+        6000, 'score adjustment'
+      );
+      const parsed = JSON.parse(msg.content[0].text.replace(/```json|```/g, '').trim());
+      structuredScore = Math.min(100, Math.max(0, structuredScore + (parsed.adjustment || 0)));
+      if (parsed.reason) reasons.push(parsed.reason);
+    } catch (_) { /* skip AI adjustment on timeout */ }
+  }
+
+  return { score: structuredScore, reason: reasons.slice(0, 3).join('. ') + '.' };
+};
+
+const generatePrimeOutreach = async (prime, subProfile) => {
+  const researchPrompt = `You are a GovCon business development expert researching a prime contractor for teaming outreach.
+
+PRIME CONTRACTOR: ${prime.company_name}
+Recent Awards: ${JSON.stringify(prime.recent_awards?.slice(0, 3) || [])}
+Agency Focus: ${prime.agency_focus}
+Total Awards Value: $${(prime.total_awards_value || 0).toLocaleString()}
+Award Count: ${prime.award_count}
+NAICS Codes: ${prime.naics_codes}
+
+Write a sharp 3-paragraph research brief:
+1. WHO THEY ARE: What kind of prime are they? What's their bread and butter? What agencies do they dominate?
+2. WHY THEY NEED SUBS: What gaps do they likely have? What capabilities are they always looking to sub out? What certifications would make them more competitive?
+3. TEAMING ANGLE: How should this specific sub approach them? What's the hook?
+
+Be specific. Under 200 words. No fluff.`;
+
+  const outreachPrompt = `You are writing teaming outreach for a subcontractor targeting a prime contractor.
+
+SUBCONTRACTOR:
+Company: ${subProfile.company_name}
+Certifications: ${subProfile.certifications}
+Capabilities: ${subProfile.capabilities}
+NAICS Codes: ${subProfile.naics_codes}
+Past Performance highlights: ${subProfile.past_performance}
+
+TARGET PRIME: ${prime.company_name}
+Agency Focus: ${prime.agency_focus}
+Recent Win: ${prime.recent_awards?.[0] ? `$${prime.recent_awards[0].amount?.toLocaleString()} from ${prime.recent_awards[0].agency}` : 'Recent federal award'}
+
+HARD RULES:
+- Never start any email with "I" as the first word
+- No generic buzzwords: synergies, leverage, value-add, best-in-class
+- Lead with THEIR recent win or agency focus, not your company
+- Sound like a peer in the industry, not a vendor pitching
+- Email 1: 4-5 sentences. One specific hook about their recent work. End with one question.
+- Email 2: Completely different angle. Short story or contrarian insight. Under 100 words.
+- Email 3: Under 60 words. One thing. One question. Done.
+- Call opener: Sayable in 15 seconds. Specific. No stats in opening line.
+
+Return ONLY valid JSON:
+{
+  "teaming_pitch": "2 paragraph capability statement pitch specific to this prime",
+  "email1": "SUBJECT: [subject]\\n\\n[body]\\n\\n[sender name]",
+  "email2": "SUBJECT: [subject]\\n\\n[body]\\n\\n[sender name]",
+  "email3": "SUBJECT: [subject]\\n\\n[body]\\n\\n[sender name]",
+  "call_opener": "OPENING (15 sec):\\n[opener]\\n\\nIF THEY HAVE 2 MIN:\\n1. [question]\\n2. [question]\\n3. [question]"
+}`;
+
+  try {
+    const [researchMsg, outreachMsg] = await Promise.all([
+      withTimeout(client.messages.create({ model: 'claude-haiku-4-5-20251001', max_tokens: 400, messages: [{ role: 'user', content: researchPrompt }] }), 12000, 'prime research'),
+      withTimeout(client.messages.create({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: outreachPrompt }] }), 30000, 'outreach generation'),
+    ]);
+    const research = researchMsg.content[0].text.trim();
+    const outreachText = outreachMsg.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const outreach = JSON.parse(outreachText);
+    return { research, ...outreach };
+  } catch (err) { console.error('AI generation error:', err.message); throw err; }
+};
+
+const generateCapabilityStatement = async (subProfile, opportunity) => {
+  const prompt = `Write a professional capability statement for a government contractor responding to a specific opportunity.
+
+SUBCONTRACTOR:
+Company: ${subProfile.company_name}
+NAICS Codes: ${subProfile.naics_codes}
+Certifications: ${subProfile.certifications}
+Capabilities: ${subProfile.capabilities}
+Past Performance: ${subProfile.past_performance}
+CAGE Code: ${subProfile.cage_code || 'TBD'}
+UEI: ${subProfile.uei || 'TBD'}
+
+TARGET OPPORTUNITY:
+${opportunity ? `Title: ${opportunity.title}\nAgency: ${opportunity.agency}\nNAICS: ${opportunity.naics_code}` : 'General federal market'}
+
+Write a one-page capability statement with:
+1. Core Competencies (4-6 bullet points specific to the opportunity)
+2. Differentiators (what sets them apart)
+3. Past Performance highlights (3 brief examples)
+4. Contact/Company info placeholder
+
+Professional, government contracting tone. Specific. No buzzwords.
+Return as plain text, formatted for a Word doc.`;
+
+  const msg = await withTimeout(
+    client.messages.create({ model: 'claude-sonnet-4-20250514', max_tokens: 800, messages: [{ role: 'user', content: prompt }] }),
+    20000, 'capability statement'
+  );
+  return msg.content[0].text.trim();
+};
+
+const chatWithCoach = async (messages, context) => {
+  const systemPrompt = `You are an expert GovCon business development coach helping a subcontractor win teaming agreements and federal opportunities.
+
+SUBCONTRACTOR CONTEXT:
+Company: ${context.subProfile?.company_name || 'Unknown'}
+Certifications: ${context.subProfile?.certifications || 'Not specified'}
+Capabilities: ${context.subProfile?.capabilities || 'Not specified'}
+NAICS Codes: ${context.subProfile?.naics_codes || 'Not specified'}
+
+${context.prime ? `PRIME BEING TARGETED:\nCompany: ${context.prime.company_name}\nAgency Focus: ${context.prime.agency_focus}\nRecent Awards: $${(context.prime.total_awards_value || 0).toLocaleString()} across ${context.prime.award_count} awards\nResearch: ${context.prime.research || 'Not yet researched'}` : ''}
+
+${context.opportunity ? `OPPORTUNITY BEING PURSUED:\nTitle: ${context.opportunity.title}\nAgency: ${context.opportunity.agency}\nDeadline: ${context.opportunity.response_deadline}\nFit Score: ${context.opportunity.fit_score}/100` : ''}
+
+You are direct, specific, and practical. You know GovCon inside out. Be the most useful BD advisor they've ever talked to.`;
+
+  const response = await withTimeout(
+    client.messages.create({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, system: systemPrompt, messages }),
+    25000, 'coach chat'
+  );
+  return response.content[0].text;
+};
+
+module.exports = { generatePlaybook, chatWithPlaybook, scoreOpportunity, generatePrimeOutreach, generateCapabilityStatement, chatWithCoach };
 

@@ -126,7 +126,7 @@ export default function PlaybookViewer({ playbook, leadId, lead: leadProp, onPla
   }, [chatMessages]);
 
   const exportLead = (format) => {
-    const token = localStorage.getItem('pf_token');
+    const token = localStorage.getItem('sumx_token');
     window.open(`/api/export/lead/${leadId}/${format}?token=${token}`, '_blank');
   };
 

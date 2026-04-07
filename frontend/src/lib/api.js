@@ -5,7 +5,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('pf_token');
+  const token = localStorage.getItem('sumx_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -14,8 +14,8 @@ api.interceptors.response.use(
   res => res,
   err => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('pf_token');
-      localStorage.removeItem('pf_user');
+      localStorage.removeItem('sumx_token');
+      localStorage.removeItem('sumx_user');
       window.location.href = '/login';
     }
     return Promise.reject(err);
