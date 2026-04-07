@@ -32,15 +32,15 @@ router.get('/dashboard', auth, async (req, res) => {
     const totalTouches = await client.query("SELECT COUNT(*) as n FROM sequence_events WHERE user_id = ANY($1) AND status='done' AND touchpoint!='zoho_note_added'", [userIds]);
     const highScoreLeads = await client.query('SELECT COUNT(*) as n FROM leads WHERE user_id = ANY($1) AND icp_score >= 70', [userIds]);
 
-    // Pipeline stage counts for funnel visualization
+    // Pipeline stage counts based on sequence_stage (outreach progress)
     const pipelineStages = await client.query(`
       SELECT
-        COUNT(CASE WHEN status='new' OR status IS NULL THEN 1 END) as pipeline_new,
-        COUNT(CASE WHEN status='contacted' THEN 1 END) as pipeline_contacted,
-        COUNT(CASE WHEN status='engaged' THEN 1 END) as pipeline_engaged,
-        COUNT(CASE WHEN status='proposal' THEN 1 END) as pipeline_proposal,
-        COUNT(CASE WHEN status='closed' OR status='won' THEN 1 END) as pipeline_closed
-      FROM leads WHERE user_id = ANY($1)
+        COUNT(CASE WHEN sequence_stage IS NULL OR sequence_stage='not_started' THEN 1 END) as pipeline_new,
+        COUNT(CASE WHEN sequence_stage IN ('in_progress_1','in_progress_2','in_progress_3') THEN 1 END) as pipeline_contacted,
+        COUNT(CASE WHEN sequence_stage IN ('in_progress_4','in_progress_5','in_progress_6','in_progress_7','in_progress_8','in_progress_9','in_progress_10','mefu') THEN 1 END) as pipeline_engaged,
+        COUNT(CASE WHEN sequence_stage='meeting_booked' THEN 1 END) as pipeline_proposal,
+        COUNT(CASE WHEN sequence_stage='completed' THEN 1 END) as pipeline_closed
+      FROM leads WHERE user_id = ANY($1) AND status='done'
     `, [userIds]);
 
     // Members with stats — use subqueries instead of triple LEFT JOIN
