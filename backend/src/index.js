@@ -91,7 +91,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/seed', require('./routes/seed'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.1.0', app: 'SumX CRM', uptime: process.uptime() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.2.0', app: 'SumX CRM', uptime: process.uptime() }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
