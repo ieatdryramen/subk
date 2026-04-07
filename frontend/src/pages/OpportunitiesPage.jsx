@@ -400,14 +400,21 @@ export default function OpportunitiesPage() {
                     {savedMap[opp.id] ? '★' : '☆'}
                   </button>
                 )}
-                {(opp.opportunity_url || opp.solicitation_number) && (
-                  <a href={opp.opportunity_url || `https://sam.gov/search/?keywords=${encodeURIComponent(opp.solicitation_number || opp.title)}&sort=-modifiedDate&index=opp`}
-                    target="_blank" rel="noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    style={{ fontSize: 11, padding: '4px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--accent2)', whiteSpace: 'nowrap' }}>
-                    SAM.gov ↗
-                  </a>
-                )}
+                {(() => {
+                  // Real SAM.gov notice IDs are 32-char hex strings
+                  const hasValidUrl = opp.opportunity_url && /\/opp\/[a-f0-9]{20,}\/view/.test(opp.opportunity_url);
+                  const searchUrl = opp.solicitation_number
+                    ? `https://sam.gov/search/?keywords=${encodeURIComponent(opp.solicitation_number)}&sort=-modifiedDate&index=opp`
+                    : opp.title ? `https://sam.gov/search/?keywords=${encodeURIComponent(opp.title.substring(0, 80))}&sort=-modifiedDate&index=opp` : null;
+                  const url = hasValidUrl ? opp.opportunity_url : searchUrl;
+                  return url && (
+                    <a href={url} target="_blank" rel="noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      style={{ fontSize: 11, padding: '4px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--accent2)', whiteSpace: 'nowrap' }}>
+                      {hasValidUrl ? 'View on SAM.gov ↗' : 'Search SAM.gov ↗'}
+                    </a>
+                  );
+                })()}
                 {opp.id && (
                   <button style={{ ...s.btn(), fontSize: 11, padding: '4px 8px', color: 'var(--danger)', borderColor: 'var(--danger-bg)' }}
                     onClick={e => { e.stopPropagation(); deleteOpp(opp.id); }}>✕</button>
