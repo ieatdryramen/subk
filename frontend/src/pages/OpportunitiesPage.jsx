@@ -333,7 +333,17 @@ export default function OpportunitiesPage() {
         {/* Opportunity cards */}
         {tab !== 'search' && displayOpps.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text2)' }}>
-            {tab === 'tracked' ? 'No opportunities tracked yet — run a search to get started' : 'No results'}
+            {tab === 'tracked' && 'No opportunities tracked yet — run a search to get started'}
+            {tab === 'saved' && 'No saved opportunities yet — star opportunities to save them'}
+            {tab === 'results' && (
+              <div>
+                <div style={{ fontSize: 15, marginBottom: 8 }}>No results found on SAM.gov</div>
+                <div style={{ fontSize: 13, color: 'var(--text3)' }}>
+                  Try broadening your search — use fewer keywords, remove agency filters, or try different NAICS codes.
+                  {!searchForm.naics_codes && !searchForm.keywords && ' Enter at least a NAICS code or keyword to search.'}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
