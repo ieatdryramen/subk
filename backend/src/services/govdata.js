@@ -79,44 +79,57 @@ const searchOpportunities = async ({ naics_codes, keywords, agency, set_aside, l
 // Helper: search opportunities for a single NAICS code
 const searchOpportunitiesForCode = async ({ code, keywords, agency, set_aside, limit = 50 }) => {
   try {
+    // SAM.gov API requires MM/dd/yyyy date format
     const params = {
       api_key: SAM_API_KEY,
       limit,
       offset: 0,
-      postedFrom: getDateDaysAgo(90),
-      postedTo: getTodayDate(),
-      active: 'true',
+      postedFrom: formatDateSAM(getDateDaysAgo(90)),
+      postedTo: formatDateSAM(getTodayDate()),
     };
 
-    if (code) params.naicsCode = code;
-    if (keywords) params.keyword = keywords;
+    if (code) params.ncode = code;
+    if (keywords) params.title = keywords;
     if (agency) params.organizationName = agency;
-    if (set_aside && set_aside !== 'all') params.typeOfSetAsideDescription = set_aside;
+    // SAM.gov set-aside codes: SBA, 8A, HZC, SDVOSBC, WOSB, etc.
+    if (set_aside && set_aside !== 'all') {
+      const setAsideCodeMap = {
+        'Small Business Set-Aside': 'SBA',
+        '8(a)': '8A',
+        'HUBZone': 'HZC',
+        'SDVOSB': 'SDVOSBC',
+        'WOSB': 'WOSB',
+        'EDWOSB': 'EDWOSB',
+      };
+      params.typeOfSetAside = setAsideCodeMap[set_aside] || set_aside;
+    }
 
+    console.log(`SAM.gov search: ncode=${code}, title=${keywords}, limit=${limit}`);
     const response = await axios.get(SAM_BASE, { params, timeout: 15000 });
     const opps = response.data?.opportunitiesData || [];
+    console.log(`SAM.gov returned ${opps.length} opportunities`);
 
     return opps.map(opp => ({
       sam_notice_id: opp.noticeId,
       title: opp.title,
-      agency: opp.fullParentPathName?.split('.')[0] || opp.organizationHierarchy?.[0]?.name || 'Unknown Agency',
-      sub_agency: opp.fullParentPathName?.split('.')?.[1] || '',
-      naics_code: opp.naicsCode,
-      set_aside: opp.typeOfSetAsideDescription || '',
+      agency: opp.fullParentPathName?.split('.')[0] || opp.department || 'Unknown Agency',
+      sub_agency: opp.fullParentPathName?.split('.')?.[1] || opp.subtierAgency || '',
+      naics_code: opp.naicsCode || opp.classificationCode || '',
+      set_aside: opp.typeOfSetAsideDescription || opp.typeOfSetAside || '',
       posted_date: opp.postedDate,
-      response_deadline: opp.responseDeadLine,
-      description: opp.description?.substring(0, 1000) || '',
+      response_deadline: opp.responseDeadLine || opp.archiveDate,
+      description: (opp.description || opp.additionalInfoLink || '').substring(0, 1000),
       place_of_performance: [
         opp.placeOfPerformance?.city?.name,
-        opp.placeOfPerformance?.state?.name
-      ].filter(Boolean).join(', '),
+        opp.placeOfPerformance?.state?.name || opp.placeOfPerformance?.state?.code,
+      ].filter(Boolean).join(', ') || opp.officeAddress?.state || '',
       primary_contact_name: opp.pointOfContact?.[0]?.fullName || '',
       primary_contact_email: opp.pointOfContact?.[0]?.email || '',
       solicitation_number: opp.solicitationNumber || '',
       opportunity_url: `https://sam.gov/opp/${opp.noticeId}/view`,
     }));
   } catch (err) {
-    console.error(`SAM.gov API error for NAICS ${code}:`, err.message);
+    console.error(`SAM.gov API error for NAICS ${code}:`, err.response?.status, err.response?.data || err.message);
     return [];
   }
 };
@@ -181,6 +194,11 @@ const getDateDaysAgo = (days) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().split('T')[0];
+};
+// SAM.gov requires MM/dd/yyyy format
+const formatDateSAM = (isoDate) => {
+  const [y, m, d] = isoDate.split('-');
+  return `${m}/${d}/${y}`;
 };
 
 // Mock data for demo/dev when API keys aren't set

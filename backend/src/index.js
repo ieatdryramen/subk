@@ -115,7 +115,12 @@ initDb().then(async () => {
     }
   } catch(e) { console.error('Cleanup error:', e.message); }
 
-  app.listen(PORT, () => console.log(`SumX CRM v3.1 running on port ${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`SumX CRM v3.1 running on port ${PORT}`);
+    console.log(`SAM_API_KEY: ${process.env.SAM_API_KEY ? 'configured (' + process.env.SAM_API_KEY.substring(0, 6) + '...)' : 'NOT SET — using mock data'}`);
+    console.log(`ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? 'configured' : 'NOT SET'}`);
+    console.log(`STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'NOT SET'}`);
+  });
 }).catch(err => {
   console.error('DB init failed:', err);
   process.exit(1);
