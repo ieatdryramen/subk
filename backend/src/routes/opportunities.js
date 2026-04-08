@@ -448,4 +448,40 @@ router.get('/:id/detail', auth, async (req, res) => {
   }
 });
 
+// POST /opportunities/rescore — Re-score all opportunities against current sub profile
+router.post('/rescore', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    // Get sub profile
+    const profileR = await pool.query('SELECT * FROM sub_profiles WHERE user_id=$1', [req.userId]);
+    const subProfile = profileR.rows[0];
+    if (!subProfile) return res.status(400).json({ error: 'No sub profile found. Complete your profile first.' });
+
+    // Get all opportunities
+    const oppsR = await pool.query('SELECT * FROM opportunities WHERE org_id=$1', [orgId]);
+    const opps = oppsR.rows;
+
+    let updated = 0;
+    for (const opp of opps) {
+      try {
+        const score = await scoreOpportunity(opp, subProfile);
+        await pool.query(
+          'UPDATE opportunities SET fit_score=$1, fit_reason=$2 WHERE id=$3',
+          [score.score, score.reason, opp.id]
+        );
+        updated++;
+      } catch (e) {
+        console.error(`Rescore failed for opp ${opp.id}:`, e.message);
+      }
+    }
+
+    res.json({ success: true, updated, total: opps.length });
+  } catch (err) {
+    console.error('Rescore error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

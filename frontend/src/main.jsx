@@ -66,6 +66,7 @@ const App = () => (
         {/* Opportunities & Capture */}
         <Route path="/opportunities" element={<Protected><OpportunitiesPage /></Protected>} />
         <Route path="/opportunity-board" element={<Protected><OpportunityBoardPage /></Protected>} />
+        <Route path="/opp-board" element={<Navigate to="/opportunity-board" replace />} />
         <Route path="/proposals" element={<Protected><ProposalTrackerPage /></Protected>} />
         <Route path="/competitive" element={<Protected><CompetitiveIntelPage /></Protected>} />
 

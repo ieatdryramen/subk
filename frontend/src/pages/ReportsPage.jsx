@@ -45,7 +45,7 @@ function PipelineVelocityChart({ data }) {
 
       {/* Y-axis labels */}
       {[0, 1, 2, 3, 4].map(i => {
-        const value = Math.round((maxValue / 4) * i);
+        const value = Math.round(maxValue - (maxValue / 4) * i);
         const y = padding.top + (graphHeight / 4) * i;
         return (
           <text key={`y-label-${i}`} x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="var(--text3)">
@@ -123,7 +123,7 @@ function WinLossChart({ data }) {
 
       {/* Y-axis labels */}
       {[0, 1, 2, 3, 4].map(i => {
-        const value = Math.round((maxValue / 4) * i);
+        const value = Math.round(maxValue - (maxValue / 4) * i);
         const y = padding.top + (graphHeight / 4) * i;
         return (
           <text key={`y-label-${i}`} x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="var(--text3)">
@@ -213,7 +213,7 @@ function OutreachPerformanceChart({ data }) {
 
       {/* Y-axis labels */}
       {[0, 1, 2, 3, 4].map(i => {
-        const value = Math.round((maxValue / 4) * i);
+        const value = Math.round(maxValue - (maxValue / 4) * i);
         const y = padding.top + (graphHeight / 4) * i;
         return (
           <text key={`y-label-${i}`} x={padding.left - 10} y={y + 4} textAnchor="end" fontSize="11" fill="var(--text3)">

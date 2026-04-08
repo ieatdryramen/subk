@@ -799,7 +799,7 @@ export default function PipelinePage() {
             { n: notStarted, l: 'Not started', c: 'var(--text3)', icon: '⏸' },
             { n: inProgress, l: 'In progress', c: 'var(--accent2)', icon: '▶' },
             { n: completed, l: 'Completed', c: 'var(--success)', icon: '✓' },
-            { n: mefu, l: 'MEFU', c: 'var(--warning)', icon: '📅' },
+            { n: mefu + meetingBooked, l: 'Follow-up', c: 'var(--warning)', icon: '📅' },
           ].map(x => (
             <div key={x.l} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '0.9rem 1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

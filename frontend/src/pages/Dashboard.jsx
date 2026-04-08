@@ -871,9 +871,9 @@ export default function Dashboard() {
           <GettingStartedChecklist onboarding={onboarding} navigate={navigate} />
         )}
 
-        {/* Today's Focus Panel */}
-        {!loading && (
-          <div style={{ marginBottom: '1.5rem' }}>
+        {/* Today's Focus Panel — only show if there's something actionable */}
+        {!loading && dueCount > 0 && (
+          <div style={{ marginBottom: '1rem' }}>
             <TodaysFocus
               dueCount={dueCount}
               deadlines={dashboardAnalytics?.upcoming_deadlines || []}
@@ -884,7 +884,7 @@ export default function Dashboard() {
 
         {/* AI Recommended Actions */}
         {!loading && (
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
             <RecommendedActions
               actions={nextActions}
               loading={nextActionsLoading}
@@ -895,7 +895,7 @@ export default function Dashboard() {
 
         {/* Analytics Grid: Funnel + Win Rate + Velocity + Revenue Gauge */}
         {!loading && (
-          <div className="pf-analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: '1.5rem' }}>
+          <div className="pf-analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: '1rem' }}>
             {/* Pipeline Funnel */}
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>

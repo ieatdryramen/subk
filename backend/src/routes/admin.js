@@ -824,4 +824,123 @@ router.get('/reports', auth, async (req, res) => {
   }
 });
 
+// POST /admin/fix-lead-distribution — Redistribute leads across pipeline stages realistically
+router.post('/fix-lead-distribution', auth, adminOnly, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get all leads for user's org
+    const userR = await client.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    const userIds = (await client.query('SELECT id FROM users WHERE org_id=$1', [orgId])).rows.map(r => r.id);
+
+    const leadsR = await client.query(
+      "SELECT id, icp_score FROM leads WHERE user_id = ANY($1) AND status='done' ORDER BY icp_score DESC NULLS LAST",
+      [userIds]
+    );
+    const leads = leadsR.rows;
+    const total = leads.length;
+    if (total === 0) {
+      await client.query('COMMIT');
+      client.release();
+      return res.json({ success: true, message: 'No leads to redistribute' });
+    }
+
+    // Realistic distribution: heavier at early stages, tapering off
+    // not_started: 15%, stage 1-2: 25%, stage 3-4: 20%, stage 5-6: 15%, stage 7-8: 10%, stage 9-10: 5%, mefu: 5%, meeting_booked: 3%, completed: 2%
+    const distribution = [
+      { stage: 'not_started', pct: 0.15, touches: 0 },
+      { stage: 'in_progress_1', pct: 0.12, touches: 1 },
+      { stage: 'in_progress_2', pct: 0.13, touches: 2 },
+      { stage: 'in_progress_3', pct: 0.11, touches: 3 },
+      { stage: 'in_progress_4', pct: 0.09, touches: 4 },
+      { stage: 'in_progress_5', pct: 0.08, touches: 5 },
+      { stage: 'in_progress_6', pct: 0.07, touches: 6 },
+      { stage: 'in_progress_7', pct: 0.06, touches: 7 },
+      { stage: 'in_progress_8', pct: 0.05, touches: 8 },
+      { stage: 'in_progress_9', pct: 0.03, touches: 9 },
+      { stage: 'in_progress_10', pct: 0.02, touches: 10 },
+      { stage: 'mefu', pct: 0.04, touches: 10 },
+      { stage: 'meeting_booked', pct: 0.03, touches: 10 },
+      { stage: 'completed', pct: 0.02, touches: 10 },
+    ];
+
+    // Touchpoint sequence
+    const TOUCHPOINTS = [
+      'email1', 'linkedin_connect', 'call1', 'email2', 'call2',
+      'email3', 'linkedin_dm', 'call3', 'email4', 'call4'
+    ];
+
+    let leadIdx = 0;
+    const stats = {};
+
+    for (const bucket of distribution) {
+      const count = Math.max(1, Math.round(total * bucket.pct));
+      const bucketLeads = leads.slice(leadIdx, leadIdx + count);
+      stats[bucket.stage] = bucketLeads.length;
+
+      for (const lead of bucketLeads) {
+        // Update lead stage
+        await client.query('UPDATE leads SET sequence_stage=$1 WHERE id=$2', [bucket.stage, lead.id]);
+
+        // Delete existing sequence events and recreate
+        await client.query('DELETE FROM sequence_events WHERE lead_id=$1', [lead.id]);
+
+        // Create 'done' events for completed touches
+        const userId = userIds[0];
+        for (let t = 0; t < bucket.touches; t++) {
+          const daysAgo = (bucket.touches - t) * 2 + Math.floor(Math.random() * 3);
+          const completedAt = new Date(Date.now() - daysAgo * 86400000);
+          await client.query(
+            `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, completed_at, created_at)
+             VALUES ($1, $2, $3, 'done', $4, $5)
+             ON CONFLICT (lead_id, touchpoint) DO UPDATE SET status='done', completed_at=$4`,
+            [lead.id, userId, TOUCHPOINTS[t], completedAt, new Date(completedAt - 86400000)]
+          );
+        }
+
+        // Create pending events for upcoming touches
+        if (bucket.touches < 10 && bucket.stage !== 'not_started') {
+          const nextTp = TOUCHPOINTS[bucket.touches];
+          if (nextTp) {
+            // Make some overdue, some due today, some future
+            const rand = Math.random();
+            let createdDaysAgo;
+            if (rand < 0.3) createdDaysAgo = Math.floor(Math.random() * 3) + 1; // overdue (1-3 days)
+            else if (rand < 0.6) createdDaysAgo = 0; // due today
+            else createdDaysAgo = -(Math.floor(Math.random() * 5) + 1); // future (negative = future)
+
+            const createdAt = new Date(Date.now() - createdDaysAgo * 86400000);
+            await client.query(
+              `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, created_at)
+               VALUES ($1, $2, $3, 'pending', $4)
+               ON CONFLICT (lead_id, touchpoint) DO UPDATE SET status='pending', completed_at=NULL`,
+              [lead.id, userId, nextTp, createdAt]
+            );
+          }
+        }
+      }
+      leadIdx += count;
+      if (leadIdx >= total) break;
+    }
+
+    // Handle any remaining leads (assign to not_started)
+    for (let i = leadIdx; i < total; i++) {
+      await client.query('UPDATE leads SET sequence_stage=$1 WHERE id=$2', ['not_started', leads[i].id]);
+      await client.query('DELETE FROM sequence_events WHERE lead_id=$1', [leads[i].id]);
+      stats['not_started'] = (stats['not_started'] || 0) + 1;
+    }
+
+    await client.query('COMMIT');
+    client.release();
+    res.json({ success: true, total, distribution: stats });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    client.release();
+    console.error('Fix distribution error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
