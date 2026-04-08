@@ -104,6 +104,122 @@ router.get('/dashboard', auth, async (req, res) => {
   }
 });
 
+// Get 7-day trend data for dashboard analytics
+router.get('/dashboard-analytics', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('SET statement_timeout = 8000');
+
+    const userR = await client.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
+    const u = userR.rows[0];
+    const userId = parseInt(u.id);
+    const orgId = u.org_id ? parseInt(u.org_id) : null;
+
+    let userIds = [userId];
+    if (orgId) {
+      const orgR = await client.query('SELECT id FROM users WHERE org_id=$1', [orgId]);
+      userIds = orgR.rows.map(r => parseInt(r.id));
+    }
+
+    // Get 7-day touch trends (touches completed per day for last 7 days)
+    const touchTrendsR = await client.query(`
+      SELECT
+        DATE(completed_at)::text as date,
+        COUNT(*) as count
+      FROM sequence_events
+      WHERE user_id = ANY($1)
+        AND status='done'
+        AND touchpoint!='zoho_note_added'
+        AND completed_at >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(completed_at)
+      ORDER BY DATE(completed_at)
+    `, [userIds]);
+
+    // Map to fill in missing days with 0
+    const today = new Date();
+    const trendMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      trendMap[dateStr] = 0;
+    }
+    touchTrendsR.rows.forEach(r => {
+      if (trendMap.hasOwnProperty(r.date)) {
+        trendMap[r.date] = parseInt(r.count);
+      }
+    });
+    const touchTrends = Object.entries(trendMap).map(([date, count]) => ({ date, count }));
+
+    // Get 7-day playbook trends
+    const playbookTrendsR = await client.query(`
+      SELECT
+        DATE(generated_at)::text as date,
+        COUNT(*) as count
+      FROM playbooks
+      WHERE user_id = ANY($1)
+        AND generated_at >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(generated_at)
+      ORDER BY DATE(generated_at)
+    `, [userIds]);
+
+    const pbTrendMap = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      pbTrendMap[dateStr] = 0;
+    }
+    playbookTrendsR.rows.forEach(r => {
+      if (pbTrendMap.hasOwnProperty(r.date)) {
+        pbTrendMap[r.date] = parseInt(r.count);
+      }
+    });
+    const playbookTrends = Object.entries(pbTrendMap).map(([date, count]) => ({ date, count }));
+
+    // Get sequence stage distribution for funnel
+    const sequenceFunnelR = await client.query(`
+      SELECT
+        COUNT(CASE WHEN sequence_stage IS NULL OR sequence_stage='not_started' THEN 1 END) as not_started,
+        COUNT(CASE WHEN sequence_stage IN ('in_progress_1','in_progress_2','in_progress_3','in_progress_4','in_progress_5','in_progress_6','in_progress_7','in_progress_8','in_progress_9','in_progress_10') THEN 1 END) as touched,
+        COUNT(CASE WHEN sequence_stage='mefu' THEN 1 END) as mefu,
+        COUNT(CASE WHEN sequence_stage='meeting_booked' OR sequence_stage='completed' THEN 1 END) as completed
+      FROM leads WHERE user_id = ANY($1) AND status='done'
+    `, [userIds]);
+
+    const funnelData = {
+      not_started: parseInt(sequenceFunnelR.rows[0]?.not_started || 0),
+      touched: parseInt(sequenceFunnelR.rows[0]?.touched || 0),
+      mefu: parseInt(sequenceFunnelR.rows[0]?.mefu || 0),
+      completed: parseInt(sequenceFunnelR.rows[0]?.completed || 0),
+    };
+
+    // Get opportunity deadlines (next 14 days)
+    const deadlinesR = await client.query(`
+      SELECT id, title, agency, response_deadline, fit_score
+      FROM opportunities
+      WHERE user_id = ANY($1)
+        AND response_deadline IS NOT NULL
+        AND response_deadline > NOW()
+        AND response_deadline <= NOW() + INTERVAL '14 days'
+      ORDER BY response_deadline ASC
+      LIMIT 10
+    `, [userIds]);
+
+    res.json({
+      touch_trends: touchTrends,
+      playbook_trends: playbookTrends,
+      funnel_data: funnelData,
+      upcoming_deadlines: deadlinesR.rows || [],
+    });
+  } catch (err) {
+    console.error('Dashboard analytics error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Change a member's role
 router.put('/members/:memberId/role', auth, adminOnly, async (req, res) => {
   const { role } = req.body;

@@ -18,6 +18,344 @@ const timeAgo = (ts) => {
 const scoreColor = (s) => s >= 70 ? 'var(--success)' : s >= 40 ? 'var(--warning)' : 'var(--text3)';
 const scoreBg = (s) => s >= 70 ? 'var(--success-bg)' : s >= 40 ? 'var(--warning-bg)' : 'var(--bg3)';
 
+// SVG Sparkline Mini-Chart
+function Sparkline({ data, color = 'var(--accent)' }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  if (max === 0) return <div style={{ height: 20, width: '100%', opacity: 0.3 }}>No data</div>;
+
+  const width = 40;
+  const height = 20;
+  const padding = 1;
+  const pointWidth = (width - padding * 2) / (data.length - 1);
+
+  const points = data.map((v, i) => {
+    const x = padding + i * pointWidth;
+    const y = height - padding - (v / max) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} style={{ display: 'block' }}>
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// SVG Funnel Chart
+function PipelineFunnel({ funnelData }) {
+  const stages = [
+    { label: 'Not Started', value: funnelData?.not_started || 0, color: 'var(--text3)' },
+    { label: 'Touched (1-10)', value: funnelData?.touched || 0, color: 'var(--accent2)' },
+    { label: 'MEFU', value: funnelData?.mefu || 0, color: 'var(--warning)' },
+    { label: 'Completed', value: funnelData?.completed || 0, color: 'var(--success)' },
+  ];
+
+  const maxValue = Math.max(...stages.map(s => s.value), 1);
+  const funnelWidth = 200;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <svg width={funnelWidth} height={200} style={{ display: 'block', margin: '0 auto' }}>
+        {stages.map((stage, i) => {
+          const percentage = stage.value / maxValue;
+          const width = funnelWidth * percentage;
+          const x = (funnelWidth - width) / 2;
+          const y = i * 50 + 10;
+
+          return (
+            <g key={stage.label}>
+              <rect x={x} y={y} width={width} height={35} fill={stage.color} opacity="0.7" rx="2" />
+              <text x={funnelWidth / 2} y={y + 22} textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--text)">
+                {stage.value}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+        {stages.map(s => (
+          <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: 'var(--text2)' }}>{s.label}</span>
+            <span style={{ fontWeight: 700, color: s.color }}>{s.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// SVG Donut Chart (Win Rate)
+function WinRateDonut({ won = 0, lost = 0, pursuing = 0 }) {
+  const total = won + lost + pursuing;
+  if (total === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)', fontSize: 13 }}>
+        No opportunities yet
+      </div>
+    );
+  }
+
+  const size = 120;
+  const radius = 45;
+  const circumference = 2 * Math.PI * radius;
+
+  const wonPercent = (won / total) * 100;
+  const lostPercent = (lost / total) * 100;
+  const pursuingPercent = (pursuing / total) * 100;
+
+  let offset = 0;
+  const wonOffset = offset;
+  offset += (wonPercent / 100) * circumference;
+
+  const lostOffset = offset;
+  offset += (lostPercent / 100) * circumference;
+
+  const pursuingOffset = offset;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--success)" strokeWidth="12"
+          strokeDasharray={`${(wonPercent / 100) * circumference} ${circumference}`}
+          strokeDashoffset="0" strokeLinecap="round" />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--danger)" strokeWidth="12"
+          strokeDasharray={`${(lostPercent / 100) * circumference} ${circumference}`}
+          strokeDashoffset={-wonOffset} strokeLinecap="round" />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--accent)" strokeWidth="12"
+          strokeDasharray={`${(pursuingPercent / 100) * circumference} ${circumference}`}
+          strokeDashoffset={-(wonOffset + lostOffset)} strokeLinecap="round" />
+        <text x={size/2} y={size/2 + 6} textAnchor="middle" fontSize="18" fontWeight="700" fill="var(--text)">
+          {Math.round((won / (won + lost)) * 100) || 0}%
+        </text>
+      </svg>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, width: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: 'var(--text2)' }}>Won</span>
+          <span style={{ fontWeight: 700, color: 'var(--success)' }}>{won}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: 'var(--text2)' }}>Lost</span>
+          <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{lost}</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: 'var(--text2)' }}>Pursuing</span>
+          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{pursuing}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// SVG Horizontal Bar Chart (Outreach Velocity)
+function OutreachVelocity({ touchTrends = [] }) {
+  if (!touchTrends || touchTrends.length === 0) {
+    return <div style={{ color: 'var(--text3)', fontSize: 13, textAlign: 'center', padding: '1rem' }}>No data</div>;
+  }
+
+  const maxCount = Math.max(...touchTrends.map(t => t.count || 0), 1);
+  const chartHeight = touchTrends.length * 28;
+
+  return (
+    <svg width="100%" height={chartHeight} style={{ display: 'block' }}>
+      {touchTrends.map((trend, i) => {
+        const y = i * 28 + 8;
+        const barWidth = (trend.count / maxCount) * 150;
+        const dateStr = new Date(trend.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        return (
+          <g key={trend.date}>
+            <text x="0" y={y + 12} fontSize="11" fill="var(--text2)" fontWeight="500">
+              {dateStr}
+            </text>
+            <rect x="50" y={y} width={barWidth} height="16" fill="var(--accent)" rx="2" />
+            <text x={55 + barWidth} y={y + 12} fontSize="11" fontWeight="700" fill="var(--text)" fontFamily="Syne, sans-serif">
+              {trend.count}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// Prime Outreach Funnel (mini)
+function PrimeOutreachFunnel({ primeStats = {} }) {
+  const stages = [
+    { label: 'Not Contacted', value: primeStats.not_contacted || 0, color: 'var(--text3)' },
+    { label: 'Contacted', value: primeStats.contacted || 0, color: 'var(--accent2)' },
+    { label: 'Responded', value: primeStats.responded || 0, color: 'var(--warning)' },
+    { label: 'Meeting Set', value: primeStats.meeting_set || 0, color: 'var(--success)' },
+    { label: 'Teaming Agree', value: primeStats.teaming_agreement || 0, color: 'var(--accent)' },
+  ];
+
+  const maxValue = Math.max(...stages.map(s => s.value), 1);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {stages.map((stage) => {
+        const percentage = (stage.value / maxValue) * 100;
+        return (
+          <div key={stage.label}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 11 }}>
+              <span style={{ color: 'var(--text2)' }}>{stage.label}</span>
+              <span style={{ fontWeight: 700, color: stage.color }}>{stage.value}</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${percentage}%`, background: stage.color, borderRadius: 3 }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Deadline Countdown Widget
+function DeadlineCountdown({ deadlines = [] }) {
+  if (!deadlines || deadlines.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text3)', fontSize: 13 }}>
+        No upcoming deadlines in the next 14 days
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {deadlines.slice(0, 5).map((d, i) => {
+        const now = new Date();
+        const deadline = new Date(d.response_deadline);
+        const daysLeft = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+
+        let countdownColor = 'var(--success)';
+        if (daysLeft <= 3) countdownColor = 'var(--danger)';
+        else if (daysLeft <= 7) countdownColor = 'var(--warning)';
+
+        return (
+          <div key={d.id || i} style={{
+            background: 'var(--bg)',
+            border: `1px solid ${countdownColor}`,
+            borderRadius: 'var(--radius)',
+            padding: '10px 12px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {d.title?.substring(0, 50)}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>{d.agency}</div>
+            </div>
+            <div style={{
+              padding: '4px 10px',
+              background: countdownColor,
+              color: '#fff',
+              borderRadius: 'var(--radius)',
+              fontSize: 11,
+              fontWeight: 700,
+              flexShrink: 0,
+              marginLeft: 10,
+              textAlign: 'center',
+            }}>
+              {daysLeft}d
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Revenue Pipeline Gauge (semi-circular)
+function RevenuePipelineGauge({ pipelineValue = 0 }) {
+  const maxValue = 5000000; // $5M max for gauge
+  const percentage = Math.min((pipelineValue / maxValue) * 100, 100);
+
+  const size = 150;
+  const radius = 60;
+  const circumference = Math.PI * radius;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+      <svg width={size} height={size * 0.6} viewBox={`0 0 ${size} ${size * 0.6}`}>
+        {/* Background arc */}
+        <path
+          d={`M 20 ${size * 0.6 - 10} A ${radius} ${radius} 0 0 1 ${size - 20} ${size * 0.6 - 10}`}
+          fill="none"
+          stroke="var(--bg3)"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+        {/* Progress arc */}
+        <path
+          d={`M 20 ${size * 0.6 - 10} A ${radius} ${radius} 0 0 1 ${20 + (percentage / 100) * (size - 40)} ${size * 0.6 - 10}`}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+        {/* Center text */}
+        <text x={size / 2} y={size * 0.6 + 5} textAnchor="middle" fontSize="11" fill="var(--text3)">
+          Pipeline Value
+        </text>
+      </svg>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', fontFamily: 'Syne, sans-serif' }}>
+        ${(pipelineValue / 1000000).toFixed(1)}M
+      </div>
+    </div>
+  );
+}
+
+// Today's Focus Panel
+function TodaysFocus({ dueCount, deadlines = [], upcomingTouches = [] }) {
+  let priority = null;
+  let priorityLabel = '';
+  let priorityColor = '';
+
+  if (dueCount > 0) {
+    priority = dueCount;
+    priorityLabel = `${dueCount} touch${dueCount !== 1 ? 'es' : ''} overdue`;
+    priorityColor = 'var(--danger)';
+  } else if (deadlines && deadlines.length > 0) {
+    const firstDeadline = deadlines[0];
+    const now = new Date();
+    const deadline = new Date(firstDeadline.response_deadline);
+    const daysLeft = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+    priority = daysLeft;
+    priorityLabel = `${daysLeft}d until deadline: ${firstDeadline.title?.substring(0, 40)}`;
+    priorityColor = daysLeft <= 3 ? 'var(--danger)' : 'var(--warning)';
+  } else if (upcomingTouches && upcomingTouches.length > 0) {
+    priority = upcomingTouches.length;
+    priorityLabel = `${upcomingTouches.length} touch${upcomingTouches.length !== 1 ? 'es' : ''} scheduled`;
+    priorityColor = 'var(--success)';
+  } else {
+    priorityLabel = 'All caught up!';
+    priorityColor = 'var(--success)';
+  }
+
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${priorityColor}15 0%, ${priorityColor}08 100%)`,
+      border: `1px solid ${priorityColor}40`,
+      borderRadius: 'var(--radius-lg)',
+      padding: '1.25rem',
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+        Today's Focus
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: priorityColor, fontFamily: 'Syne, sans-serif', marginBottom: 6 }}>
+        {priority !== null ? priority : '0'}
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+        {priorityLabel}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -31,7 +369,9 @@ export default function Dashboard() {
   const [statsError, setStatsError] = useState(false);
   const [recentOpps, setRecentOpps] = useState([]);
   const [oppCount, setOppCount] = useState(0);
-  const [primeStats, setPrimeStats] = useState({ total: 0, responding: 0, meetings: 0 });
+  const [primeStats, setPrimeStats] = useState({});
+  const [dashboardAnalytics, setDashboardAnalytics] = useState(null);
+  const [analyticsData, setAnalyticsData] = useState(null);
 
   useEffect(() => {
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
@@ -41,17 +381,38 @@ export default function Dashboard() {
       setRecentOpps(r.data?.opportunities || []);
       setOppCount(r.data?.total || 0);
     }).catch(() => {});
-    // Try to get prime stats
+
+    // Get prime stats
     api.get('/subk-primes').then(r => {
       const primes = r.data?.primes || r.data || [];
       if (Array.isArray(primes)) {
-        setPrimeStats({
-          total: primes.length,
-          responding: primes.filter(p => ['responded', 'meeting_set', 'teaming_agreement'].includes(p.outreach_status)).length,
-          meetings: primes.filter(p => ['meeting_set', 'teaming_agreement'].includes(p.outreach_status)).length,
+        const stats = {
+          not_contacted: 0,
+          contacted: 0,
+          responded: 0,
+          meeting_set: 0,
+          teaming_agreement: 0,
+        };
+        primes.forEach(p => {
+          const status = p.outreach_status || 'not_contacted';
+          if (stats.hasOwnProperty(status)) {
+            stats[status]++;
+          }
         });
+        setPrimeStats(stats);
       }
     }).catch(() => {});
+
+    // Get dashboard analytics (7-day trends, funnel, deadlines)
+    api.get('/admin/dashboard-analytics').then(r => {
+      setDashboardAnalytics(r.data);
+    }).catch(() => {});
+
+    // Get SubK analytics if available
+    api.get('/subk-dashboard/analytics').then(r => {
+      setAnalyticsData(r.data);
+    }).catch(() => {});
+
     setStatsError(false);
     api.get('/admin/dashboard')
       .then(r => {
@@ -78,11 +439,18 @@ export default function Dashboard() {
   const pipelineTotal = pipelineNew + pipelineContacted + pipelineEngaged + pipelineProposal + pipelineClosed;
   const conversionRate = pipelineTotal > 0 ? Math.round(((pipelineEngaged + pipelineProposal + pipelineClosed) / pipelineTotal) * 100) : 0;
 
+  // Calculate win rate from analytics
+  const opportunityPipeline = analyticsData?.opportunity_pipeline || {};
+  const won = opportunityPipeline.won || 0;
+  const lost = opportunityPipeline.lost || 0;
+  const pursuing = opportunityPipeline.pursuing || 0;
+  const pipelineValue = analyticsData?.pipeline_value || 0;
+
   const statCards = [
-    { n: stats?.total_playbooks || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)', icon: '📋' },
-    { n: stats?.total_leads || totalLeads, label: 'Total leads', sub: `${readyLeads} ready`, color: 'var(--text)', icon: '👤' },
-    { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'All sequences', color: 'var(--success)', icon: '🎯' },
-    { n: oppCount || 0, label: 'Opportunities', sub: `${recentOpps.filter(o => o.fit_score >= 70).length} high-fit`, color: 'var(--accent)', icon: '🔍' },
+    { n: stats?.total_playbooks || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)', icon: '📋', trend: dashboardAnalytics?.playbook_trends?.map(t => t.count) || [] },
+    { n: stats?.total_leads || totalLeads, label: 'Total leads', sub: `${readyLeads} ready`, color: 'var(--text)', icon: '👤', trend: [] },
+    { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'All sequences', color: 'var(--success)', icon: '🎯', trend: dashboardAnalytics?.touch_trends?.map(t => t.count) || [] },
+    { n: oppCount || 0, label: 'Opportunities', sub: `${recentOpps.filter(o => o.fit_score >= 70).length} high-fit`, color: 'var(--accent)', icon: '🔍', trend: [] },
   ];
 
   const greeting = () => {
@@ -98,9 +466,10 @@ export default function Dashboard() {
         @media (max-width: 768px) {
           .pf-stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
           .pf-dash-cols { grid-template-columns: 1fr !important; }
+          .pf-analytics-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      <div style={{ padding: '2rem 2.5rem', maxWidth: 1100 }}>
+      <div style={{ padding: '2rem 2.5rem', maxWidth: 1200 }}>
         {/* Header */}
         <div style={{ marginBottom: '1.5rem' }}>
           <div style={{ fontSize: 26, fontWeight: 700, fontFamily: 'Syne, sans-serif', marginBottom: 4 }}>
@@ -180,11 +549,11 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stat Cards */}
+        {/* Stat Cards with Sparklines */}
         <div className="pf-stat-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: '1.5rem' }}>
           {loading ? (
             [1,2,3,4].map(i => (
-              <div key={i} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 100 }} />
+              <div key={i} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 130 }} />
             ))
           ) : (
             statCards.map(s => (
@@ -196,11 +565,64 @@ export default function Dashboard() {
                   </div>
                   <span style={{ fontSize: 20, opacity: 0.4 }}>{s.icon}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6 }}>{s.sub}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, marginBottom: 6 }}>{s.sub}</div>
+                {s.trend && s.trend.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    <Sparkline data={s.trend} color={s.color} />
+                  </div>
+                )}
               </div>
             ))
           )}
         </div>
+
+        {/* Today's Focus Panel */}
+        {!loading && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <TodaysFocus
+              dueCount={dueCount}
+              deadlines={dashboardAnalytics?.upcoming_deadlines || []}
+              upcomingTouches={[]}
+            />
+          </div>
+        )}
+
+        {/* Analytics Grid: Funnel + Win Rate + Velocity + Revenue Gauge */}
+        {!loading && (
+          <div className="pf-analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: '1.5rem' }}>
+            {/* Pipeline Funnel */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                Pipeline Funnel
+              </div>
+              <PipelineFunnel funnelData={dashboardAnalytics?.funnel_data} />
+            </div>
+
+            {/* Win Rate Donut */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                Win Rate
+              </div>
+              <WinRateDonut won={won} lost={lost} pursuing={pursuing} />
+            </div>
+
+            {/* Outreach Velocity */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.75rem' }}>
+                Outreach Velocity
+              </div>
+              <OutreachVelocity touchTrends={dashboardAnalytics?.touch_trends || []} />
+            </div>
+
+            {/* Revenue Pipeline Gauge */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                Pipeline Value
+              </div>
+              <RevenuePipelineGauge pipelineValue={pipelineValue} />
+            </div>
+          </div>
+        )}
 
         {/* Pipeline + Conversion Row */}
         {!loading && (
@@ -256,13 +678,9 @@ export default function Dashboard() {
               {/* Primes tracked */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: 'var(--text2)' }}>Primes tracked</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{primeStats.total}</span>
-              </div>
-
-              {/* Meetings set */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--text2)' }}>Meetings booked</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: primeStats.meetings > 0 ? 'var(--success)' : 'var(--text3)' }}>{primeStats.meetings}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                  {Object.values(primeStats).reduce((a, b) => a + b, 0)}
+                </span>
               </div>
 
               {/* Playbook rate */}
@@ -277,6 +695,27 @@ export default function Dashboard() {
                   <div style={{ height: '100%', width: `${totalLeads > 0 ? Math.min((readyLeads / totalLeads) * 100, 100) : 0}%`, background: 'var(--accent2)', borderRadius: 3, transition: 'width 0.5s' }} />
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Prime Outreach + Deadline Countdown Row */}
+        {!loading && (
+          <div className="pf-dash-cols" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: '1.5rem' }}>
+            {/* Prime Outreach Funnel */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                Prime Outreach Funnel
+              </div>
+              <PrimeOutreachFunnel primeStats={primeStats} />
+            </div>
+
+            {/* Deadline Countdown */}
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+                Upcoming Deadlines
+              </div>
+              <DeadlineCountdown deadlines={dashboardAnalytics?.upcoming_deadlines || []} />
             </div>
           </div>
         )}

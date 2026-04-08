@@ -180,10 +180,11 @@ router.post('/teaming', auth, async (req, res) => {
 router.get('/teaming', auth, async (req, res) => {
   try {
     const r = await pool.query(`
-      SELECT tr.*, 
+      SELECT tr.*,
         fu.full_name as from_name, fu.email as from_email,
         tu.full_name as to_name, tu.email as to_email,
-        fsp.company_name as from_company, tsp.company_name as to_company
+        fsp.company_name as from_company, fsp.certifications as from_certifications, fsp.naics_codes as from_naics,
+        tsp.company_name as to_company, tsp.certifications as to_certifications, tsp.naics_codes as to_naics
       FROM teaming_requests tr
       JOIN users fu ON fu.id = tr.from_user_id
       JOIN users tu ON tu.id = tr.to_user_id

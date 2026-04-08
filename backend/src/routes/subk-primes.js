@@ -112,13 +112,58 @@ router.put('/:id', auth, async (req, res) => {
   try {
     const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
-    await pool.query(
-      `UPDATE primes SET outreach_status=COALESCE($1, outreach_status), contact_name=COALESCE($2, contact_name),
-       contact_email=COALESCE($3, contact_email), contact_title=COALESCE($4, contact_title),
-       notes=COALESCE($5, notes), fit_score=COALESCE($6, fit_score), fit_reason=COALESCE($7, fit_reason), updated_at=NOW()
-       WHERE id=$8 AND org_id=$9`,
-      [outreach_status, contact_name, contact_email, contact_title, notes, fit_score, fit_reason, req.params.id, orgId]
-    );
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (outreach_status !== undefined) {
+      updates.push(`outreach_status=$${paramCount}`);
+      values.push(outreach_status);
+      paramCount++;
+    }
+    if (contact_name !== undefined) {
+      updates.push(`contact_name=$${paramCount}`);
+      values.push(contact_name);
+      paramCount++;
+    }
+    if (contact_email !== undefined) {
+      updates.push(`contact_email=$${paramCount}`);
+      values.push(contact_email);
+      paramCount++;
+    }
+    if (contact_title !== undefined) {
+      updates.push(`contact_title=$${paramCount}`);
+      values.push(contact_title);
+      paramCount++;
+    }
+    if (notes !== undefined) {
+      updates.push(`notes=$${paramCount}`);
+      values.push(notes);
+      paramCount++;
+    }
+    if (fit_score !== undefined) {
+      updates.push(`fit_score=$${paramCount}`);
+      values.push(fit_score);
+      paramCount++;
+    }
+    if (fit_reason !== undefined) {
+      updates.push(`fit_reason=$${paramCount}`);
+      values.push(fit_reason);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      const r = await pool.query('SELECT * FROM primes WHERE id=$1 AND org_id=$2', [req.params.id, orgId]);
+      if (!r.rows.length) return res.status(404).json({ error: 'Prime not found' });
+      return res.json(r.rows[0]);
+    }
+
+    updates.push(`updated_at=NOW()`);
+    values.push(req.params.id);
+    values.push(orgId);
+
+    const query = `UPDATE primes SET ${updates.join(', ')} WHERE id=$${paramCount} AND org_id=$${paramCount + 1} RETURNING *`;
+    await pool.query(query, values);
     const r = await pool.query('SELECT * FROM primes WHERE id=$1 AND org_id=$2', [req.params.id, orgId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Prime not found' });
     res.json(r.rows[0]);
@@ -196,7 +241,7 @@ router.post('/:id/outreach', auth, async (req, res) => {
       [req.params.id]
     );
     const done = parseInt(doneCount.rows[0].count);
-    const outreachStatus = done === 0 ? 'not_contacted' : done >= 5 ? 'sequence_complete' : 'in_sequence';
+    const outreachStatus = done === 0 ? 'not_contacted' : done >= 5 ? 'responded' : 'contacted';
     await pool.query('UPDATE primes SET outreach_status=$1 WHERE id=$2', [outreachStatus, req.params.id]);
 
     res.json({ success: true });
@@ -239,10 +284,10 @@ router.post('/:id/start-sequence', auth, async (req, res) => {
       return res.status(404).json({ error: 'Prime not found' });
     }
 
-    // Mark prime as in_sequence
+    // Mark prime as contacted
     await pool.query(
       'UPDATE primes SET outreach_status=$1, updated_at=NOW() WHERE id=$2',
-      ['in_sequence', req.params.id]
+      ['contacted', req.params.id]
     );
 
     // Create outreach_events for email1 (today), email2 (+3 days), email3 (+7 days)
@@ -300,7 +345,7 @@ router.post('/:id/complete-touchpoint', auth, async (req, res) => {
       [req.params.id]
     );
     const done = parseInt(doneCount.rows[0].count);
-    const outreachStatus = done === 0 ? 'not_contacted' : done >= 3 ? 'sequence_complete' : 'in_sequence';
+    const outreachStatus = done === 0 ? 'not_contacted' : done >= 3 ? 'responded' : 'contacted';
     await pool.query(
       'UPDATE primes SET outreach_status=$1 WHERE id=$2',
       [outreachStatus, req.params.id]
