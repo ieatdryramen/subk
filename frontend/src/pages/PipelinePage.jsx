@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
@@ -52,6 +52,340 @@ const VIEW_MODES = [
   { key: 'linkedin', label: '🔗 LinkedIn', stages: LINKEDIN_STAGES, stageField: 'linkedin_stage' },
 ];
 
+const TOUCH_ICONS = { email: '✉', call: '📞', linkedin: '🔗' };
+const URGENCY_COLORS = {
+  done: { color: 'var(--success)', bg: 'rgba(34,197,94,0.1)', label: 'Done' },
+  overdue: { color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)', label: 'Overdue' },
+  due: { color: 'var(--warning)', bg: 'rgba(245,158,11,0.1)', label: 'Due Today' },
+  upcoming: { color: 'var(--text3)', bg: 'var(--bg3)', label: 'Upcoming' },
+};
+
+/* ─── Lead Detail Slide-Out Panel ─── */
+const LeadDetailPanel = ({ lead, onClose, showToast, onLeadUpdated }) => {
+  const [sequence, setSequence] = useState([]);
+  const [seqLoading, setSeqLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [panelVisible, setPanelVisible] = useState(false);
+
+  // Animate in
+  useEffect(() => {
+    requestAnimationFrame(() => setPanelVisible(true));
+  }, []);
+
+  // Escape key
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') handleClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Fetch sequence
+  useEffect(() => {
+    if (!lead) return;
+    setSeqLoading(true);
+    api.get(`/sequence/${lead.id}`)
+      .then(r => { setSequence(Array.isArray(r.data) ? r.data : []); setSeqLoading(false); })
+      .catch(() => { setSequence([]); setSeqLoading(false); });
+  }, [lead?.id]);
+
+  const handleClose = () => {
+    setPanelVisible(false);
+    setTimeout(onClose, 200);
+  };
+
+  const startEdit = () => {
+    setEditForm({
+      full_name: lead.full_name || '',
+      company: lead.company || '',
+      title: lead.title || '',
+      email: lead.email || '',
+      phone: lead.phone || '',
+      linkedin: lead.linkedin || '',
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    setSaving(true);
+    try {
+      await api.put(`/lists/${lead.list_id}/leads/${lead.id}`, editForm);
+      showToast('Lead updated', 'success');
+      setEditing(false);
+      if (onLeadUpdated) onLeadUpdated({ ...lead, ...editForm });
+    } catch { showToast('Failed to save', 'error'); }
+    finally { setSaving(false); }
+  };
+
+  const logNote = async () => {
+    if (!noteText.trim()) return;
+    // Find next pending touch to attach note to
+    const nextTouch = sequence.find(t => t.status !== 'done');
+    if (!nextTouch) { showToast('No pending touch to log note against', 'error'); return; }
+    try {
+      await api.post(`/sequence/${lead.id}/touch`, {
+        touchpoint: nextTouch.key,
+        status: 'pending',
+        notes: noteText.trim(),
+      });
+      showToast('Note saved', 'success');
+      setNoteText('');
+      setNoteOpen(false);
+      // Refresh sequence
+      const r = await api.get(`/sequence/${lead.id}`);
+      setSequence(Array.isArray(r.data) ? r.data : []);
+    } catch { showToast('Failed to save note', 'error'); }
+  };
+
+  const advanceStage = async () => {
+    const nextTouch = sequence.find(t => t.status !== 'done');
+    if (!nextTouch) { showToast('All touches completed', 'success'); return; }
+    try {
+      await api.post(`/sequence/${lead.id}/touch`, {
+        touchpoint: nextTouch.key,
+        status: 'done',
+        notes: '',
+      });
+      showToast(`Completed: ${nextTouch.label}`, 'success');
+      const r = await api.get(`/sequence/${lead.id}`);
+      setSequence(Array.isArray(r.data) ? r.data : []);
+    } catch { showToast('Failed to advance', 'error'); }
+  };
+
+  const completedTouches = sequence.filter(t => t.status === 'done').sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0));
+  const nextTouch = sequence.find(t => t.status !== 'done');
+  const doneCount = sequence.filter(t => t.status === 'done' && !t.is_mefu).length;
+  const totalCount = sequence.filter(t => !t.is_mefu).length;
+  const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  const icpColor = lead.icp_score >= 70 ? 'var(--success)' : lead.icp_score >= 40 ? 'var(--warning)' : 'var(--text3)';
+  const icpBg = lead.icp_score >= 70 ? 'rgba(34,197,94,0.12)' : lead.icp_score >= 40 ? 'rgba(245,158,11,0.12)' : 'var(--bg3)';
+
+  const inputStyle = { width: '100%', padding: '7px 10px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={handleClose} style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200,
+        opacity: panelVisible ? 1 : 0, transition: 'opacity 0.2s',
+      }} />
+      {/* Panel */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, width: 480, height: '100vh', background: 'var(--bg2)',
+        borderLeft: '1px solid var(--border)', zIndex: 201, overflowY: 'auto',
+        transform: panelVisible ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.25s ease',
+        boxShadow: '-8px 0 30px rgba(0,0,0,0.12)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg2)', zIndex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 2 }}>{lead.full_name || lead.email || 'Unknown'}</div>
+              <div style={{ fontSize: 13, color: 'var(--text2)' }}>{lead.title || ''}{lead.title && lead.company ? ' at ' : ''}{lead.company || ''}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {lead.icp_score != null && (
+                <div style={{ width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, background: icpBg, color: icpColor }}>
+                  {lead.icp_score}
+                </div>
+              )}
+              <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text3)', cursor: 'pointer', padding: 4 }}>✕</button>
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>
+              <span>{doneCount}/{totalCount} touches completed</span>
+              <span style={{ fontWeight: 600, color: pct >= 80 ? 'var(--success)' : 'var(--text2)' }}>{pct}%</span>
+            </div>
+            <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: pct >= 80 ? 'var(--success)' : 'var(--accent)', borderRadius: 3, transition: 'width 0.4s' }} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '1.25rem' }}>
+          {/* Contact Info */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Contact Info</div>
+              {!editing && (
+                <button onClick={startEdit} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>
+                  ✏ Edit
+                </button>
+              )}
+            </div>
+            {editing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { key: 'full_name', label: 'Name', icon: '👤' },
+                  { key: 'company', label: 'Company', icon: '🏢' },
+                  { key: 'title', label: 'Title', icon: '💼' },
+                  { key: 'email', label: 'Email', icon: '✉' },
+                  { key: 'phone', label: 'Phone', icon: '📞' },
+                  { key: 'linkedin', label: 'LinkedIn', icon: '🔗' },
+                ].map(f => (
+                  <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 13, width: 20, textAlign: 'center' }}>{f.icon}</span>
+                    <input value={editForm[f.key] || ''} onChange={e => setEditForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.label} style={inputStyle} />
+                  </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                  <button onClick={saveEdit} disabled={saving}
+                    style={{ flex: 1, padding: '8px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button onClick={() => setEditing(false)}
+                    style={{ flex: 1, padding: '8px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {[
+                  { icon: '✉', val: lead.email, href: lead.email ? `mailto:${lead.email}` : null },
+                  { icon: '📞', val: lead.phone, href: lead.phone ? `tel:${lead.phone}` : null },
+                  { icon: '🔗', val: lead.linkedin ? 'LinkedIn Profile' : null, href: lead.linkedin },
+                ].map((c, i) => c.val ? (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    <span style={{ width: 20, textAlign: 'center' }}>{c.icon}</span>
+                    {c.href ? <a href={c.href} target={c.icon === '🔗' ? '_blank' : undefined} rel="noreferrer" style={{ color: 'var(--accent2)', textDecoration: 'none' }}>{c.val}</a> : <span>{c.val}</span>}
+                  </div>
+                ) : null)}
+                {!lead.email && !lead.phone && !lead.linkedin && (
+                  <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>No contact info — click Edit to add</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Quick Actions</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[
+                { icon: '✉', label: 'Send Email', action: () => showToast('Email composer coming in v3.11.0', 'info') },
+                { icon: '📞', label: 'Log Call', action: () => showToast('Call logged', 'success') },
+                { icon: '📝', label: 'Add Note', action: () => setNoteOpen(!noteOpen) },
+                { icon: '→', label: nextTouch ? `Complete: ${nextTouch.label}` : 'All Done', action: advanceStage },
+              ].map((a, i) => (
+                <button key={i} onClick={a.action}
+                  style={{ padding: '9px 10px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: i === 3 ? 'var(--accent)' : 'var(--bg)', color: i === 3 ? '#fff' : 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                  <span>{a.icon}</span> {a.label}
+                </button>
+              ))}
+            </div>
+            {noteOpen && (
+              <div style={{ marginTop: 8 }}>
+                <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add a note about this lead..."
+                  style={{ width: '100%', padding: '8px 10px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', resize: 'vertical', minHeight: 60 }} />
+                <button onClick={logNote}
+                  style={{ marginTop: 4, padding: '6px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+                  Save Note
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Playbook Status */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Playbook Timeline</div>
+            {seqLoading ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Loading sequence...</div>
+            ) : sequence.length === 0 ? (
+              <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text3)', fontSize: 13, border: '1px dashed var(--border)', borderRadius: 'var(--radius)' }}>No playbook assigned yet</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {sequence.map((tp, i) => {
+                  const urg = URGENCY_COLORS[tp.urgency] || URGENCY_COLORS.upcoming;
+                  const isNext = tp === nextTouch;
+                  return (
+                    <div key={tp.key} style={{ display: 'flex', gap: 10, position: 'relative' }}>
+                      {/* Timeline line */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 24 }}>
+                        <div style={{
+                          width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, flexShrink: 0,
+                          background: tp.status === 'done' ? 'var(--success)' : isNext ? 'var(--accent)' : 'var(--bg3)',
+                          color: tp.status === 'done' || isNext ? '#fff' : 'var(--text3)',
+                          border: isNext ? '2px solid var(--accent)' : 'none',
+                        }}>
+                          {tp.status === 'done' ? '✓' : TOUCH_ICONS[tp.type] || '·'}
+                        </div>
+                        {i < sequence.length - 1 && (
+                          <div style={{ width: 2, flex: 1, minHeight: 16, background: tp.status === 'done' ? 'var(--success)' : 'var(--border)' }} />
+                        )}
+                      </div>
+                      {/* Content */}
+                      <div style={{ flex: 1, paddingBottom: 12, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 13, fontWeight: isNext ? 600 : 400, color: isNext ? 'var(--text)' : 'var(--text2)' }}>
+                            {tp.label}
+                          </span>
+                          <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, fontWeight: 500, background: urg.bg, color: urg.color }}>
+                            {urg.label}
+                          </span>
+                        </div>
+                        {tp.completed_at && (
+                          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                            {new Date(tp.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                          </div>
+                        )}
+                        {tp.due_date && tp.status !== 'done' && (
+                          <div style={{ fontSize: 11, color: tp.urgency === 'overdue' ? 'var(--danger)' : 'var(--text3)', marginTop: 2 }}>
+                            Due: {new Date(tp.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                        )}
+                        {tp.notes && (
+                          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4, padding: '4px 8px', background: 'var(--bg)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                            {tp.notes}
+                          </div>
+                        )}
+                        {tp.call_outcome && (
+                          <div style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 2 }}>Outcome: {tp.call_outcome.replace(/_/g, ' ')}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Activity Timeline (completed touches reverse-chrono) */}
+          {completedTouches.length > 0 && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Activity Log</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {completedTouches.map(tp => (
+                  <div key={tp.key} style={{ display: 'flex', gap: 8, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                    <span style={{ fontSize: 14, flexShrink: 0 }}>{TOUCH_ICONS[tp.type] || '📋'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500 }}>{tp.label}</div>
+                      {tp.notes && <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{tp.notes}</div>}
+                      {tp.call_outcome && <div style={{ fontSize: 11, color: 'var(--accent2)', marginTop: 1 }}>{tp.call_outcome.replace(/_/g, ' ')}</div>}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap' }}>
+                      {tp.completed_at ? new Date(tp.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+/* ─── Main Pipeline Page ─── */
 export default function PipelinePage() {
   const [lists, setLists] = useState([]);
   const [selectedList, setSelectedList] = useState('all');
@@ -67,6 +401,7 @@ export default function PipelinePage() {
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveProgress, setBulkMoveProgress] = useState(0);
   const [moveError, setMoveError] = useState(null);
+  const [detailLead, setDetailLead] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -99,7 +434,6 @@ export default function PipelinePage() {
       await api.post(`/sequence/${leadId}/stage`, { stage: newStage, field: stageField });
     } catch (err) {
       console.error(err);
-      // Rollback optimistic update
       setLeads(ls => ls.map(l => l.id === leadId ? { ...l, [stageField]: prevStage, sequence_stage: prevSeqStage } : l));
       showToast('Failed to move lead — reverted', 'error');
     }
@@ -112,9 +446,7 @@ export default function PipelinePage() {
     setMoveError(null);
     const ids = [...selectedIds];
     const total = ids.length;
-    // Snapshot for rollback
     const snapshot = leads.filter(l => selectedIds.has(l.id)).map(l => ({ id: l.id, [stageField]: l[stageField], sequence_stage: l.sequence_stage }));
-    // Optimistic update
     setLeads(ls => ls.map(l => selectedIds.has(l.id) ? { ...l, [stageField]: bulkStage, sequence_stage: viewMode === 'all' ? bulkStage : l.sequence_stage } : l));
     let failed = 0;
     try {
@@ -134,7 +466,6 @@ export default function PipelinePage() {
       failed = total;
     }
     if (failed > 0) {
-      // Rollback all on any failure
       setLeads(ls => ls.map(l => {
         const snap = snapshot.find(s => s.id === l.id);
         return snap ? { ...l, [stageField]: snap[stageField], sequence_stage: snap.sequence_stage } : l;
@@ -160,6 +491,13 @@ export default function PipelinePage() {
 
   const selectAll = () => setSelectedIds(new Set(filteredLeads.map(l => l.id)));
   const clearSelection = () => { setSelectedIds(new Set()); setBulkStage(''); };
+
+  const openLeadDetail = (e, lead) => {
+    // Don't open if bulk selection is active or if clicking checkbox/button
+    if (selectedIds.size > 0) return;
+    e.stopPropagation();
+    setDetailLead(lead);
+  };
 
   const onDragStart = (e, leadId) => {
     if (selectedIds.size === 0) {
@@ -196,9 +534,7 @@ export default function PipelinePage() {
   const meetingBooked = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'meeting_booked').length;
   const mefu = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'mefu').length;
   const engagementRate = total > 0 ? Math.round(((inProgress + completed) / total) * 100) : 0;
-  const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Average ICP score
   const scoredLeads = filteredLeads.filter(l => l.icp_score != null);
   const avgIcp = scoredLeads.length > 0 ? Math.round(scoredLeads.reduce((a, l) => a + l.icp_score, 0) / scoredLeads.length) : 0;
 
@@ -212,7 +548,7 @@ export default function PipelinePage() {
           <div>
             <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 4 }}>Pipeline</div>
             <div style={{ color: 'var(--text2)', fontSize: 13 }}>
-              Drag leads between stages · check boxes for bulk actions
+              Click a lead to view details · drag between stages · check boxes for bulk actions
             </div>
           </div>
           {total > 0 && (
@@ -360,7 +696,7 @@ export default function PipelinePage() {
                                 onDragStart={e => onDragStart(e, lead.id)}
                                 onDragEnd={onDragEnd}
                                 style={{ background: isSelected ? 'var(--accent-bg)' : draggedId === lead.id ? 'var(--bg3)' : 'var(--bg)', border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius)', padding: '9px 10px', cursor: selectedIds.size > 0 ? 'pointer' : 'grab', userSelect: 'none', transition: 'all 0.15s' }}
-                                onClick={e => selectedIds.size > 0 && toggleSelect(e, lead.id)}>
+                                onClick={e => selectedIds.size > 0 ? toggleSelect(e, lead.id) : openLeadDetail(e, lead)}>
                                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                                   <input
                                     type="checkbox"
@@ -405,7 +741,19 @@ export default function PipelinePage() {
           </>
         )}
       </div>
+
+      {/* Lead Detail Slide-Out */}
+      {detailLead && (
+        <LeadDetailPanel
+          lead={detailLead}
+          onClose={() => setDetailLead(null)}
+          showToast={showToast}
+          onLeadUpdated={(updated) => {
+            setLeads(ls => ls.map(l => l.id === updated.id ? { ...l, ...updated } : l));
+            setDetailLead(updated);
+          }}
+        />
+      )}
     </Layout>
   );
 }
-
