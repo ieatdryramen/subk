@@ -484,4 +484,126 @@ router.post('/rescore', auth, async (req, res) => {
   }
 });
 
+// POST /opportunities/refresh — Refresh opportunities from SAM.gov for all active searches
+router.post('/refresh', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    // Get all active saved searches for this user
+    const searchesR = await pool.query(
+      "SELECT * FROM opportunity_searches WHERE user_id=$1 AND status='active'",
+      [req.userId]
+    );
+    const searches = searchesR.rows;
+    if (searches.length === 0) {
+      return res.json({ success: true, message: 'No active searches to refresh', added: 0, updated: 0 });
+    }
+
+    // Get sub profile for scoring
+    const profileR = await pool.query('SELECT * FROM sub_profiles WHERE user_id=$1', [req.userId]);
+    const subProfile = profileR.rows[0];
+
+    let totalAdded = 0;
+    let totalUpdated = 0;
+    let samErrors = [];
+
+    for (const search of searches) {
+      try {
+        const samResult = await searchOpportunities({
+          naics_codes: search.naics_codes,
+          keywords: search.keywords,
+          agency: search.agency,
+          set_aside: search.set_aside,
+          limit: 50,
+        });
+
+        if (samResult.error) {
+          samErrors.push(samResult.error);
+          continue;
+        }
+
+        const opps = samResult.opportunities || [];
+        for (const opp of opps) {
+          // Score if we have a profile
+          let fitScore = null;
+          let fitReason = null;
+          if (subProfile) {
+            try {
+              const score = await scoreOpportunity(opp, subProfile);
+              fitScore = score.score;
+              fitReason = score.reason;
+            } catch (e) { /* scoring failed, save without score */ }
+          }
+
+          // Upsert: insert new or update existing
+          const existing = await pool.query(
+            'SELECT id FROM opportunities WHERE sam_notice_id=$1 AND org_id=$2',
+            [opp.sam_notice_id, orgId]
+          );
+
+          if (existing.rows.length > 0) {
+            // Update title, deadline, description if changed
+            await pool.query(
+              `UPDATE opportunities SET title=$1, response_deadline=COALESCE($2, response_deadline),
+               description=COALESCE($3, description), set_aside=COALESCE($4, set_aside),
+               fit_score=COALESCE($5, fit_score), fit_reason=COALESCE($6, fit_reason),
+               updated_at=NOW()
+               WHERE id=$7`,
+              [opp.title, opp.response_deadline || null, opp.description, opp.set_aside,
+               fitScore, fitReason, existing.rows[0].id]
+            );
+            totalUpdated++;
+          } else {
+            // Insert new opportunity
+            await pool.query(
+              `INSERT INTO opportunities (search_id, org_id, sam_notice_id, title, agency, sub_agency,
+               naics_code, set_aside, posted_date, response_deadline, description, place_of_performance,
+               primary_contact_name, primary_contact_email, solicitation_number, opportunity_url,
+               fit_score, fit_reason, status)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,'new')
+               ON CONFLICT (sam_notice_id) DO NOTHING`,
+              [search.id, orgId, opp.sam_notice_id, opp.title, opp.agency, opp.sub_agency,
+               opp.naics_code, opp.set_aside, opp.posted_date, opp.response_deadline,
+               opp.description, opp.place_of_performance, opp.primary_contact_name,
+               opp.primary_contact_email, opp.solicitation_number, opp.opportunity_url,
+               fitScore, fitReason]
+            );
+            totalAdded++;
+          }
+        }
+      } catch (e) {
+        console.error(`Refresh failed for search ${search.id}:`, e.message);
+        samErrors.push(e.message);
+      }
+    }
+
+    // Notify if new high-fit opportunities found
+    if (totalAdded > 0) {
+      Promise.resolve().then(async () => {
+        try {
+          await createNotification(
+            req.userId,
+            'refresh_complete',
+            `SAM.gov refresh: ${totalAdded} new opportunities`,
+            `Found ${totalAdded} new and updated ${totalUpdated} existing opportunities from SAM.gov.`,
+            '/opportunities'
+          );
+        } catch (e) { /* non-fatal */ }
+      });
+    }
+
+    res.json({
+      success: true,
+      searches_refreshed: searches.length,
+      added: totalAdded,
+      updated: totalUpdated,
+      errors: samErrors.length > 0 ? samErrors : undefined,
+    });
+  } catch (err) {
+    console.error('Refresh error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

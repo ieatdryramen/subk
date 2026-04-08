@@ -6,6 +6,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 router.post('/scan', auth, async (req, res) => {
   const { imageData } = req.body;
   if (!imageData) return res.status(400).json({ error: 'No image provided' });
+  // Validate image size (10MB max)
+  const estimatedSize = (imageData.length * 3) / 4;
+  if (estimatedSize > 10 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (max 10MB)' });
 
   try {
     const message = await client.messages.create({

@@ -38,9 +38,11 @@ import PublicProfilePage from './pages/PublicProfilePage';
 import ProposalTrackerPage from './pages/ProposalTrackerPage';
 import CompetitiveIntelPage from './pages/CompetitiveIntelPage';
 
-const Protected = ({ children }) => {
+const Protected = ({ children, skipOnboarding }) => {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!skipOnboarding && !user.onboarding_complete) return <Navigate to="/onboarding" replace />;
+  return children;
 };
 
 const PublicOnly = ({ children }) => {
@@ -93,7 +95,7 @@ const App = () => (
         <Route path="/admin" element={<Protected><AdminDashboard /></Protected>} />
         <Route path="/cardscan" element={<Protected><CardScanPage /></Protected>} />
         <Route path="/activity" element={<Protected><ActivityBoard /></Protected>} />
-        <Route path="/onboarding" element={<Protected><OnboardingPage /></Protected>} />
+        <Route path="/onboarding" element={<Protected skipOnboarding><OnboardingPage /></Protected>} />
 
         {/* Public routes */}
         <Route path="/sub/:id" element={<PublicProfilePage />} />
@@ -109,7 +111,9 @@ const App = () => (
 // Show landing page to logged-out users, dashboard to logged-in
 const PublicOrApp = () => {
   const { user } = useAuth();
-  return user ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+  if (!user) return <LandingPage />;
+  if (!user.onboarding_complete) return <Navigate to="/onboarding" replace />;
+  return <Navigate to="/dashboard" replace />;
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);

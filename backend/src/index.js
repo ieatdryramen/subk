@@ -10,7 +10,7 @@ const app = express();
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
 app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '30mb' })); // cap statement PDFs can be large
 
 // Simple in-memory rate limiter for auth endpoints
 const authAttempts = new Map();
@@ -63,7 +63,7 @@ app.use('/api/chat', aiRateLimit, require('./routes/chat'));
 app.use('/api/zoho', require('./routes/zoho'));
 app.use('/api/scoring', require('./routes/scoring'));
 app.use('/api/export', require('./routes/export'));
-app.use('/api/autofill', require('./routes/autofill'));
+app.use('/api/autofill', aiRateLimit, require('./routes/autofill'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/sequence', require('./routes/sequence'));
 app.use('/api/engagement', require('./routes/engagement'));
@@ -78,10 +78,10 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
-app.use('/api/cardscan', require('./routes/cardscan'));
+app.use('/api/cardscan', aiRateLimit, require('./routes/cardscan'));
 
 // ── SubK Routes (teaming, marketplace, opportunities) ──
-app.use('/api/opportunities', require('./routes/opportunities'));
+app.use('/api/opportunities', aiRateLimit, require('./routes/opportunities'));
 app.use('/api/marketplace', require('./routes/marketplace'));
 app.use('/api/sub-profile', require('./routes/sub-profile'));
 app.use('/api/subk-primes', require('./routes/subk-primes'));
@@ -95,6 +95,33 @@ app.use('/api/proposals', require('./routes/proposals'));
 app.use('/api/competitive', require('./routes/competitive'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.29.1', app: 'SumX CRM', uptime: process.uptime() }));
+
+// ── Global Error Handler ──
+// Catches unhandled errors from route handlers
+// To integrate Sentry: npm install @sentry/node, then add Sentry.init() at top of file
+// and replace console.error with Sentry.captureException(err)
+app.use((err, req, res, _next) => {
+  const status = err.status || 500;
+  const message = status === 500 ? 'Internal server error' : err.message;
+  console.error(`[ERROR] ${req.method} ${req.path} - ${status}: ${err.message}`);
+  if (status === 500) console.error(err.stack);
+  if (!res.headersSent) {
+    res.status(status).json({ error: message });
+  }
+});
+
+// Catch unhandled rejections and exceptions at process level
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+  // With Sentry: Sentry.captureException(reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION]', err);
+  // With Sentry: Sentry.captureException(err);
+  // Give time for error to be logged, then exit
+  setTimeout(() => process.exit(1), 1000);
+});
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));

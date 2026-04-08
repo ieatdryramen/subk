@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
+import { useAuth } from '../hooks/useAuth';
 
 const COMMON_NAICS = [
   '541512 - Computer Systems Design', '541511 - Custom Computer Programming',
@@ -14,38 +15,68 @@ const COMMON_NAICS = [
 
 const SET_ASIDES = ['Small Business', '8(a)', 'HUBZone', 'SDVOSB', 'VOSB', 'WOSB', 'EDWOSB', 'SDB'];
 
+const AGENCIES = [
+  'Department of Defense', 'Department of Homeland Security', 'Department of Veterans Affairs',
+  'General Services Administration', 'Department of Energy', 'Department of Health and Human Services',
+  'Department of the Treasury', 'Department of Justice', 'Department of Transportation',
+  'Department of Agriculture', 'Intelligence Community', 'NASA', 'EPA',
+];
+
+const TOTAL_STEPS = 5;
+
 export default function OnboardingPage() {
-  const { showToast } = useToast();
+  const { addToast } = useToast();
+  const { user, setUser } = useAuth();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [uploadMode, setUploadMode] = useState(true); // true = upload PDF, false = manual entry
-  const [form, setForm] = useState({
-    company_name: '',
-    naics_codes: '',
-    certifications: '',
-  });
-  const [selectedCerts, setSelectedCerts] = useState([]);
-  const [searchForm, setSearchForm] = useState({
-    naics_codes: '',
-    keywords: '',
-    agency: '',
-    set_aside: 'all',
-  });
+  const [saving, setSaving] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [parseMsg, setParseMsg] = useState('');
   const [dragging, setDragging] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const navigate = useNavigate();
+  const [uploadMode, setUploadMode] = useState(true);
   const fileRef = useRef(null);
+  const csvRef = useRef(null);
+
+  // Step 1: Company basics
+  const [company, setCompany] = useState({
+    company_name: '', website_url: '', cage_code: '', uei: '',
+  });
+
+  // Step 2: GovCon profile
+  const [profile, setProfile] = useState({
+    naics_codes: '', certifications: '',
+  });
+  const [selectedCerts, setSelectedCerts] = useState([]);
+
+  // Step 3: Preferences
+  const [prefs, setPrefs] = useState({
+    contract_min: '', contract_max: '',
+    keywords: '', target_agencies: [],
+  });
+
+  // Step 4: Import contacts
+  const [manualLeads, setManualLeads] = useState([{ full_name: '', company: '', title: '', email: '' }]);
+  const [csvImported, setCsvImported] = useState(0);
+  const [importListId, setImportListId] = useState(null);
 
   const toggleCert = (cert) => {
     const next = selectedCerts.includes(cert)
       ? selectedCerts.filter(c => c !== cert)
       : [...selectedCerts, cert];
     setSelectedCerts(next);
-    setForm(f => ({ ...f, certifications: next.join(', ') }));
+    setProfile(f => ({ ...f, certifications: next.join(', ') }));
   };
 
+  const toggleAgency = (agency) => {
+    setPrefs(p => ({
+      ...p,
+      target_agencies: p.target_agencies.includes(agency)
+        ? p.target_agencies.filter(a => a !== agency)
+        : [...p.target_agencies, agency],
+    }));
+  };
+
+  // Capability statement PDF parsing
   const parseCapStatement = async (file) => {
     if (!file || file.type !== 'application/pdf') {
       setParseMsg('Please upload a PDF file.');
@@ -60,257 +91,139 @@ export default function OnboardingPage() {
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-
       const r = await api.post('/sub-profile/parse-capstatement', { pdf_base64: base64, filename: file.name });
-      const extracted = r.data.extracted;
-
-      setForm(f => ({
-        ...f,
-        company_name: extracted.company_name || f.company_name,
-        naics_codes: extracted.naics_codes || f.naics_codes,
-        certifications: extracted.certifications || f.certifications,
-      }));
-
-      if (extracted.certifications) {
-        const newCerts = extracted.certifications.split(',').map(c => c.trim()).filter(Boolean);
-        setSelectedCerts(newCerts);
+      const ex = r.data.extracted;
+      if (ex.company_name) setCompany(c => ({ ...c, company_name: ex.company_name }));
+      if (ex.naics_codes) setProfile(p => ({ ...p, naics_codes: ex.naics_codes }));
+      if (ex.certifications) {
+        setProfile(p => ({ ...p, certifications: ex.certifications }));
+        setSelectedCerts(ex.certifications.split(',').map(c => c.trim()).filter(Boolean));
       }
-
-      setParseMsg(`✓ Extracted: ${extracted.company_name || 'Company'} · ${extracted.naics_codes ? '1 NAICS' : '0 NAICS'} codes`);
-      showToast('Capability statement parsed successfully', 'success');
-      setTimeout(() => setStep(3), 2000);
+      if (ex.cage_code) setCompany(c => ({ ...c, cage_code: ex.cage_code }));
+      if (ex.uei) setCompany(c => ({ ...c, uei: ex.uei }));
+      if (ex.website_url) setCompany(c => ({ ...c, website_url: ex.website_url }));
+      setParseMsg(`Extracted: ${ex.company_name || 'company info'}`);
+      addToast('Capability statement parsed', 'success');
     } catch (err) {
-      const errorMsg = err.response?.data?.error || err.message;
-      setParseMsg('Failed to parse PDF: ' + errorMsg);
-      showToast('Failed to parse: ' + errorMsg, 'error');
-    } finally {
-      setParsing(false);
-    }
+      setParseMsg('Failed to parse: ' + (err.response?.data?.error || err.message));
+    } finally { setParsing(false); }
   };
 
-  const handleFileDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) parseCapStatement(files[0]);
-  };
-
-  const handleFileChange = (e) => {
-    const files = e.target.files;
-    if (files.length > 0) parseCapStatement(files[0]);
-  };
-
-  const goNext = async () => {
-    if (step === 1) {
-      if (uploadMode && !parseMsg.includes('✓')) {
-        showToast('Please upload your capability statement first', 'error');
-        return;
-      }
-      setStep(2);
-    } else if (step === 2) {
-      if (!form.company_name.trim()) {
-        showToast('Please enter your company name', 'error');
-        return;
-      }
-      setStep(3);
-    } else if (step === 3) {
-      if (!searchForm.naics_codes.trim()) {
-        showToast('Please select NAICS codes', 'error');
-        return;
-      }
-      await runFirstSearch();
-    } else if (step === 4) {
-      await saveAndRedirect();
-    }
-  };
-
-  const runFirstSearch = async () => {
-    setSearching(true);
+  // CSV import
+  const handleCsvUpload = async (file) => {
+    if (!file) return;
     try {
-      // First, save the profile
-      await api.post('/sub-profile', { ...form, certifications: selectedCerts.join(', ') });
-
-      // Then run the search with the search parameters
-      const searchPayload = {
-        naics_codes: searchForm.naics_codes,
-        keywords: searchForm.keywords || undefined,
-        agency: searchForm.agency || undefined,
-        set_aside: searchForm.set_aside === 'all' ? undefined : searchForm.set_aside,
-      };
-
-      const result = await api.post('/api/opportunities/search', searchPayload);
-
-      // Optionally enable auto-search if configured
-      if (result.data?.searchId) {
-        try {
-          await api.post(`/autosearch/enable/${result.data.searchId}`);
-        } catch (err) {
-          // Auto-search configuration is optional, don't fail if it errors
-          console.warn('Auto-search setup failed:', err);
-        }
+      // Create a list if we don't have one
+      let listId = importListId;
+      if (!listId) {
+        const lr = await api.post('/lists', { name: 'Imported Contacts', description: 'Contacts imported during onboarding' });
+        listId = lr.data.id;
+        setImportListId(listId);
       }
-
-      showToast('Search completed! Redirecting to opportunities...', 'success');
-      // Redirect to opportunities page to see search results
-      setTimeout(() => navigate('/opportunities'), 1000);
+      const formData = new FormData();
+      formData.append('file', file);
+      const r = await api.post(`/lists/${listId}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setCsvImported(r.data.imported || 0);
+      addToast(`Imported ${r.data.imported} contacts`, 'success');
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Failed to run search';
-      showToast(errorMsg, 'error');
-      setSearching(false);
+      addToast(err.response?.data?.error || 'CSV import failed', 'error');
     }
   };
 
-  const saveAndRedirect = async () => {
+  // Save manual leads
+  const saveManualLeads = async () => {
+    const valid = manualLeads.filter(l => l.full_name || l.email);
+    if (valid.length === 0) return;
+    try {
+      let listId = importListId;
+      if (!listId) {
+        const lr = await api.post('/lists', { name: 'Imported Contacts', description: 'Contacts imported during onboarding' });
+        listId = lr.data.id;
+        setImportListId(listId);
+      }
+      await api.post(`/lists/${listId}/leads`, { leads: valid });
+      addToast(`Added ${valid.length} contacts`, 'success');
+    } catch (err) {
+      addToast('Failed to save contacts', 'error');
+    }
+  };
+
+  const addManualRow = () => setManualLeads(l => [...l, { full_name: '', company: '', title: '', email: '' }]);
+  const updateManualLead = (i, field, val) => setManualLeads(l => l.map((lead, j) => j === i ? { ...lead, [field]: val } : lead));
+
+  // Final save & complete onboarding
+  const completeOnboarding = async () => {
     setSaving(true);
     try {
-      await api.post('/sub-profile', { ...form, certifications: selectedCerts.join(', ') });
-      showToast('Profile saved successfully', 'success');
-      setTimeout(() => navigate('/dashboard'), 1000);
+      // Save sub profile
+      await api.post('/sub-profile', {
+        company_name: company.company_name,
+        website_url: company.website_url,
+        cage_code: company.cage_code,
+        uei: company.uei,
+        naics_codes: profile.naics_codes,
+        certifications: profile.certifications,
+        target_agencies: prefs.target_agencies.join(', '),
+        contract_min: prefs.contract_min ? parseInt(prefs.contract_min) : undefined,
+        contract_max: prefs.contract_max ? parseInt(prefs.contract_max) : undefined,
+      });
+
+      // Mark onboarding complete
+      await api.post('/auth/complete-onboarding');
+
+      // Update local user state
+      const updatedUser = { ...user, onboarding_complete: true };
+      setUser(updatedUser);
+      localStorage.setItem('sumx_user', JSON.stringify(updatedUser));
+
+      addToast('Welcome to SumX CRM!', 'success');
+      navigate('/dashboard');
     } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Failed to save profile';
-      showToast(errorMsg, 'error');
+      addToast(err.response?.data?.error || 'Setup failed', 'error');
       setSaving(false);
     }
   };
 
+  const goNext = async () => {
+    if (step === 4) {
+      // Save any manual leads before moving to step 5
+      const valid = manualLeads.filter(l => l.full_name || l.email);
+      if (valid.length > 0) await saveManualLeads();
+    }
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+    } else {
+      await completeOnboarding();
+    }
+  };
+
+  const skip = () => {
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+    } else {
+      completeOnboarding();
+    }
+  };
+
   const s = {
-    container: {
-      padding: '2rem 2.5rem',
-      maxWidth: 700,
-      margin: '0 auto',
-    },
-    progressBar: {
-      marginBottom: '2rem',
-      height: 4,
-      background: 'var(--bg3)',
-      borderRadius: 2,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
-      width: `${(step / 4) * 100}%`,
-      background: 'var(--accent)',
-      transition: 'width 0.3s',
-    },
-    stepNum: {
-      fontSize: 13,
-      fontWeight: 600,
-      color: 'var(--accent2)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.4px',
-      marginBottom: 8,
-    },
-    heading: {
-      fontSize: 26,
-      fontWeight: 700,
-      marginBottom: 4,
-    },
-    sub: {
-      color: 'var(--text2)',
-      fontSize: 14,
-      marginBottom: '2rem',
-    },
-    section: {
-      background: 'var(--bg2)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '1.5rem',
-      marginBottom: '1.5rem',
-    },
-    field: {
-      marginBottom: 16,
-    },
-    label: {
-      display: 'block',
-      fontSize: 12,
-      fontWeight: 500,
-      color: 'var(--text2)',
-      textTransform: 'uppercase',
-      letterSpacing: '0.4px',
-      marginBottom: 6,
-    },
-    input: {
-      width: '100%',
-      padding: '10px 12px',
-      background: 'var(--bg)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      fontSize: 13,
-      color: 'var(--text)',
-      boxSizing: 'border-box',
-      transition: 'border-color 0.2s, background-color 0.2s',
-    },
-    uploadZone: (dragging) => ({
-      border: `2px dashed ${dragging ? 'var(--accent)' : 'var(--border2)'}`,
-      borderRadius: 'var(--radius-lg)',
-      padding: '2rem',
-      textAlign: 'center',
-      cursor: 'pointer',
-      background: dragging ? 'var(--accent-bg)' : 'var(--bg3)',
-      transition: 'all 0.15s',
-    }),
-    uploadIcon: {
-      fontSize: 32,
-      marginBottom: 8,
-    },
-    certGrid: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginTop: 8,
-    },
-    certBtn: (active) => ({
-      padding: '6px 12px',
-      fontSize: 12,
-      fontWeight: 500,
-      borderRadius: 20,
-      cursor: 'pointer',
-      background: active ? 'var(--accent-bg)' : 'var(--bg3)',
-      color: active ? 'var(--accent2)' : 'var(--text2)',
-      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
-    }),
-    buttons: {
-      display: 'flex',
-      gap: 12,
-      marginTop: '2rem',
-    },
-    btn: (primary) => ({
-      flex: 1,
-      padding: '11px',
-      background: primary ? 'var(--accent)' : 'var(--bg3)',
-      color: primary ? '#fff' : 'var(--text2)',
-      border: primary ? 'none' : '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      fontSize: 13,
-      fontWeight: 600,
-      cursor: 'pointer',
-      transition: 'opacity 0.15s',
-    }),
-    tabButtons: {
-      display: 'flex',
-      gap: 10,
-      marginBottom: '1rem',
-    },
-    tabBtn: (active) => ({
-      flex: 1,
-      padding: '8px 12px',
-      background: active ? 'var(--accent-bg)' : 'var(--bg)',
-      color: active ? 'var(--accent2)' : 'var(--text2)',
-      border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      fontSize: 12,
-      fontWeight: 500,
-      cursor: 'pointer',
-    }),
-    msgBox: (type) => ({
-      padding: '10px 12px',
-      background: type === 'success' ? 'var(--success-bg)' : type === 'error' ? 'var(--danger-bg)' : type === 'info' ? 'var(--bg3)' : 'var(--bg3)',
-      color: type === 'success' ? 'var(--success)' : type === 'error' ? 'var(--danger)' : type === 'info' ? 'var(--text2)' : 'var(--text2)',
-      border: type === 'success' ? '1px solid var(--success)' : type === 'error' ? '1px solid var(--danger)' : type === 'info' ? '1px solid var(--border)' : '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      fontSize: 12,
-      marginTop: 8,
-    }),
+    container: { padding: '2rem 2.5rem', maxWidth: 700, margin: '0 auto' },
+    progressBar: { marginBottom: '2rem', height: 4, background: 'var(--bg3)', borderRadius: 2, overflow: 'hidden' },
+    progressFill: { height: '100%', width: `${(step / TOTAL_STEPS) * 100}%`, background: 'var(--accent)', transition: 'width 0.3s' },
+    stepNum: { fontSize: 13, fontWeight: 600, color: 'var(--accent2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 },
+    heading: { fontSize: 26, fontWeight: 700, marginBottom: 4 },
+    sub: { color: 'var(--text2)', fontSize: 14, marginBottom: '2rem' },
+    section: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem' },
+    field: { marginBottom: 16 },
+    label: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 },
+    input: { width: '100%', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text)', boxSizing: 'border-box' },
+    uploadZone: (active) => ({ border: `2px dashed ${active ? 'var(--accent)' : 'var(--border2)'}`, borderRadius: 'var(--radius-lg)', padding: '2rem', textAlign: 'center', cursor: 'pointer', background: active ? 'var(--accent-bg)' : 'var(--bg3)', transition: 'all 0.15s' }),
+    certGrid: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+    certBtn: (active) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 20, cursor: 'pointer', background: active ? 'var(--accent-bg)' : 'var(--bg3)', color: active ? 'var(--accent2)' : 'var(--text2)', border: active ? '1px solid var(--accent)' : '1px solid var(--border)' }),
+    buttons: { display: 'flex', gap: 12, marginTop: '2rem' },
+    btn: (primary) => ({ flex: 1, padding: '11px', background: primary ? 'var(--accent)' : 'var(--bg3)', color: primary ? '#fff' : 'var(--text2)', border: primary ? 'none' : '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }),
+    skipBtn: { padding: '8px 16px', background: 'none', border: 'none', color: 'var(--text3)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' },
+    tabBtns: { display: 'flex', gap: 10, marginBottom: '1rem' },
+    tabBtn: (active) => ({ flex: 1, padding: '8px 12px', background: active ? 'var(--accent-bg)' : 'var(--bg)', color: active ? 'var(--accent2)' : 'var(--text2)', border: active ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }),
   };
 
   return (
@@ -320,102 +233,95 @@ export default function OnboardingPage() {
           <div style={s.progressFill} />
         </div>
 
+        {/* Step 1: Company Basics */}
         {step === 1 && (
           <>
-            <div style={s.stepNum}>Step 1 of 4</div>
-            <div style={s.heading}>Upload Your Capability Statement</div>
-            <div style={s.sub}>Optional: drag & drop your PDF for instant parsing</div>
+            <div style={s.stepNum}>Step 1 of {TOTAL_STEPS}</div>
+            <div style={s.heading}>Company Basics</div>
+            <div style={s.sub}>Tell us about your company, or upload a capability statement to auto-fill</div>
 
             <div style={s.section}>
-              <div style={s.tabButtons}>
-                <button
-                  style={s.tabBtn(uploadMode)}
-                  onClick={() => setUploadMode(true)}
-                >
-                  Upload PDF
-                </button>
-                <button
-                  style={s.tabBtn(!uploadMode)}
-                  onClick={() => setUploadMode(false)}
-                >
-                  Skip
-                </button>
+              <div style={s.tabBtns}>
+                <button style={s.tabBtn(uploadMode)} onClick={() => setUploadMode(true)}>Upload Cap Statement</button>
+                <button style={s.tabBtn(!uploadMode)} onClick={() => setUploadMode(false)}>Enter Manually</button>
               </div>
 
-              {uploadMode ? (
+              {uploadMode && (
                 <>
                   <div
                     style={s.uploadZone(dragging)}
                     onDragOver={e => { e.preventDefault(); setDragging(true); }}
                     onDragLeave={() => setDragging(false)}
-                    onDrop={handleFileDrop}
+                    onDrop={e => { e.preventDefault(); setDragging(false); parseCapStatement(e.dataTransfer.files[0]); }}
                     onClick={() => fileRef.current?.click()}
                   >
-                    <div style={s.uploadIcon}>📄</div>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
                     <div style={{ fontWeight: 500, marginBottom: 2 }}>Drag your capability statement PDF</div>
                     <div style={{ fontSize: 12, color: 'var(--text3)' }}>or click to browse</div>
                   </div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                  {parsing && <div style={s.msgBox('info')}>⏳ Parsing your capability statement...</div>}
-                  {parseMsg && !parsing && <div style={{ ...s.msgBox(parseMsg.includes('✓') ? 'success' : 'error') }}>{parseMsg}</div>}
+                  <input ref={fileRef} type="file" accept=".pdf" onChange={e => e.target.files[0] && parseCapStatement(e.target.files[0])} style={{ display: 'none' }} />
+                  {parsing && <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text2)', marginTop: 8 }}>Parsing...</div>}
+                  {parseMsg && !parsing && <div style={{ padding: '10px 12px', background: parseMsg.includes('Extracted') ? 'var(--success-bg)' : 'var(--danger-bg)', borderRadius: 'var(--radius)', fontSize: 12, marginTop: 8, color: parseMsg.includes('Extracted') ? 'var(--success)' : 'var(--danger)' }}>{parseMsg}</div>}
+                  <div style={{ marginTop: 16 }} />
                 </>
-              ) : (
-                <div style={{ fontSize: 13, color: 'var(--text2)', padding: '1rem 0' }}>
-                  No problem! You can fill in your company info on the next step.
-                </div>
               )}
+
+              <div style={s.field}>
+                <label style={s.label}>Company Name</label>
+                <input style={s.input} value={company.company_name} onChange={e => setCompany({ ...company, company_name: e.target.value })} placeholder="Apex Defense Solutions LLC" />
+              </div>
+              <div style={s.field}>
+                <label style={s.label}>Website</label>
+                <input style={s.input} value={company.website_url} onChange={e => setCompany({ ...company, website_url: e.target.value })} placeholder="https://yourcompany.com" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={s.field}>
+                  <label style={s.label}>CAGE Code</label>
+                  <input style={s.input} value={company.cage_code} onChange={e => setCompany({ ...company, cage_code: e.target.value })} placeholder="8K7N2" />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>UEI</label>
+                  <input style={s.input} value={company.uei} onChange={e => setCompany({ ...company, uei: e.target.value })} placeholder="J7K9LM2N3P4Q" />
+                </div>
+              </div>
             </div>
           </>
         )}
 
+        {/* Step 2: GovCon Profile */}
         {step === 2 && (
           <>
-            <div style={s.stepNum}>Step 2 of 4</div>
-            <div style={s.heading}>Company Information</div>
-            <div style={s.sub}>Tell us about your company</div>
+            <div style={s.stepNum}>Step 2 of {TOTAL_STEPS}</div>
+            <div style={s.heading}>GovCon Profile</div>
+            <div style={s.sub}>NAICS codes, certifications, and set-aside statuses</div>
 
             <div style={s.section}>
               <div style={s.field}>
-                <label style={s.label}>Company Name</label>
-                <input
-                  style={s.input}
-                  value={form.company_name}
-                  onChange={e => setForm({ ...form, company_name: e.target.value })}
-                  placeholder="e.g., Acme Solutions Inc."
-                />
-              </div>
-
-              <div style={s.field}>
-                <label style={s.label}>NAICS Codes (Primary)</label>
-                <input
-                  style={s.input}
-                  value={form.naics_codes}
-                  onChange={e => setForm({ ...form, naics_codes: e.target.value })}
-                  placeholder="e.g., 541512, 541330"
-                  list="naics-list"
-                />
+                <label style={s.label}>NAICS Codes (comma-separated)</label>
+                <input style={s.input} value={profile.naics_codes} onChange={e => setProfile({ ...profile, naics_codes: e.target.value })} placeholder="541512, 541519, 518210" list="naics-list" />
                 <datalist id="naics-list">
-                  {COMMON_NAICS.map(code => (
-                    <option key={code} value={code.split(' - ')[0]} />
-                  ))}
+                  {COMMON_NAICS.map(code => <option key={code} value={code.split(' - ')[0]} />)}
                 </datalist>
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {COMMON_NAICS.map(code => (
+                    <button key={code} style={{ ...s.certBtn(profile.naics_codes.includes(code.split(' - ')[0])), fontSize: 11 }}
+                      onClick={() => {
+                        const c = code.split(' - ')[0];
+                        const current = profile.naics_codes.split(',').map(x => x.trim()).filter(Boolean);
+                        const next = current.includes(c) ? current.filter(x => x !== c) : [...current, c];
+                        setProfile({ ...profile, naics_codes: next.join(', ') });
+                      }}>
+                      {code}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div style={s.field}>
-                <label style={s.label}>Set-Aside Status</label>
+                <label style={s.label}>Certifications & Set-Aside Status</label>
                 <div style={s.certGrid}>
                   {SET_ASIDES.map(cert => (
-                    <button
-                      key={cert}
-                      style={s.certBtn(selectedCerts.includes(cert))}
-                      onClick={() => toggleCert(cert)}
-                    >
+                    <button key={cert} style={s.certBtn(selectedCerts.includes(cert))} onClick={() => toggleCert(cert)}>
                       {cert}
                     </button>
                   ))}
@@ -425,110 +331,145 @@ export default function OnboardingPage() {
           </>
         )}
 
+        {/* Step 3: Preferences */}
         {step === 3 && (
           <>
-            <div style={s.stepNum}>Step 3 of 4</div>
-            <div style={s.heading}>Run Your First Search</div>
-            <div style={s.sub}>Let's find opportunities that match your capabilities</div>
+            <div style={s.stepNum}>Step 3 of {TOTAL_STEPS}</div>
+            <div style={s.heading}>Search Preferences</div>
+            <div style={s.sub}>Contract size range, target agencies, and keywords for opportunity matching</div>
 
             <div style={s.section}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={s.field}>
+                  <label style={s.label}>Min Contract Value ($)</label>
+                  <input style={s.input} type="number" value={prefs.contract_min} onChange={e => setPrefs({ ...prefs, contract_min: e.target.value })} placeholder="500000" />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Max Contract Value ($)</label>
+                  <input style={s.input} type="number" value={prefs.contract_max} onChange={e => setPrefs({ ...prefs, contract_max: e.target.value })} placeholder="25000000" />
+                </div>
+              </div>
+
               <div style={s.field}>
-                <label style={s.label}>NAICS Codes</label>
-                <input
-                  style={s.input}
-                  value={searchForm.naics_codes}
-                  onChange={e => setSearchForm({ ...searchForm, naics_codes: e.target.value })}
-                  placeholder="e.g., 541512, 541330"
-                  list="search-naics-list"
-                />
-                <datalist id="search-naics-list">
-                  {COMMON_NAICS.map(code => (
-                    <option key={code} value={code.split(' - ')[0]} />
+                <label style={s.label}>Target Agencies</label>
+                <div style={s.certGrid}>
+                  {AGENCIES.map(agency => (
+                    <button key={agency} style={s.certBtn(prefs.target_agencies.includes(agency))} onClick={() => toggleAgency(agency)}>
+                      {agency}
+                    </button>
                   ))}
-                </datalist>
+                </div>
               </div>
 
               <div style={s.field}>
-                <label style={s.label}>Keywords (Optional)</label>
-                <input
-                  style={s.input}
-                  value={searchForm.keywords}
-                  onChange={e => setSearchForm({ ...searchForm, keywords: e.target.value })}
-                  placeholder="e.g., cloud computing, AI, cybersecurity"
-                />
-              </div>
-
-              <div style={s.field}>
-                <label style={s.label}>Agency (Optional)</label>
-                <input
-                  style={s.input}
-                  value={searchForm.agency}
-                  onChange={e => setSearchForm({ ...searchForm, agency: e.target.value })}
-                  placeholder="e.g., DoD, GSA, HHS"
-                />
-              </div>
-
-              <div style={s.field}>
-                <label style={s.label}>Set-Aside</label>
-                <select
-                  style={s.input}
-                  value={searchForm.set_aside}
-                  onChange={e => setSearchForm({ ...searchForm, set_aside: e.target.value })}
-                >
-                  <option value="all">All</option>
-                  <option value="Small Business Set-Aside">Small Business Set-Aside</option>
-                  <option value="8(a)">8(a)</option>
-                  <option value="HUBZone">HUBZone</option>
-                  <option value="SDVOSB">SDVOSB</option>
-                  <option value="WOSB">WOSB</option>
-                </select>
+                <label style={s.label}>Keywords (for opportunity matching)</label>
+                <input style={s.input} value={prefs.keywords} onChange={e => setPrefs({ ...prefs, keywords: e.target.value })} placeholder="cloud migration, cybersecurity, DevSecOps, zero trust" />
               </div>
             </div>
           </>
         )}
 
+        {/* Step 4: Import Contacts */}
         {step === 4 && (
           <>
-            <div style={s.stepNum}>Step 4 of 4</div>
-            <div style={s.heading}>You're All Set!</div>
-            <div style={s.sub}>Your profile is ready. Let's get started!</div>
+            <div style={s.stepNum}>Step 4 of {TOTAL_STEPS}</div>
+            <div style={s.heading}>Import Contacts</div>
+            <div style={s.sub}>Add your existing leads via CSV upload or manual entry</div>
 
             <div style={s.section}>
-              <div style={{ fontSize: 28, marginBottom: '1rem', textAlign: 'center' }}>🎉</div>
-              <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                <strong>Next steps:</strong>
-                <ul style={{ marginTop: 8, paddingLeft: '1.25rem' }}>
-                  <li>Go to your <strong>Dashboard</strong> for a quick overview</li>
-                  <li>Visit <strong>Opportunities</strong> to track and bid on contracts</li>
-                  <li>Use <strong>Prime Tracker</strong> to manage teaming relationships</li>
-                  <li>Chat with the <strong>AI Coach</strong> for personalized advice</li>
-                </ul>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Upload CSV</div>
+              <div
+                style={s.uploadZone(false)}
+                onClick={() => csvRef.current?.click()}
+              >
+                <div style={{ fontSize: 24, marginBottom: 4 }}>📊</div>
+                <div style={{ fontWeight: 500, fontSize: 13 }}>Drop a CSV file or click to browse</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Supports ZoomInfo, Apollo, HubSpot, and standard CSV exports</div>
+              </div>
+              <input ref={csvRef} type="file" accept=".csv" onChange={e => e.target.files[0] && handleCsvUpload(e.target.files[0])} style={{ display: 'none' }} />
+              {csvImported > 0 && (
+                <div style={{ padding: '10px 12px', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--success)', marginTop: 8 }}>
+                  Imported {csvImported} contacts
+                </div>
+              )}
+            </div>
+
+            <div style={s.section}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12 }}>Or Add Manually</div>
+              {manualLeads.map((lead, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                  <input style={{ ...s.input, fontSize: 12 }} value={lead.full_name} onChange={e => updateManualLead(i, 'full_name', e.target.value)} placeholder="Name" />
+                  <input style={{ ...s.input, fontSize: 12 }} value={lead.company} onChange={e => updateManualLead(i, 'company', e.target.value)} placeholder="Company" />
+                  <input style={{ ...s.input, fontSize: 12 }} value={lead.title} onChange={e => updateManualLead(i, 'title', e.target.value)} placeholder="Title" />
+                  <input style={{ ...s.input, fontSize: 12 }} value={lead.email} onChange={e => updateManualLead(i, 'email', e.target.value)} placeholder="Email" />
+                </div>
+              ))}
+              <button onClick={addManualRow} style={{ fontSize: 12, color: 'var(--accent2)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+                + Add another contact
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Step 5: Completion */}
+        {step === 5 && (
+          <>
+            <div style={s.stepNum}>Step 5 of {TOTAL_STEPS}</div>
+            <div style={s.heading}>You're All Set!</div>
+            <div style={s.sub}>Your GovCon CRM is ready to go</div>
+
+            <div style={s.section}>
+              <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 16 }}>🎉</div>
+              <div style={{ fontSize: 14, color: 'var(--text2)', lineHeight: 1.7 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Here's what you can do next:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18 }}>📊</span>
+                    <div><strong>Dashboard</strong> — see your pipeline at a glance with fit scores and deadlines</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18 }}>🔍</span>
+                    <div><strong>Opportunities</strong> — search SAM.gov for live contracts scored against your profile</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18 }}>🤝</span>
+                    <div><strong>Teaming Marketplace</strong> — find prime contractors and subcontracting partners</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 18 }}>🤖</span>
+                    <div><strong>AI Coach</strong> — get personalized GovCon strategy advice</div>
+                  </div>
+                </div>
               </div>
             </div>
           </>
         )}
 
-        <div style={s.buttons}>
-          {step > 1 && (
+        {/* Navigation buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem' }}>
+          <div>
+            {step > 1 && (
+              <button style={s.btn(false)} onClick={() => setStep(step - 1)} disabled={saving}>
+                Back
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {step < TOTAL_STEPS && (
+              <button style={s.skipBtn} onClick={skip}>
+                Skip this step
+              </button>
+            )}
             <button
-              style={s.btn(false)}
-              onClick={() => setStep(step - 1)}
-              disabled={saving || searching}
+              style={{ ...s.btn(true), flex: 'none', padding: '11px 28px', opacity: saving ? 0.6 : 1 }}
+              onClick={goNext}
+              disabled={saving}
             >
-              Back
+              {step === TOTAL_STEPS
+                ? saving ? 'Setting up...' : 'Go to Dashboard'
+                : 'Next'}
             </button>
-          )}
-          <button
-            style={{ ...s.btn(true), opacity: (saving || searching) ? 0.6 : 1 }}
-            onClick={goNext}
-            disabled={saving || searching}
-          >
-            {step === 3
-              ? searching ? 'Running Search...' : 'Run Search →'
-              : step === 4
-              ? saving ? 'Setting up...' : 'Go to Dashboard →'
-              : 'Next →'}
-          </button>
+          </div>
         </div>
       </div>
     </Layout>

@@ -70,6 +70,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 router.post('/parse-capstatement', auth, async (req, res) => {
   const { pdf_base64, filename } = req.body;
   if (!pdf_base64) return res.status(400).json({ error: 'No PDF data provided' });
+  // Validate base64 size (25MB max decoded)
+  const estimatedSize = (pdf_base64.length * 3) / 4;
+  if (estimatedSize > 25 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 25MB)' });
 
   try {
     const response = await client.messages.create({

@@ -5,6 +5,9 @@ const { pool } = require('../db');
 // Legacy GET /:leadId (keep for backwards compatibility)
 router.get('/:leadId', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     const result = await pool.query(
       'SELECT n.*, u.full_name as author FROM lead_notes n JOIN users u ON u.id=n.user_id WHERE n.lead_id=$1 ORDER BY n.created_at DESC',
       [req.params.leadId]
@@ -43,6 +46,9 @@ router.delete('/:leadId/:noteId', auth, async (req, res) => {
 // NEW: GET /lead/:leadId - Get all notes for a lead with user info
 router.get('/lead/:leadId', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     const result = await pool.query(
       `SELECT n.id, n.lead_id, n.content, n.note_type, n.created_at, n.updated_at,
               u.id as user_id, u.full_name as user_name, u.email as user_email
@@ -86,6 +92,9 @@ router.post('/lead/:leadId', auth, async (req, res) => {
 // NEW: GET /lead/:leadId/timeline - Unified timeline of notes + sequence_events
 router.get('/lead/:leadId/timeline', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     // Get notes
     const notesResult = await pool.query(
       `SELECT 'note' as type, n.id, n.content, n.note_type, n.created_at,

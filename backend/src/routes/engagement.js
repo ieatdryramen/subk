@@ -35,6 +35,9 @@ router.post('/:leadId/status', auth, async (req, res) => {
 router.post('/:leadId/snooze', auth, async (req, res) => {
   const { days, until } = req.body;
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     let snoozeDate;
     if (until) {
       snoozeDate = new Date(until);
@@ -55,6 +58,9 @@ router.post('/:leadId/snooze', auth, async (req, res) => {
 // DELETE /engagement/:leadId/snooze — unsnooze
 router.delete('/:leadId/snooze', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     await pool.query(`UPDATE leads SET snoozed_until=NULL WHERE id=$1`, [req.params.leadId]);
     res.json({ success: true });
   } catch (err) {
@@ -65,6 +71,9 @@ router.delete('/:leadId/snooze', auth, async (req, res) => {
 // GET /engagement/:leadId/notes — get conversation notes
 router.get('/:leadId/notes', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     const r = await pool.query(
       `SELECT cn.*, u.full_name as user_name 
        FROM conversation_notes cn 

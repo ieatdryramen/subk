@@ -24,6 +24,9 @@ const getZohoToken = async (userId) => {
 // Get call history for a lead
 router.get('/:leadId', auth, async (req, res) => {
   try {
+    // Verify user owns this lead
+    const leadCheck = await pool.query('SELECT id FROM leads WHERE id=$1 AND user_id=$2', [req.params.leadId, req.userId]);
+    if (!leadCheck.rows.length) return res.status(403).json({ error: 'Access denied' });
     const result = await pool.query(
       `SELECT c.*, u.full_name as caller FROM call_logs c
        JOIN users u ON u.id = c.user_id

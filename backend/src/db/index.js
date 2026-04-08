@@ -149,6 +149,7 @@ const initDb = async () => {
     );
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_refresh_token TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gmail_email VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_complete BOOLEAN DEFAULT false;
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS slack_webhook TEXT;
     CREATE TABLE IF NOT EXISTS lead_notes (
       id SERIAL PRIMARY KEY,

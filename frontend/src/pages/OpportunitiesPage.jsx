@@ -444,6 +444,7 @@ export default function OpportunitiesPage() {
   const [proposalResult, setProposalResult] = useState({});
   const [drawerOpen, setDrawerOpen] = useState(null);
   const [drawerData, setDrawerData] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     api.get('/opportunities').then(r => {
@@ -537,6 +538,26 @@ export default function OpportunitiesPage() {
         addToast(err.response?.data?.error || 'Search failed', 'error');
       }
     } finally { setSearching(false); }
+  };
+
+  const refreshFromSam = async () => {
+    setRefreshing(true);
+    try {
+      const r = await api.post('/opportunities/refresh');
+      const { added, updated, errors } = r.data;
+      if (added > 0 || updated > 0) {
+        addToast(`SAM.gov refresh: ${added} new, ${updated} updated`, 'success');
+        // Reload opportunities
+        const r2 = await api.get('/opportunities');
+        setOpps(Array.isArray(r2.data) ? r2.data : r2.data.opportunities || []);
+      } else if (errors?.length) {
+        addToast(errors[0], 'error');
+      } else {
+        addToast('No new opportunities found', 'info');
+      }
+    } catch (err) {
+      addToast(err.response?.data?.error || 'SAM.gov refresh failed', 'error');
+    } finally { setRefreshing(false); }
   };
 
   const updateStatus = async (id, status) => {
@@ -831,9 +852,15 @@ export default function OpportunitiesPage() {
             )}
             <span style={{ fontSize: 12, color: 'var(--text3)', alignSelf: 'center' }}>{displayOpps.length} results</span>
             {tab === 'tracked' && (
-              <button onClick={exportCSV} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)', marginLeft: 'auto' }}>
-                📥 Export CSV
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                <button onClick={refreshFromSam} disabled={refreshing}
+                  style={{ padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 'var(--radius)', cursor: refreshing ? 'wait' : 'pointer', border: 'none', background: 'var(--accent)', color: '#FFFFFF', opacity: refreshing ? 0.7 : 1 }}>
+                  {refreshing ? 'Refreshing...' : 'Refresh from SAM.gov'}
+                </button>
+                <button onClick={exportCSV} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text2)' }}>
+                  Export CSV
+                </button>
+              </div>
             )}
           </div>
         )}

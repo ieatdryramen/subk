@@ -48,7 +48,7 @@ router.post('/register', async (req, res) => {
     // Get invite code for this org
     const orgData = await pool.query('SELECT invite_code, name FROM organizations WHERE id=$1', [org_id]);
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { ...user, org: orgData.rows[0] } });
+    res.json({ token, user: { ...user, onboarding_complete: false, org: orgData.rows[0] } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -66,9 +66,18 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
     const orgData = user.org_id ? await pool.query('SELECT invite_code, name FROM organizations WHERE id=$1', [user.org_id]) : null;
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name, org_id: user.org_id, role: user.role, org: orgData?.rows[0] || null } });
+    res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name, org_id: user.org_id, role: user.role, onboarding_complete: user.onboarding_complete || false, org: orgData?.rows[0] || null } });
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/complete-onboarding', require('../middleware/auth'), async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET onboarding_complete=true WHERE id=$1', [req.userId]);
+    res.json({ success: true });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
