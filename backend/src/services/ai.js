@@ -448,6 +448,34 @@ const scoreOpportunity = async (opportunity, subProfile) => {
     structuredScore += 8;
   }
 
+  // Additional differentiation factors
+  // Description keyword matching against capabilities
+  const caps = (subProfile.capabilities || '').toLowerCase();
+  const desc = (opportunity.description || '').toLowerCase();
+  const titleLower = (opportunity.title || '').toLowerCase();
+  if (caps && (desc || titleLower)) {
+    const keywords = caps.split(/[\s,;]+/).filter(w => w.length > 4);
+    const matchCount = keywords.filter(kw => desc.includes(kw) || titleLower.includes(kw)).length;
+    if (matchCount >= 3) { structuredScore += 12; reasons.push(`Strong capability alignment (${matchCount} keyword matches)`); }
+    else if (matchCount >= 1) { structuredScore += 6; reasons.push(`Some capability overlap (${matchCount} matches)`); }
+  }
+
+  // Deadline urgency factor — opportunities closing soon get a slight boost (more actionable)
+  if (opportunity.response_deadline) {
+    const daysLeft = Math.ceil((new Date(opportunity.response_deadline) - new Date()) / 86400000);
+    if (daysLeft > 0 && daysLeft <= 14) { structuredScore += 5; reasons.push('Deadline within 2 weeks — act fast'); }
+    else if (daysLeft > 14 && daysLeft <= 45) { structuredScore += 3; reasons.push('Adequate time to prepare'); }
+    else if (daysLeft <= 0) { structuredScore -= 10; reasons.push('Deadline passed'); }
+  }
+
+  // Agency type variation — DoD vs civilian vs state
+  if (oppAgency) {
+    const isDod = oppAgency.includes('defense') || oppAgency.includes('army') || oppAgency.includes('navy') || oppAgency.includes('air force');
+    const subFocus = (subProfile.target_agencies || subProfile.capabilities || '').toLowerCase();
+    if (isDod && subFocus.includes('defense')) { structuredScore += 5; }
+    else if (isDod && subFocus.includes('security')) { structuredScore += 3; }
+  }
+
   structuredScore = Math.min(structuredScore, 100);
 
   if (structuredScore >= 30 && structuredScore <= 70 && subProfile.capabilities) {

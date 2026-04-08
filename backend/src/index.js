@@ -94,7 +94,7 @@ app.use('/api/search', require('./routes/search'));
 app.use('/api/proposals', require('./routes/proposals'));
 app.use('/api/competitive', require('./routes/competitive'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.29.0', app: 'SumX CRM', uptime: process.uptime() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.29.1', app: 'SumX CRM', uptime: process.uptime() }));
 
 const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
 app.use(express.static(frontendDist));
