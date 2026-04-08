@@ -41,6 +41,13 @@ export default function OpportunitiesPage() {
   const [autoSearchConfigs, setAutoSearchConfigs] = useState([]);
   const [loadingAutoSearch, setLoadingAutoSearch] = useState(false);
   const [lastSearched, setLastSearched] = useState(null);
+  const [primes, setPrimes] = useState([]);
+  const [primesLoaded, setPrimesLoaded] = useState(false);
+  const [oppNotes, setOppNotes] = useState({});
+  const [noteInput, setNoteInput] = useState('');
+  const [noteOpen, setNoteOpen] = useState(null);
+  const [proposalLoading, setProposalLoading] = useState(null);
+  const [proposalResult, setProposalResult] = useState({});
 
   useEffect(() => {
     api.get('/opportunities').then(r => {
@@ -55,7 +62,37 @@ export default function OpportunitiesPage() {
       setSavedMap(map);
     }).catch(() => {});
     api.get('/autosearch').then(r => setAutoSearchConfigs(r.data || [])).catch(() => {});
+    // Load notes from localStorage
+    try { const n = JSON.parse(localStorage.getItem('sumx_opp_notes') || '{}'); setOppNotes(n); } catch {}
   }, []);
+
+  // Fetch primes when an opportunity is expanded
+  useEffect(() => {
+    if (expanded && !primesLoaded) {
+      api.get('/primes').then(r => { setPrimes(Array.isArray(r.data) ? r.data : r.data.primes || []); setPrimesLoaded(true); }).catch(() => setPrimesLoaded(true));
+    }
+  }, [expanded]);
+
+  const saveOppNote = (oppId) => {
+    if (!noteInput.trim()) return;
+    const updated = { ...oppNotes, [oppId]: [...(oppNotes[oppId] || []), { text: noteInput.trim(), date: new Date().toISOString() }] };
+    setOppNotes(updated);
+    localStorage.setItem('sumx_opp_notes', JSON.stringify(updated));
+    setNoteInput('');
+    setNoteOpen(null);
+    addToast('Note saved', 'success');
+  };
+
+  const generateProposal = async (oppId) => {
+    setProposalLoading(oppId);
+    try {
+      const r = await api.post(`/chat/opportunity/${oppId}`, {
+        messages: [{ role: 'user', content: 'Generate a proposal outline for this opportunity. Include: Executive Summary, Technical Approach, Management Plan, Past Performance, Staffing Plan, and Key Differentiators. Keep each section to 2-3 bullet points.' }]
+      });
+      setProposalResult(prev => ({ ...prev, [oppId]: r.data.reply }));
+    } catch { addToast('Failed to generate proposal outline', 'error'); }
+    finally { setProposalLoading(null); }
+  };
 
   const [samError, setSamError] = useState(null);
   const search = async () => {
@@ -472,30 +509,56 @@ export default function OpportunitiesPage() {
             </div>
 
             {expanded === (opp.id || opp.sam_notice_id) && (
-              <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.25rem', background: 'var(--bg2)' }}>
-                {/* Fit Score Breakdown */}
-                {opp.fit_score && (
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'center', padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: '1rem' }}>
-                    <div style={{ textAlign: 'center', minWidth: 60 }}>
-                      <div style={{ fontSize: 24, fontWeight: 700, color: scoreColor(opp.fit_score).color }}>{opp.fit_score}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase' }}>Fit Score</div>
+              <div style={{ borderTop: '1px solid var(--border)', padding: '1.25rem', background: 'var(--bg2)' }}>
+                {/* Fit Analysis Section */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Fit Analysis</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
+                    <div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 700, color: scoreColor(opp.fit_score).color }}>{opp.fit_score || '—'}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 2 }}>Fit Score</div>
                     </div>
-                    <div style={{ height: 40, width: 1, background: 'var(--border)' }} />
-                    <div style={{ flex: 1, fontSize: 12, color: 'var(--text2)', lineHeight: 1.6 }}>
-                      {opp.fit_reason || (opp.fit_score >= 70 ? 'Strong alignment with your company profile, NAICS codes, and capabilities.' : opp.fit_score >= 40 ? 'Moderate alignment — review requirements to determine fit.' : 'Low alignment with current profile. May require teaming.')}
+                    <div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: opp.naics_code ? 'var(--accent2)' : 'var(--text3)' }}>{opp.naics_code || 'N/A'}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 2 }}>NAICS Match</div>
+                    </div>
+                    <div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: opp.set_aside ? 'var(--success)' : 'var(--text3)' }}>{opp.set_aside ? 'Restricted' : 'Full & Open'}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 2 }}>Competition</div>
+                    </div>
+                    <div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                      {(() => {
+                        const days = opp.response_deadline ? Math.ceil((new Date(opp.response_deadline) - new Date()) / 86400000) : null;
+                        return <>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: days !== null && days <= 7 ? 'var(--danger)' : days !== null && days <= 14 ? 'var(--warning)' : 'var(--text2)' }}>
+                            {days !== null ? (days < 0 ? 'Expired' : `${days}d`) : 'N/A'}
+                          </div>
+                          <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', marginTop: 2 }}>Timeline</div>
+                        </>;
+                      })()}
                     </div>
                   </div>
+                  {(opp.fit_reason || opp.fit_score) && (
+                    <div style={{ fontSize: 12, color: 'var(--text2)', lineHeight: 1.6, padding: '8px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                      {opp.fit_reason || (opp.fit_score >= 70 ? 'Strong alignment with your company profile, NAICS codes, and capabilities.' : opp.fit_score >= 40 ? 'Moderate alignment — review requirements to determine fit.' : 'Low alignment with current profile. May require teaming.')}
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                {opp.description && (
+                  <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1.25rem', lineHeight: 1.7 }}>{opp.description}</div>
                 )}
 
-                {opp.description && (
-                  <div style={{ fontSize: 13, color: 'var(--text2)', marginBottom: '1rem', lineHeight: 1.7 }}>{opp.description}</div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: '1rem' }}>
+                {/* Details grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: '1.25rem' }}>
                   {[
                     { label: 'Place of Performance', val: opp.place_of_performance },
                     { label: 'Solicitation #', val: opp.solicitation_number },
+                    { label: 'Set-Aside', val: opp.set_aside },
                     { label: 'Point of Contact', val: opp.primary_contact_name ? `${opp.primary_contact_name}${opp.primary_contact_email ? ` · ${opp.primary_contact_email}` : ''}` : null },
                     { label: 'Response Deadline', val: opp.response_deadline ? new Date(opp.response_deadline).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : null },
+                    { label: 'Agency', val: opp.agency },
                   ].filter(x => x.val).map(x => (
                     <div key={x.label}>
                       <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>{x.label}</div>
@@ -504,10 +567,106 @@ export default function OpportunitiesPage() {
                   ))}
                 </div>
 
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                  {opp.id && (
+                    <button onClick={() => toggleSaveOpp(opp.id)}
+                      style={{ padding: '8px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: savedMap[opp.id] ? 'var(--warning-bg)' : 'var(--bg)', color: savedMap[opp.id] ? 'var(--warning)' : 'var(--text2)', cursor: 'pointer' }}>
+                      {savedMap[opp.id] ? '★ Saved' : '☆ Save'}
+                    </button>
+                  )}
+                  {opp.id && STATUS_OPTIONS.filter(st => ['new','pursuing','won','lost'].includes(st)).map(st => (
+                    <button key={st} onClick={() => updateStatus(opp.id, st)}
+                      style={{ padding: '8px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer',
+                        border: `1px solid ${opp.status === st ? STATUS_COLORS[st] : 'var(--border)'}`,
+                        background: opp.status === st ? STATUS_COLORS[st] : 'var(--bg)',
+                        color: opp.status === st ? '#fff' : 'var(--text2)',
+                      }}>
+                      {st.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}
+                    </button>
+                  ))}
+                  <button onClick={() => setNoteOpen(noteOpen === opp.id ? null : opp.id)}
+                    style={{ padding: '8px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text2)', cursor: 'pointer' }}>
+                    📝 Notes
+                  </button>
+                  <button onClick={() => generateProposal(opp.id)}
+                    disabled={proposalLoading === opp.id}
+                    style={{ padding: '8px 14px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>
+                    {proposalLoading === opp.id ? '⏳ Generating...' : '📋 Proposal Outline'}
+                  </button>
+                </div>
+
+                {/* Notes */}
+                {noteOpen === opp.id && (
+                  <div style={{ marginBottom: '1.25rem', padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+                    {(oppNotes[opp.id] || []).map((n, i) => (
+                      <div key={i} style={{ fontSize: 12, color: 'var(--text2)', padding: '4px 0', borderBottom: i < (oppNotes[opp.id] || []).length - 1 ? '1px solid var(--border)' : 'none' }}>
+                        <span style={{ color: 'var(--text3)', fontSize: 11 }}>{new Date(n.date).toLocaleDateString()}</span> — {n.text}
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                      <input value={noteInput} onChange={e => setNoteInput(e.target.value)} placeholder="Add a note..."
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg2)', color: 'var(--text)' }}
+                        onKeyDown={e => e.key === 'Enter' && saveOppNote(opp.id)} />
+                      <button onClick={() => saveOppNote(opp.id)}
+                        style={{ padding: '6px 12px', fontSize: 12, borderRadius: 'var(--radius)', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer' }}>Save</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Proposal Outline Result */}
+                {proposalResult[opp.id] && (
+                  <div style={{ marginBottom: '1.25rem', padding: '12px 14px', background: 'var(--bg)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>📋 Proposal Outline</div>
+                    <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{proposalResult[opp.id]}</div>
+                  </div>
+                )}
+
+                {/* Related Primes */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Potential Teaming Partners</div>
+                  {!primesLoaded ? (
+                    <div style={{ fontSize: 12, color: 'var(--text3)' }}>Loading primes...</div>
+                  ) : primes.length === 0 ? (
+                    <div style={{ padding: '12px', background: 'var(--bg)', border: '1px dashed var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text3)', textAlign: 'center' }}>
+                      No primes tracked yet — add primes in the Prime Tracker
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {primes.slice(0, 6).map(p => (
+                        <div key={p.id} style={{ padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: 'var(--accent2)', flexShrink: 0 }}>
+                            {(p.company_name || p.name || '?')[0].toUpperCase()}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.company_name || p.name}</div>
+                            <div style={{ fontSize: 10, color: 'var(--text3)' }}>{p.naics_codes || p.status || 'Prime'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* SAM.gov Link */}
+                {(() => {
+                  const hasValidUrl = opp.opportunity_url && /\/opp\/[a-f0-9]{20,}\/view/.test(opp.opportunity_url);
+                  const searchUrl = opp.solicitation_number
+                    ? `https://sam.gov/search/?keywords=${encodeURIComponent(opp.solicitation_number)}&sort=-modifiedDate&index=opp`
+                    : opp.title ? `https://sam.gov/search/?keywords=${encodeURIComponent(opp.title.substring(0, 80))}&sort=-modifiedDate&index=opp` : null;
+                  const url = hasValidUrl ? opp.opportunity_url : searchUrl;
+                  return url && (
+                    <a href={url} target="_blank" rel="noreferrer"
+                      style={{ display: 'block', textAlign: 'center', padding: '10px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', border: '1px solid var(--accent)', color: 'var(--accent2)', textDecoration: 'none', marginBottom: '1.25rem' }}>
+                      {hasValidUrl ? '🔗 View Full Listing on SAM.gov ↗' : '🔍 Search on SAM.gov ↗'}
+                    </a>
+                  );
+                })()}
+
                 {/* AI Coach */}
                 {opp.id && (
                   <>
-                    <button style={{ ...s.btn(), fontSize: 12, marginBottom: chatOpen === opp.id ? 0 : 0 }}
+                    <button style={{ ...s.btn(), fontSize: 12 }}
                       onClick={() => { setChatOpen(chatOpen === opp.id ? null : opp.id); setChatMessages([]); }}>
                       {chatOpen === opp.id ? '✕ Close AI Coach' : '💬 Ask AI Coach'}
                     </button>
