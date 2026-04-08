@@ -10,6 +10,7 @@ const OpportunityBoardPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('board'); // 'board' or 'list'
   const [draggedCard, setDraggedCard] = useState(null);
+  const [selectedOpp, setSelectedOpp] = useState(null);
 
   // Fetch opportunities
   useEffect(() => {
@@ -315,6 +316,7 @@ const OpportunityBoardPage = () => {
                         opp={opp}
                         onDragStart={handleDragStart}
                         isDragging={draggedCard?.id === opp.id}
+                        onClick={() => setSelectedOpp(opp)}
                       />
                     ))
                   )}
@@ -324,11 +326,177 @@ const OpportunityBoardPage = () => {
           })}
         </div>
       </div>
+
+      {/* Detail Slide-out Panel */}
+      {selectedOpp && (
+        <>
+          <div
+            onClick={() => setSelectedOpp(null)}
+            style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.4)', zIndex: 998,
+            }}
+          />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(480px, 90vw)',
+            background: 'var(--bg)', borderLeft: '1px solid var(--border)',
+            boxShadow: '-8px 0 30px rgba(0,0,0,0.2)', zIndex: 999,
+            overflowY: 'auto', display: 'flex', flexDirection: 'column',
+          }}>
+            {/* Panel Header */}
+            <div style={{
+              padding: '1.5rem', borderBottom: '1px solid var(--border)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px',
+                  color: selectedOpp.status === 'won' ? 'var(--success)' : selectedOpp.status === 'lost' ? 'var(--danger)' : 'var(--accent)',
+                  marginBottom: 8,
+                }}>
+                  {statusColumns[selectedOpp.status] || selectedOpp.status}
+                </div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.4 }}>
+                  {selectedOpp.title || 'Untitled Opportunity'}
+                </h2>
+              </div>
+              <button
+                onClick={() => setSelectedOpp(null)}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  fontSize: 22, color: 'var(--text3)', padding: '0 0 0 12px', lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Panel Body */}
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Key Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ background: 'var(--bg2)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Agency</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{selectedOpp.agency || '—'}</div>
+                  {selectedOpp.sub_agency && (
+                    <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2 }}>{selectedOpp.sub_agency}</div>
+                  )}
+                </div>
+                <div style={{ background: 'var(--bg2)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Fit Score</div>
+                  <div style={{
+                    fontSize: 22, fontWeight: 700,
+                    color: selectedOpp.fit_score >= 70 ? 'var(--success)' : selectedOpp.fit_score >= 50 ? 'var(--warning)' : 'var(--text3)',
+                  }}>
+                    {selectedOpp.fit_score ? Math.round(selectedOpp.fit_score) : '—'}
+                  </div>
+                </div>
+                <div style={{ background: 'var(--bg2)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Deadline</div>
+                  <div style={{
+                    fontSize: 13, fontWeight: 600,
+                    color: (() => {
+                      if (!selectedOpp.response_deadline) return 'var(--text3)';
+                      const d = Math.ceil((new Date(selectedOpp.response_deadline) - new Date()) / 86400000);
+                      return d < 7 ? 'var(--danger)' : d < 30 ? 'var(--warning)' : 'var(--text)';
+                    })(),
+                  }}>
+                    {selectedOpp.response_deadline
+                      ? new Date(selectedOpp.response_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : '—'}
+                  </div>
+                  {selectedOpp.response_deadline && (() => {
+                    const d = Math.ceil((new Date(selectedOpp.response_deadline) - new Date()) / 86400000);
+                    return d >= 0
+                      ? <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{d} days remaining</div>
+                      : <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2 }}>Expired</div>;
+                  })()}
+                </div>
+                <div style={{ background: 'var(--bg2)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 6 }}>Est. Value</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>
+                    {selectedOpp.est_value ? `$${(selectedOpp.est_value / 1000000).toFixed(1)}M` : '—'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Details */}
+              {(selectedOpp.naics_code || selectedOpp.set_aside) && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {selectedOpp.naics_code && (
+                    <span style={{
+                      padding: '4px 10px', background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)', fontSize: 11, fontWeight: 600, color: 'var(--text2)',
+                    }}>
+                      NAICS: {selectedOpp.naics_code}
+                    </span>
+                  )}
+                  {selectedOpp.set_aside && (
+                    <span style={{
+                      padding: '4px 10px', background: 'var(--accent)22', border: '1px solid var(--accent)44',
+                      borderRadius: 'var(--radius)', fontSize: 11, fontWeight: 600, color: 'var(--accent)',
+                    }}>
+                      {selectedOpp.set_aside}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              {selectedOpp.description && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 8 }}>
+                    Description
+                  </div>
+                  <div style={{
+                    fontSize: 13, color: 'var(--text2)', lineHeight: 1.6,
+                    background: 'var(--bg2)', padding: '1rem', borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)', maxHeight: 300, overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {selectedOpp.description.length > 1500
+                      ? selectedOpp.description.substring(0, 1500) + '...'
+                      : selectedOpp.description}
+                  </div>
+                </div>
+              )}
+
+              {/* SAM.gov Link */}
+              {selectedOpp.sam_notice_id && (
+                <a
+                  href={`https://sam.gov/opp/${selectedOpp.sam_notice_id}/view`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    padding: '12px', background: 'var(--bg2)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)', color: 'var(--accent)', fontSize: 13,
+                    fontWeight: 600, textDecoration: 'none', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  View on SAM.gov ↗
+                </a>
+              )}
+
+              {/* Posted Date */}
+              {selectedOpp.posted_date && (
+                <div style={{ fontSize: 11, color: 'var(--text3)', textAlign: 'center' }}>
+                  Posted: {new Date(selectedOpp.posted_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </Layout>
   );
 };
 
-const OpportunityCard = ({ opp, onDragStart, isDragging }) => {
+const OpportunityCard = ({ opp, onDragStart, isDragging, onClick }) => {
+  const [didDrag, setDidDrag] = useState(false);
+
   const daysUntilDeadline = opp.response_deadline
     ? Math.ceil((new Date(opp.response_deadline) - new Date()) / 86400000)
     : null;
@@ -353,17 +521,19 @@ const OpportunityCard = ({ opp, onDragStart, isDragging }) => {
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, opp)}
+      onDragStart={(e) => { setDidDrag(true); onDragStart(e, opp); }}
+      onDragEnd={() => setDidDrag(false)}
+      onMouseDown={() => setDidDrag(false)}
+      onClick={() => { if (!didDrag && onClick) onClick(); }}
       style={{
         background: 'var(--bg)',
         border: '1px solid var(--border)',
         borderRadius: 8,
         padding: '12px',
-        cursor: 'grab',
+        cursor: 'pointer',
         opacity: isDragging ? 0.5 : 1,
         transition: 'opacity 0.2s, box-shadow 0.2s',
         boxShadow: isDragging ? 'none' : '0 1px 3px rgba(0,0,0,0.1)',
-        active: { cursor: 'grabbing' },
       }}
     >
       {/* Title */}

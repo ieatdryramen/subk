@@ -746,6 +746,7 @@ export default function PipelinePage() {
   };
 
   const total = filteredLeads.length;
+  const hasAnyLeads = leads.length > 0;
   const inProgress = filteredLeads.filter(l => {
     const s = l[stageField] || l.sequence_stage || '';
     return s.includes('in_progress') || ['email1_sent','email2_sent','email3_sent','call_attempted','call_connected','call_voicemail','linkedin_connected','linkedin_dm_sent'].includes(s);
@@ -869,7 +870,7 @@ export default function PipelinePage() {
           </div>
         )}
 
-        {total === 0 ? (
+        {!hasAnyLeads ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
             <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, color: 'var(--text)' }}>No leads in pipeline yet</div>
@@ -1003,6 +1004,14 @@ export default function PipelinePage() {
                 <button style={{ ...btnBase, background: 'transparent', color: 'var(--text3)', padding: '5px 10px', fontSize: 12 }} onClick={clearSelection}>
                   ✕
                 </button>
+              </div>
+            )}
+
+            {/* Empty filter results message */}
+            {total === 0 && hasAnyLeads && (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)', background: 'var(--bg2)', borderRadius: 'var(--radius)', border: '1px dashed var(--border)', marginBottom: '1rem' }}>
+                <div style={{ fontSize: 14, fontWeight: 500 }}>No leads match the current filters</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Try adjusting your search or filter criteria</div>
               </div>
             )}
 

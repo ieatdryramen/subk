@@ -141,12 +141,14 @@ router.get('/pipeline-health', auth, async (req, res) => {
     const leads = leadsResult.rows;
 
     // Get the most recent touch timestamps for each lead via sequence_events
-    const touchTimestampsResult = await leads.length > 0 ? pool.query(`
-      SELECT lead_id, MAX(completed_at) as last_touch_at
-      FROM sequence_events
-      WHERE user_id = $1 AND completed_at IS NOT NULL
-      GROUP BY lead_id
-    `, [req.userId]) : { rows: [] };
+    const touchTimestampsResult = leads.length > 0
+      ? await pool.query(`
+          SELECT lead_id, MAX(completed_at) as last_touch_at
+          FROM sequence_events
+          WHERE user_id = $1 AND completed_at IS NOT NULL
+          GROUP BY lead_id
+        `, [req.userId])
+      : { rows: [] };
 
     const touchMap = {};
     touchTimestampsResult.rows.forEach(row => {

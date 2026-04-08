@@ -313,11 +313,11 @@ export default function Layout({ children }) {
         ))}
       </nav>
 
-      <div className="pf-shell" style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className="pf-shell" style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
         <div className={`pf-sidebar ${mobileOpen ? 'open' : ''}`}>
           {sidebar}
         </div>
-        <main style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>{children}</main>
+        <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>{children}</main>
       </div>
     </>
   );

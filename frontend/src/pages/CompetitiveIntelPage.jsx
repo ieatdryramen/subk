@@ -31,9 +31,10 @@ const CompetitiveIntelPage = () => {
         api.get('/competitive/analysis'),
         api.get('/opportunities'),
       ]);
-      setIntel(intelRes.data || []);
+      setIntel(Array.isArray(intelRes.data) ? intelRes.data : intelRes.data?.intel || []);
       setAnalysis(analysisRes.data || {});
-      setOpportunities(oppsRes.data || []);
+      const opps = oppsRes.data;
+      setOpportunities(Array.isArray(opps) ? opps : opps?.opportunities || []);
     } catch (err) {
       console.error(err);
       addToast('Failed to load competitive intelligence', 'error');

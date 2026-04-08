@@ -15,7 +15,8 @@ function PipelineVelocityChart({ data }) {
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  const maxValue = Math.max(...data.map(d => Math.max(d.new || 0, d.pursuing || 0, d.won || 0, d.lost || 0)), 1);
+  const rawMax = Math.max(...data.map(d => Math.max(d.new || 0, d.pursuing || 0, d.won || 0, d.lost || 0)), 1);
+  const maxValue = rawMax <= 4 ? 4 : Math.ceil(rawMax / 4) * 4;
   const xStep = graphWidth / (data.length - 1 || 1);
 
   // Helper to create path
@@ -101,7 +102,8 @@ function WinLossChart({ data }) {
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  const maxValue = Math.max(...data.map(d => Math.max(d.won || 0, d.lost || 0)), 1);
+  const rawMax2 = Math.max(...data.map(d => Math.max(d.won || 0, d.lost || 0)), 1);
+  const maxValue = rawMax2 <= 4 ? 4 : Math.ceil(rawMax2 / 4) * 4;
   const barGroupWidth = graphWidth / data.length;
   const barWidth = barGroupWidth * 0.35;
   const spacing = barWidth * 0.5;
@@ -191,7 +193,8 @@ function OutreachPerformanceChart({ data }) {
   const graphWidth = width - padding.left - padding.right;
   const graphHeight = height - padding.top - padding.bottom;
 
-  const maxValue = Math.max(...data.flatMap(d => [d.emails || 0, d.calls || 0, d.linkedin || 0]), 1);
+  const rawMax3 = Math.max(...data.flatMap(d => [d.emails || 0, d.calls || 0, d.linkedin || 0]), 1);
+  const maxValue = rawMax3 <= 4 ? 4 : Math.ceil(rawMax3 / 4) * 4;
   const barGroupWidth = graphWidth / data.length;
   const barWidth = barGroupWidth * 0.22;
   const spacing = barWidth * 0.3;
