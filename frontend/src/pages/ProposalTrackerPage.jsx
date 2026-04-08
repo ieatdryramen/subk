@@ -3,7 +3,10 @@ import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 
-const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+const initials = (name) => {
+  const str = typeof name === 'object' && name !== null ? (name.name || name.full_name || '?') : String(name || '?');
+  return str.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+};
 
 const daysUntil = (date) => {
   if (!date) return null;
@@ -311,21 +314,24 @@ const ProposalCard = ({ proposal, opportunities, onEdit, onExpand, expanded }) =
 
       {proposal.team_members && proposal.team_members.length > 0 && (
         <div style={{ display: 'flex', gap: -8, marginBottom: 12 }}>
-          {proposal.team_members.slice(0, 5).map((member, i) => (
-            <div
-              key={i}
-              style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: 'var(--accent-bg)', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
-                border: '2px solid var(--bg2)', marginLeft: i > 0 ? -8 : 0,
-                zIndex: 5 - i, title: member,
-              }}
-            >
-              {initials(member)}
-            </div>
-          ))}
+          {proposal.team_members.slice(0, 5).map((member, i) => {
+            const memberName = typeof member === 'object' && member !== null ? (member.name || member.full_name || '?') : String(member || '?');
+            return (
+              <div
+                key={i}
+                style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: 'var(--accent-bg)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
+                  border: '2px solid var(--bg2)', marginLeft: i > 0 ? -8 : 0,
+                  zIndex: 5 - i, title: memberName,
+                }}
+              >
+                {initials(member)}
+              </div>
+            );
+          })}
           {proposal.team_members.length > 5 && (
             <div style={{
               width: 32, height: 32, borderRadius: '50%',
