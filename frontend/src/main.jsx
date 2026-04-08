@@ -27,6 +27,7 @@ import ReportsPage from './pages/ReportsPage';
 
 // SubK (Teaming/Marketplace/Opportunities) pages
 import OpportunitiesPage from './pages/OpportunitiesPage';
+import OpportunityBoardPage from './pages/OpportunityBoardPage';
 import MarketplacePage from './pages/MarketplacePage';
 import TeamingInboxPage from './pages/TeamingInboxPage';
 import SubkPrimesPage from './pages/SubkPrimesPage';
@@ -62,6 +63,7 @@ const App = () => (
 
         {/* Opportunities & Capture */}
         <Route path="/opportunities" element={<Protected><OpportunitiesPage /></Protected>} />
+        <Route path="/opportunity-board" element={<Protected><OpportunityBoardPage /></Protected>} />
 
         {/* BD / Sales / Outreach */}
         <Route path="/lists" element={<Protected><LeadListsPage /></Protected>} />

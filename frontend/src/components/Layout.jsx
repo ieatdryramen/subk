@@ -10,6 +10,7 @@ const navSections = [
     label: 'INTELLIGENCE',
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: '▦' },
+      { to: '/opportunity-board', label: 'Opp Board', icon: '📋' },
       { to: '/opportunities', label: 'Opportunities', icon: '🔍' },
       { to: '/pipeline', label: 'Pipeline', icon: '▤' },
     ],

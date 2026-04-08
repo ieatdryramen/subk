@@ -4,6 +4,7 @@ import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 import EmailComposer from '../components/EmailComposer';
+import LeadDetailDrawer from '../components/LeadDetailDrawer';
 
 const EMAIL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
@@ -430,6 +431,7 @@ export default function PipelinePage() {
   const [hoveredCardId, setHoveredCardId] = useState(null);
   const [healthScores, setHealthScores] = useState({});
   const [hoveredBadgeId, setHoveredBadgeId] = useState(null);
+  const [selectedLeadForDrawer, setSelectedLeadForDrawer] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -674,6 +676,7 @@ export default function PipelinePage() {
     if (selectedIds.size > 0) return;
     e.stopPropagation();
     setDetailLead(lead);
+    setSelectedLeadForDrawer(lead);
   };
 
   const onDragStart = (e, leadId) => {
@@ -1218,6 +1221,18 @@ export default function PipelinePage() {
           }}
         />
       )}
+
+      {/* Enhanced Lead Detail Drawer */}
+      <LeadDetailDrawer
+        lead={selectedLeadForDrawer}
+        isOpen={!!selectedLeadForDrawer}
+        onClose={() => setSelectedLeadForDrawer(null)}
+        showToast={showToast}
+        onLeadUpdated={(updated) => {
+          setLeads(ls => ls.map(l => l.id === updated.id ? { ...l, ...updated } : l));
+          setSelectedLeadForDrawer(updated);
+        }}
+      />
     </Layout>
   );
 }

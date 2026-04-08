@@ -150,7 +150,54 @@ router.post('/search', auth, async (req, res) => {
   }
 });
 
-// Update opportunity status
+// Update opportunity (status and other fields)
+router.put('/:id', auth, async (req, res) => {
+  const { status, ...otherFields } = req.body;
+  try {
+    const oppId = parseInt(req.params.id, 10);
+
+    // Get org_id for user to ensure auth
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const userOrgId = userR.rows[0]?.org_id;
+
+    // Check that opportunity belongs to user's org
+    const oppR = await pool.query('SELECT org_id FROM opportunities WHERE id=$1', [oppId]);
+    if (oppR.rows.length === 0) return res.status(404).json({ error: 'Opportunity not found' });
+    if (oppR.rows[0].org_id !== userOrgId) return res.status(403).json({ error: 'Unauthorized' });
+
+    // Build update query
+    const updates = [];
+    const values = [];
+    let paramNum = 1;
+
+    if (status !== undefined) {
+      updates.push(`status=$${paramNum++}`);
+      values.push(status);
+    }
+
+    // Add other updateable fields as needed
+    for (const [key, value] of Object.entries(otherFields)) {
+      if (['title', 'description', 'fit_score', 'notes'].includes(key)) {
+        updates.push(`${key}=$${paramNum++}`);
+        values.push(value);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    values.push(oppId);
+    const query = `UPDATE opportunities SET ${updates.join(', ')} WHERE id=$${paramNum} RETURNING *`;
+
+    const result = await pool.query(query, values);
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update opportunity status (legacy, kept for backward compatibility)
 router.put('/:id/status', auth, async (req, res) => {
   const { status } = req.body;
   try {

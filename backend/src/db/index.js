@@ -252,6 +252,7 @@ const initDb = async () => {
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS email_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS call_stage VARCHAR(50) DEFAULT 'not_started';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS linkedin_stage VARCHAR(50) DEFAULT 'not_started';
+    ALTER TABLE lead_notes ADD COLUMN IF NOT EXISTS note_type VARCHAR(50) DEFAULT 'general';
 
 
     ALTER TABLE company_profiles ALTER COLUMN name TYPE TEXT;
