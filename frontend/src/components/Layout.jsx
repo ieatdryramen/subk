@@ -28,6 +28,7 @@ const navSections = [
       { to: '/reminders', label: "Today's Touches", icon: '🎯' },
       { to: '/lists', label: 'Lead Lists', icon: '◉' },
       { to: '/templates', label: 'Templates', icon: '◧' },
+      { to: '/reports', label: 'Reports', icon: '📊' },
     ],
   },
   {

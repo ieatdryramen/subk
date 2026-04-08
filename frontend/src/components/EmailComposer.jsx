@@ -16,19 +16,25 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
   const [sending, setSending] = useState(false);
   const [visible, setVisible] = useState(false);
   const bodyRef = useRef(null);
+  const [templates, setTemplates] = useState([]);
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
+
+  useEffect(() => {
+    api.get('/templates').then(r => {
+      setTemplates(r.data || []);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       setTo(lead?.email || '');
       setSubject(lead?.company ? `Following up — ${lead.company}` : 'Following up');
-      // Load signature from company profile
       api.get('/company-profile').then(r => {
         const cp = r.data;
         if (cp?.company_name) {
           setSignature(`Best regards,\n${cp.contact_name || ''}\n${cp.company_name}\n${cp.contact_email || ''}`);
         }
       }).catch(() => {});
-      // Load draft if exists
       if (lead?.id) {
         try {
           const draft = JSON.parse(localStorage.getItem(`sumx_email_draft_${lead.id}`));
@@ -63,11 +69,29 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
     bodyRef.current?.focus();
   };
 
+  const applyMergeFields = (text) => {
+    let result = text;
+    result = result.replace(/{{first_name}}/g, lead?.full_name?.split(' ')[0] || '');
+    result = result.replace(/{{last_name}}/g, lead?.full_name?.split(' ').slice(1).join(' ') || '');
+    result = result.replace(/{{company}}/g, lead?.company || '');
+    result = result.replace(/{{title}}/g, lead?.title || '');
+    return result;
+  };
+
+  const useTemplate = (template) => {
+    const appliedSubject = applyMergeFields(template.subject || '');
+    const appliedBody = applyMergeFields(template.body || '');
+    setSubject(appliedSubject);
+    setTimeout(() => {
+      if (bodyRef.current) bodyRef.current.innerHTML = appliedBody;
+    }, 0);
+    setShowTemplateDropdown(false);
+  };
+
   const handleSend = async () => {
     if (!to.trim()) { showToast('Please enter a recipient email', 'error'); return; }
     setSending(true);
     try {
-      // Log as a touch completion if we have a lead and touchpoint
       if (lead?.id && touchpoint) {
         await api.post(`/sequence/${lead.id}/touch`, {
           touchpoint: touchpoint,
@@ -75,7 +99,6 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
           notes: `Email sent: ${subject}`,
         });
       }
-      // Clear draft
       if (lead?.id) localStorage.removeItem(`sumx_email_draft_${lead.id}`);
       showToast('Email sent and logged as completed touch', 'success');
       handleClose();
@@ -99,12 +122,10 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div onClick={handleClose} style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 300,
         opacity: visible ? 1 : 0, transition: 'opacity 0.2s',
       }} />
-      {/* Modal */}
       <div style={{
         position: 'fixed', top: '50%', left: '50%',
         transform: visible ? 'translate(-50%, -50%) scale(1)' : 'translate(-50%, -50%) scale(0.95)',
@@ -114,27 +135,54 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
         boxShadow: '0 16px 48px rgba(0,0,0,0.2)', zIndex: 301,
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
-        {/* Header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>✉ Compose Email</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>Compose Email</div>
           <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: 18, color: 'var(--text3)', cursor: 'pointer' }}>✕</button>
         </div>
 
-        {/* Form */}
         <div style={{ flex: 1, overflow: 'auto', padding: '16px 20px' }}>
-          {/* To */}
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>To</label>
             <input value={to} onChange={e => setTo(e.target.value)} placeholder="recipient@email.com" style={inputStyle} />
           </div>
 
-          {/* Subject */}
           <div style={{ marginBottom: 12 }}>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Subject</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Subject</label>
+              {templates.length > 0 && (
+                <div style={{ position: 'relative' }}>
+                  <button
+                    onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                    style={{ fontSize: 11, padding: '4px 8px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', color: 'var(--accent2)', cursor: 'pointer' }}
+                  >
+                    Templates ({templates.length})
+                  </button>
+                  {showTemplateDropdown && (
+                    <div style={{
+                      position: 'absolute', top: '100%', right: 0, background: 'var(--bg2)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)', minWidth: 200, zIndex: 10, marginTop: 4, maxHeight: 300, overflowY: 'auto'
+                    }}>
+                      {templates.map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => useTemplate(t)}
+                          style={{
+                            display: 'block', width: '100%', padding: '10px 12px', fontSize: 12, textAlign: 'left',
+                            border: 'none', background: 'none', color: 'var(--text)', cursor: 'pointer', borderBottom: '1px solid var(--border)'
+                          }}
+                        >
+                          <div style={{ fontWeight: 500, marginBottom: 2 }}>{t.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.subject || '(no subject)'}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Email subject" style={inputStyle} />
           </div>
 
-          {/* Rich Text Toolbar */}
           <div style={{ display: 'flex', gap: 2, marginBottom: 4, padding: '4px 0' }}>
             {TOOLBAR_BTNS.map(btn => (
               <button key={btn.cmd} onClick={() => execCmd(btn.cmd)}
@@ -144,11 +192,10 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
             ))}
             <button onClick={insertLink}
               style={{ height: 28, padding: '0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--accent2)', cursor: 'pointer' }}>
-              🔗 Link
+              Link
             </button>
           </div>
 
-          {/* Body (contentEditable) */}
           <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Body</label>
             <div ref={bodyRef} contentEditable suppressContentEditableWarning
@@ -162,7 +209,6 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
             />
           </div>
 
-          {/* Signature */}
           {signature && (
             <div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: 12, color: 'var(--text3)', whiteSpace: 'pre-line', lineHeight: 1.5 }}>
               {signature}
@@ -170,7 +216,6 @@ export default function EmailComposer({ isOpen, onClose, lead, touchpoint }) {
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button onClick={handleClose}
             style={{ padding: '9px 18px', fontSize: 13, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>

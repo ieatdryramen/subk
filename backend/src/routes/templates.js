@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
+const { chatWithCoach } = require('../services/ai');
 
 // Get all templates for org
 router.get('/', auth, async (req, res) => {
@@ -60,6 +61,19 @@ router.delete('/:id', auth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Generate template with AI
+router.post('/generate-template', auth, async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'Prompt required' });
+  try {
+    const reply = await chatWithCoach([{ role: 'user', content: prompt }], {});
+    res.json({ generated: reply });
+  } catch (err) {
+    console.error('Template generation error:', err.message);
+    res.status(500).json({ error: 'Failed to generate template' });
   }
 });
 

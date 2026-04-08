@@ -23,6 +23,7 @@ import PipelinePage from './pages/PipelinePage';
 import TemplatesPage from './pages/TemplatesPage';
 import RemindersPage from './pages/RemindersPage';
 import ActivityBoard from './pages/ActivityBoard';
+import ReportsPage from './pages/ReportsPage';
 
 // SubK (Teaming/Marketplace/Opportunities) pages
 import OpportunitiesPage from './pages/OpportunitiesPage';
@@ -68,6 +69,7 @@ const App = () => (
         <Route path="/pipeline" element={<Protected><PipelinePage /></Protected>} />
         <Route path="/reminders" element={<Protected><RemindersPage /></Protected>} />
         <Route path="/templates" element={<Protected><TemplatesPage /></Protected>} />
+        <Route path="/reports" element={<Protected><ReportsPage /></Protected>} />
 
         {/* Teaming & Marketplace */}
         <Route path="/marketplace" element={<Protected><MarketplacePage /></Protected>} />

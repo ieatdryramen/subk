@@ -443,4 +443,184 @@ router.get('/activity-feed', auth, async (req, res) => {
   }
 });
 
+// GET /api/admin/reports - Aggregated reporting data for all report sections
+router.get('/reports', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('SET statement_timeout = 15000');
+
+    const userR = await client.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
+    const u = userR.rows[0];
+    const userId = parseInt(u.id);
+    const orgId = u.org_id ? parseInt(u.org_id) : null;
+
+    // Get all users in org (or just this user)
+    let userIds = [userId];
+    if (orgId) {
+      const orgR = await client.query('SELECT id FROM users WHERE org_id=$1', [orgId]);
+      userIds = orgR.rows.map(r => parseInt(r.id));
+    }
+
+    const days = Math.min(parseInt(req.query.days) || 30, 999999);
+    const dateFilter = days < 999999 ? `AND created_at >= NOW() - INTERVAL '${days} days'` : '';
+
+    // 1. Pipeline Velocity (30-day mock based on current stage counts)
+    const pipelineVelocityData = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const stageR = await client.query(`
+        SELECT
+          COUNT(CASE WHEN sequence_stage IS NULL OR sequence_stage='not_started' THEN 1 END) as new,
+          COUNT(CASE WHEN sequence_stage IN ('in_progress_1','in_progress_2','in_progress_3') THEN 1 END) as pursuing,
+          COUNT(CASE WHEN sequence_stage='completed' AND status='won' THEN 1 END) as won,
+          COUNT(CASE WHEN sequence_stage='completed' AND status='lost' THEN 1 END) as lost
+        FROM leads
+        WHERE user_id = ANY($1) AND DATE(created_at) <= $2
+      `, [userIds, dateStr]);
+
+      pipelineVelocityData.push({
+        date: dateStr.slice(5),
+        new: parseInt(stageR.rows[0]?.new || 0),
+        pursuing: parseInt(stageR.rows[0]?.pursuing || 0),
+        won: parseInt(stageR.rows[0]?.won || 0),
+        lost: parseInt(stageR.rows[0]?.lost || 0),
+      });
+    }
+
+    // 2. Win/Loss Analysis (last 6 months)
+    const winLossData = [];
+    const winLossSummary = { total_won: 0, total_lost: 0 };
+    for (let m = 5; m >= 0; m--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - m);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const monthStr = date.toLocaleString('en-US', { month: 'short', year: '2-digit' });
+
+      const oR = await client.query(`
+        SELECT
+          COUNT(CASE WHEN status='won' THEN 1 END) as won,
+          COUNT(CASE WHEN status='lost' THEN 1 END) as lost
+        FROM leads
+        WHERE user_id = ANY($1)
+          AND EXTRACT(YEAR FROM created_at) = $2
+          AND EXTRACT(MONTH FROM created_at) = $3
+      `, [userIds, year, parseInt(month)]);
+
+      const won = parseInt(oR.rows[0]?.won || 0);
+      const lost = parseInt(oR.rows[0]?.lost || 0);
+      winLossData.push({ month: monthStr, won, lost });
+      winLossSummary.total_won += won;
+      winLossSummary.total_lost += lost;
+    }
+
+    // 3. Outreach Performance (last 4 weeks)
+    const outreachData = [];
+    for (let w = 3; w >= 0; w--) {
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() - w * 7);
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 7);
+
+      const eR = await client.query(`
+        SELECT
+          COUNT(CASE WHEN touchpoint='email_sent' THEN 1 END) as emails,
+          COUNT(CASE WHEN touchpoint='call_made' THEN 1 END) as calls,
+          COUNT(CASE WHEN touchpoint='linkedin_message' THEN 1 END) as linkedin
+        FROM sequence_events
+        WHERE user_id = ANY($1)
+          AND completed_at >= $2
+          AND completed_at < $3
+          AND status='done'
+      `, [userIds, startDate.toISOString(), endDate.toISOString()]);
+
+      outreachData.push({
+        week: `W${4 - w}`,
+        emails: parseInt(eR.rows[0]?.emails || 0),
+        calls: parseInt(eR.rows[0]?.calls || 0),
+        linkedin: parseInt(eR.rows[0]?.linkedin || 0),
+      });
+    }
+
+    // 4. Opportunity Pipeline
+    const oppR = await client.query(`
+      SELECT
+        COUNT(CASE WHEN status='new' THEN 1 END) as new,
+        COUNT(CASE WHEN status='pursuing' THEN 1 END) as pursuing,
+        COUNT(CASE WHEN status='won' THEN 1 END) as won,
+        COUNT(CASE WHEN status='lost' THEN 1 END) as lost
+      FROM opportunities
+      WHERE org_id=$1 ${dateFilter}
+    `, [orgId]);
+
+    const opportunityPipeline = {
+      new: parseInt(oppR.rows[0]?.new || 0),
+      pursuing: parseInt(oppR.rows[0]?.pursuing || 0),
+      won: parseInt(oppR.rows[0]?.won || 0),
+      lost: parseInt(oppR.rows[0]?.lost || 0),
+    };
+
+    // 5. Top Performers (by ICP score and engagement)
+    const topR = await client.query(`
+      SELECT
+        l.full_name as name,
+        l.company,
+        l.icp_score,
+        (SELECT COUNT(*) FROM sequence_events WHERE lead_id = l.id AND status='done') as touches,
+        CASE
+          WHEN (SELECT COUNT(*) FROM sequence_events WHERE lead_id = l.id AND status='done') = 0 THEN 0
+          ELSE ROUND(100.0 * (SELECT COUNT(*) FROM sequence_events WHERE lead_id = l.id AND status='done' AND response='positive') / (SELECT COUNT(*) FROM sequence_events WHERE lead_id = l.id AND status='done'), 0)
+        END as engagement
+      FROM leads l
+      WHERE l.user_id = ANY($1) ${dateFilter}
+      ORDER BY l.icp_score DESC NULLS LAST, touches DESC
+      LIMIT 10
+    `, [userIds]);
+
+    const topPerformers = topR.rows.map(r => ({
+      name: r.name,
+      company: r.company,
+      icp_score: r.icp_score || 0,
+      touches: parseInt(r.touches || 0),
+      engagement: parseInt(r.engagement || 0),
+    }));
+
+    // 6. Prime Engagement Summary
+    const primeR = await client.query(`
+      SELECT
+        COUNT(DISTINCT id) as total_primes,
+        COUNT(DISTINCT CASE WHEN contacted_at IS NOT NULL THEN id END) as contacted,
+        COUNT(DISTINCT CASE WHEN responded_at IS NOT NULL THEN id END) as responded,
+        COUNT(DISTINCT CASE WHEN teaming_status='agreed' THEN id END) as teaming_agreements
+      FROM subk_primes
+      WHERE org_id=$1 ${dateFilter}
+    `, [orgId]);
+
+    const primeSummary = {
+      total_primes: parseInt(primeR.rows[0]?.total_primes || 0),
+      contacted: parseInt(primeR.rows[0]?.contacted || 0),
+      responded: parseInt(primeR.rows[0]?.responded || 0),
+      teaming_agreements: parseInt(primeR.rows[0]?.teaming_agreements || 0),
+    };
+
+    res.json({
+      pipeline_velocity: pipelineVelocityData,
+      win_loss: winLossData,
+      win_loss_summary: winLossSummary,
+      outreach_performance: outreachData,
+      opportunity_pipeline: opportunityPipeline,
+      top_performers: topPerformers,
+      prime_summary: primeSummary,
+    });
+  } catch (err) {
+    console.error('Reports error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
