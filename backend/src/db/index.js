@@ -302,6 +302,20 @@ const initDb = async () => {
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS email_signature TEXT DEFAULT '';
     ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS zoho_org_id VARCHAR(50) DEFAULT NULL;
 
+    -- Enhanced company profile for GovCon capability statements
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS company_phone VARCHAR(50) DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS company_email VARCHAR(255) DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS company_address TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS cage_code VARCHAR(20) DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS uei VARCHAR(20) DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS duns VARCHAR(20) DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS naics_codes TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS certifications TEXT DEFAULT '[]';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS core_capabilities TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS past_performance TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS differentiators TEXT DEFAULT '';
+    ALTER TABLE company_profiles ADD COLUMN IF NOT EXISTS team_members TEXT DEFAULT '[]';
+
     -- Lead engagement status and snooze
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS engagement_status VARCHAR(50) DEFAULT 'active';
     ALTER TABLE leads ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMP DEFAULT NULL;
