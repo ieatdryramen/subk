@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../lib/api';
 import Layout from '../components/Layout';
+import Tooltip from '../components/Tooltip';
 
 const timeAgo = (ts) => {
   if (!ts) return '';
@@ -356,6 +357,167 @@ function TodaysFocus({ dueCount, deadlines = [], upcomingTouches = [] }) {
   );
 }
 
+// Getting Started Checklist Widget
+function GettingStartedChecklist({ onboarding = {}, navigate = () => {} }) {
+  const tasks = [
+    {
+      id: 1,
+      title: 'Set up company profile',
+      completed: onboarding.has_profile,
+      path: '/company-profile',
+      icon: '🏢',
+    },
+    {
+      id: 2,
+      title: 'Import your first list',
+      completed: onboarding.has_lists,
+      path: '/lists',
+      icon: '📋',
+    },
+    {
+      id: 3,
+      title: 'Send your first touch',
+      completed: onboarding.has_touches,
+      path: '/reminders',
+      icon: '📧',
+    },
+    {
+      id: 4,
+      title: 'Track an opportunity',
+      completed: onboarding.has_opportunities,
+      path: '/opportunities',
+      icon: '🎯',
+    },
+    {
+      id: 5,
+      title: 'Add a prime contractor',
+      completed: onboarding.has_primes,
+      path: '/subk-primes',
+      icon: '🤝',
+    },
+  ];
+
+  const completed = tasks.filter(t => t.completed).length;
+  const total = tasks.length;
+  const percentage = (completed / total) * 100;
+
+  return (
+    <div style={{
+      background: 'var(--bg2)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '1.25rem',
+      marginBottom: '1.5rem',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+            Getting Started
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+            {completed}/{total} completed
+          </div>
+        </div>
+        <button onClick={() => {
+          localStorage.setItem('pf-onboarding-dismissed', 'true');
+          window.location.reload();
+        }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text3)',
+            fontSize: 12,
+            cursor: 'pointer',
+            padding: '4px 8px',
+            borderRadius: 'var(--radius)',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => {
+            e.target.style.color = 'var(--text2)';
+            e.target.style.background = 'var(--bg3)';
+          }}
+          onMouseLeave={e => {
+            e.target.style.color = 'var(--text3)';
+            e.target.style.background = 'none';
+          }}>
+          Dismiss
+        </button>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ height: 4, background: 'var(--bg3)', borderRadius: 2, overflow: 'hidden', marginBottom: '1rem' }}>
+        <div style={{
+          height: '100%',
+          width: `${percentage}%`,
+          background: 'var(--accent)',
+          borderRadius: 2,
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+
+      {/* Tasks list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {tasks.map(task => (
+          <div
+            key={task.id}
+            onClick={() => navigate(task.path)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 12px',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--bg3)';
+              e.currentTarget.style.borderColor = 'var(--accent)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--bg)';
+              e.currentTarget.style.borderColor = 'var(--border)';
+            }}>
+            {/* Checkmark */}
+            <div style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 12,
+              fontWeight: 700,
+              background: task.completed ? 'var(--success)' : 'var(--bg3)',
+              color: task.completed ? '#fff' : 'var(--text3)',
+              flexShrink: 0,
+            }}>
+              {task.completed ? '✓' : '○'}
+            </div>
+
+            {/* Icon and title */}
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: task.completed ? 'var(--text3)' : 'var(--text)',
+                textDecoration: task.completed ? 'line-through' : 'none',
+              }}>
+                {task.icon} {task.title}
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <div style={{ fontSize: 14, opacity: 0.4 }}>→</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // AI Recommended Actions Widget
 function RecommendedActions({ actions = [], loading = false, onRefresh = () => {} }) {
   const typeIcon = {
@@ -479,6 +641,8 @@ export default function Dashboard() {
   const [analyticsData, setAnalyticsData] = useState(null);
   const [nextActions, setNextActions] = useState([]);
   const [nextActionsLoading, setNextActionsLoading] = useState(false);
+  const [onboarding, setOnboarding] = useState(null);
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   const fetchNextActions = () => {
     setNextActionsLoading(true);
@@ -489,6 +653,14 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // Check if onboarding was dismissed
+    setOnboardingDismissed(!!localStorage.getItem('pf-onboarding-dismissed'));
+
+    // Fetch onboarding status
+    api.get('/admin/onboarding-status')
+      .then(r => setOnboarding(r.data))
+      .catch(() => {});
+
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
     api.get('/lists').then(r => setLists(r.data || [])).catch(() => {});
     api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
@@ -694,6 +866,11 @@ export default function Dashboard() {
           )}
         </div>
 
+        {/* Getting Started Checklist Widget */}
+        {!loading && onboarding && !onboardingDismissed && onboarding.completed < 5 && (
+          <GettingStartedChecklist onboarding={onboarding} navigate={navigate} />
+        )}
+
         {/* Today's Focus Panel */}
         {!loading && (
           <div style={{ marginBottom: '1.5rem' }}>
@@ -721,8 +898,9 @@ export default function Dashboard() {
           <div className="pf-analytics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: '1.5rem' }}>
             {/* Pipeline Funnel */}
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '1rem' }}>
                 Pipeline Funnel
+                <Tooltip text="Distribution of leads across pipeline stages" />
               </div>
               <PipelineFunnel funnelData={dashboardAnalytics?.funnel_data} />
             </div>

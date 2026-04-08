@@ -618,6 +618,18 @@ const initDb = async () => {
     );
     CREATE INDEX IF NOT EXISTS idx_competitive_intel_org_id ON competitive_intel(org_id);
     CREATE INDEX IF NOT EXISTS idx_competitive_intel_user_id ON competitive_intel(user_id);
+
+    -- Enhanced sub profile fields for v3.27 capability statement generator
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS company_description TEXT DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS founded_year INTEGER;
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS employee_count TEXT DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS annual_revenue TEXT DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS phone VARCHAR(50) DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS capabilities TEXT DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS differentiators TEXT DEFAULT '';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS key_personnel JSON DEFAULT '[]';
+    ALTER TABLE sub_profiles ADD COLUMN IF NOT EXISTS share_token VARCHAR(100);
   `);
   // Cleanup: delete fake seeded opportunities — they have SAM-20xx notice IDs which aren't real
   await pool.query(`

@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 import EmailComposer from '../components/EmailComposer';
 import LeadDetailDrawer from '../components/LeadDetailDrawer';
+import Tooltip from '../components/Tooltip';
 
 const EMAIL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
@@ -904,6 +905,7 @@ export default function PipelinePage() {
                   />
                   Auto-advance
                 </label>
+                <Tooltip text="Automatically move leads to next stage when marking touches complete" position="right" />
               </div>
               {/* Sort selector */}
               <select value={sortMode} onChange={e => setSortMode(e.target.value)}

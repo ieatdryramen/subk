@@ -588,6 +588,67 @@ router.get('/next-actions', auth, async (req, res) => {
   }
 });
 
+// GET /api/admin/onboarding-status - Check onboarding task completion status
+router.get('/onboarding-status', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
+    const u = userR.rows[0];
+    const userId = parseInt(u.id);
+    const orgId = u.org_id ? parseInt(u.org_id) : null;
+
+    // 1. has_profile: Check if company profile exists
+    const profileR = await pool.query(
+      'SELECT 1 FROM company_profiles WHERE user_id=$1 AND company_name IS NOT NULL LIMIT 1',
+      [userId]
+    );
+    const has_profile = profileR.rows.length > 0;
+
+    // 2. has_lists: Check if any lists exist
+    const listsR = await pool.query(
+      'SELECT 1 FROM lead_lists WHERE user_id=$1 LIMIT 1',
+      [userId]
+    );
+    const has_lists = listsR.rows.length > 0;
+
+    // 3. has_touches: Check if any sequence events marked as done
+    const touchesR = await pool.query(
+      "SELECT 1 FROM sequence_events WHERE user_id=$1 AND status='done' LIMIT 1",
+      [userId]
+    );
+    const has_touches = touchesR.rows.length > 0;
+
+    // 4. has_opportunities: Check if any opportunities exist in org
+    const oppR = await pool.query(
+      'SELECT 1 FROM opportunities WHERE org_id=$1 LIMIT 1',
+      [orgId || userId]
+    );
+    const has_opportunities = oppR.rows.length > 0;
+
+    // 5. has_primes: Check if any prime contractors exist
+    const primesR = await pool.query(
+      'SELECT 1 FROM subk_primes WHERE org_id=$1 LIMIT 1',
+      [orgId || userId]
+    );
+    const has_primes = primesR.rows.length > 0;
+
+    const tasks = [has_profile, has_lists, has_touches, has_opportunities, has_primes];
+    const completed = tasks.filter(t => t).length;
+
+    res.json({
+      has_profile,
+      has_lists,
+      has_touches,
+      has_opportunities,
+      has_primes,
+      completed,
+      total: 5,
+    });
+  } catch (err) {
+    console.error('Onboarding status error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/admin/reports - Aggregated reporting data for all report sections
 router.get('/reports', auth, async (req, res) => {
   const client = await pool.connect();
