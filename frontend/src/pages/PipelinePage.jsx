@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
+import EmailComposer from '../components/EmailComposer';
 
 const EMAIL_STAGES = [
   { key: 'not_started', label: 'Not Started', color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
@@ -70,6 +71,7 @@ const LeadDetailPanel = ({ lead, onClose, showToast, onLeadUpdated }) => {
   const [noteText, setNoteText] = useState('');
   const [noteOpen, setNoteOpen] = useState(false);
   const [panelVisible, setPanelVisible] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
 
   // Animate in
   useEffect(() => {
@@ -270,7 +272,7 @@ const LeadDetailPanel = ({ lead, onClose, showToast, onLeadUpdated }) => {
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Quick Actions</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {[
-                { icon: '✉', label: 'Send Email', action: () => showToast('Email composer coming in v3.11.0', 'info') },
+                { icon: '✉', label: 'Send Email', action: () => setEmailOpen(true) },
                 { icon: '📞', label: 'Log Call', action: () => showToast('Call logged', 'success') },
                 { icon: '📝', label: 'Add Note', action: () => setNoteOpen(!noteOpen) },
                 { icon: '→', label: nextTouch ? `Complete: ${nextTouch.label}` : 'All Done', action: advanceStage },
@@ -381,6 +383,14 @@ const LeadDetailPanel = ({ lead, onClose, showToast, onLeadUpdated }) => {
           )}
         </div>
       </div>
+
+      {/* Email Composer */}
+      <EmailComposer
+        isOpen={emailOpen}
+        onClose={() => setEmailOpen(false)}
+        lead={lead}
+        touchpoint={nextTouch?.type === 'email' ? nextTouch.key : null}
+      />
     </>
   );
 };

@@ -62,4 +62,18 @@ router.put('/read-all', auth, async (req, res) => {
   }
 });
 
+// DELETE /notifications/:id — dismiss/delete a single notification
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    await pool.query(
+      'DELETE FROM notifications WHERE id=$1 AND user_id=$2',
+      [req.params.id, req.userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete notification error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
