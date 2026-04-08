@@ -44,6 +44,11 @@ export default function RemindersPage() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [stats, setStats] = useState({ overdue: 0, today: 0, this_week: 0, upcoming_opportunities: 0 });
 
+  // Opportunity Deadlines state
+  const [oppStats, setOppStats] = useState({ this_week: 0, this_month: 0, overdue: 0, upcoming: 0 });
+  const [upcomingOpps, setUpcomingOpps] = useState([]);
+  const [oppLoading, setOppLoading] = useState(false);
+
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -80,7 +85,42 @@ export default function RemindersPage() {
       });
   };
 
-  useEffect(() => { load(); }, []);
+  const loadUpcomingOpportunities = () => {
+    setOppLoading(true);
+    api.get('/opportunities/upcoming')
+      .then(res => {
+        const opps = res.data.opportunities || [];
+        setUpcomingOpps(opps);
+
+        // Calculate stats
+        const now = new Date();
+        const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const monthFromNow = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        let thisWeek = 0, thisMonth = 0, overdue = 0;
+        opps.forEach(opp => {
+          if (!opp.response_deadline) return;
+          const deadline = new Date(opp.response_deadline);
+          if (deadline < now) overdue++;
+          else if (deadline <= weekFromNow) thisWeek++;
+          else if (deadline <= monthFromNow) thisMonth++;
+        });
+
+        setOppStats({
+          this_week: thisWeek,
+          this_month: thisMonth,
+          overdue,
+          upcoming: opps.length
+        });
+        setOppLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load opportunities:', err);
+        setOppLoading(false);
+      });
+  };
+
+  useEffect(() => { load(); loadUpcomingOpportunities(); }, []);
   useEffect(() => { loadCalendar(currentMonth); }, [currentMonth]);
 
   const markDone = async (e, lead, touchpoint, call_outcome) => {
@@ -259,6 +299,21 @@ export default function RemindersPage() {
 
   const selectedDateEvents = selectedDate ? getDateEvents(selectedDate) : { touches: [], opps: [] };
 
+  const getDaysRemaining = (deadline) => {
+    const now = new Date();
+    const deadlineDate = new Date(deadline);
+    const ms = deadlineDate - now;
+    return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  };
+
+  const getUrgencyColor = (deadline) => {
+    const days = getDaysRemaining(deadline);
+    if (days < 0) return { bg: 'rgba(239,68,68,0.08)', color: 'var(--danger)', label: 'Overdue' };
+    if (days < 7) return { bg: 'rgba(239,68,68,0.08)', color: 'var(--danger)', label: 'Urgent' };
+    if (days < 30) return { bg: 'rgba(245,158,11,0.08)', color: 'var(--warning)', label: 'Soon' };
+    return { bg: 'rgba(34,197,94,0.08)', color: 'var(--success)', label: 'On Track' };
+  };
+
   const SummaryBar = ({ completed, total }) => {
     const pct = Math.min(Math.round((completed / Math.max(total, 1)) * 100), 100);
     return (
@@ -414,6 +469,10 @@ export default function RemindersPage() {
               <button onClick={() => setViewMode('list')}
                 style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', background: viewMode === 'list' ? 'var(--accent)' : 'var(--bg2)', color: viewMode === 'list' ? '#fff' : 'var(--text2)', border: `1px solid ${viewMode === 'list' ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer' }}>
                 📋 List
+              </button>
+              <button onClick={() => setViewMode('opportunities')}
+                style={{ padding: '8px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)', background: viewMode === 'opportunities' ? 'var(--accent)' : 'var(--bg2)', color: viewMode === 'opportunities' ? '#fff' : 'var(--text2)', border: `1px solid ${viewMode === 'opportunities' ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer' }}>
+                🎯 Opportunity Deadlines
               </button>
             </div>
           </div>
@@ -728,6 +787,171 @@ export default function RemindersPage() {
                 </>
               </>
             )}
+          </div>
+        )}
+
+        {viewMode === 'opportunities' && (
+          <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+            {/* Left side - Upcoming Deadlines List (60%) */}
+            <div style={{ flex: '1 1 60%', minWidth: 300 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: '1rem' }}>Upcoming Deadlines</div>
+
+              {oppLoading ? (
+                <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-lg)', padding: '2rem', textAlign: 'center', color: 'var(--text3)' }}>Loading opportunities...</div>
+              ) : upcomingOpps.length === 0 ? (
+                <div style={{ background: 'var(--bg2)', borderRadius: 'var(--radius-lg)', padding: '2rem', textAlign: 'center', color: 'var(--text3)' }}>
+                  No upcoming opportunities with deadlines
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {upcomingOpps.map(opp => {
+                    const urgency = getUrgencyColor(opp.response_deadline);
+                    const daysLeft = getDaysRemaining(opp.response_deadline);
+                    const deadline = new Date(opp.response_deadline);
+
+                    return (
+                      <div
+                        key={opp.id}
+                        onClick={() => navigate('/opportunities')}
+                        style={{
+                          background: 'var(--bg2)',
+                          border: `1px solid var(--border)`,
+                          borderRadius: 'var(--radius)',
+                          padding: '1rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          _hover: { borderColor: urgency.color, background: urgency.bg }
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = urgency.color; e.currentTarget.style.background = urgency.bg; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg2)'; }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {opp.title}
+                            </div>
+                            <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 6 }}>
+                              {opp.agency}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 'var(--radius)', background: urgency.bg, color: urgency.color, whiteSpace: 'nowrap', marginLeft: 12, flexShrink: 0 }}>
+                            {daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d`}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, marginBottom: 8 }}>
+                          <span style={{ color: 'var(--text3)' }}>
+                            {deadline.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </span>
+                          {opp.fit_score && (
+                            <span style={{ padding: '2px 8px', borderRadius: 'var(--radius)', background: 'var(--success-bg)', color: 'var(--success)', fontWeight: 500 }}>
+                              Fit: {Math.round(opp.fit_score)}%
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', fontWeight: 500, letterSpacing: '0.4px' }}>
+                            Status: <span style={{ color: 'var(--accent)' }}>{opp.status}</span>
+                          </div>
+                          <span style={{ color: 'var(--text3)', fontSize: 11 }}>View →</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Right side - Timeline + Stats (40%) */}
+            <div style={{ flex: '1 1 40%', minWidth: 250 }}>
+              {/* Quick Stats */}
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 12, letterSpacing: '0.4px' }}>Quick Stats</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>This week:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger)' }}>{oppStats.this_week}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>This month:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--warning)' }}>{oppStats.this_month}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>Overdue:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--danger)' }}>{oppStats.overdue}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text2)' }}>Total upcoming:</span>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)' }}>{oppStats.upcoming}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deadline Timeline */}
+              <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', marginBottom: 16, letterSpacing: '0.4px' }}>Timeline</div>
+
+                {oppLoading ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: '2rem 0' }}>Loading...</div>
+                ) : upcomingOpps.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 12, padding: '2rem 0' }}>No deadlines to display</div>
+                ) : (
+                  <svg width="100%" height={Math.max(300, upcomingOpps.length * 20 + 100)} style={{ overflow: 'visible' }}>
+                    {/* Draw vertical timeline */}
+                    <line x1="30" y1="20" x2="30" y2={Math.max(300, upcomingOpps.length * 20 + 100) - 20} stroke="var(--border)" strokeWidth="2" />
+
+                    {/* Today marker */}
+                    {(() => {
+                      const today = new Date();
+                      const minDate = new Date(upcomingOpps[0].response_deadline);
+                      const maxDate = new Date(upcomingOpps[upcomingOpps.length - 1].response_deadline);
+                      const range = maxDate - minDate;
+                      const timelineHeight = Math.max(300, upcomingOpps.length * 20 + 100) - 60;
+
+                      if (today >= minDate && today <= maxDate) {
+                        const progress = (today - minDate) / range;
+                        const y = 30 + progress * timelineHeight;
+                        return (
+                          <>
+                            <line x1="10" y1={y} x2="50" y2={y} stroke="var(--danger)" strokeWidth="2" strokeDasharray="4,4" />
+                            <text x="55" y={y + 4} fontSize="10" fill="var(--danger)" fontWeight="500">Today</text>
+                          </>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Timeline dots and labels */}
+                    {upcomingOpps.map((opp, idx) => {
+                      const minDate = new Date(upcomingOpps[0].response_deadline);
+                      const maxDate = new Date(upcomingOpps[upcomingOpps.length - 1].response_deadline);
+                      const range = maxDate - minDate;
+                      const oppDate = new Date(opp.response_deadline);
+                      const timelineHeight = Math.max(300, upcomingOpps.length * 20 + 100) - 60;
+                      const progress = range === 0 ? 0 : (oppDate - minDate) / range;
+                      const y = 30 + progress * timelineHeight;
+
+                      const urgency = getUrgencyColor(opp.response_deadline);
+                      const dotColor = urgency.color;
+
+                      return (
+                        <g key={idx}>
+                          {/* Dot */}
+                          <circle cx="30" cy={y} r="5" fill={dotColor} stroke="var(--bg2)" strokeWidth="2" />
+                          {/* Tooltip line */}
+                          <line x1="35" y1={y} x2="50" y2={y} stroke={dotColor} strokeWidth="1" opacity="0.5" />
+                          {/* Title - simple, no wrapping */}
+                          <text x="55" y={y + 4} fontSize="11" fill="var(--text)" fontWeight="500" style={{ maxWidth: 100 }}>
+                            {opp.title.substring(0, 20)}{opp.title.length > 20 ? '...' : ''}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

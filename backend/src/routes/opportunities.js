@@ -311,6 +311,63 @@ router.get('/export/csv', auth, async (req, res) => {
   }
 });
 
+// Get opportunities grouped by month for timeline visualization
+router.get('/timeline', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    // Get opportunities from last 3 months to next 6 months
+    const now = new Date();
+    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+    const sixMonthsAhead = new Date(now.getFullYear(), now.getMonth() + 6, 0);
+
+    const r = await pool.query(
+      `SELECT id, title, agency, response_deadline, status, estimated_value, fit_score
+       FROM opportunities
+       WHERE org_id=$1 AND response_deadline >= $2 AND response_deadline <= $3
+       ORDER BY response_deadline ASC`,
+      [orgId, threeMonthsAgo, sixMonthsAhead]
+    );
+
+    // Group by month
+    const grouped = {};
+    r.rows.forEach(opp => {
+      if (!opp.response_deadline) return;
+      const date = new Date(opp.response_deadline);
+      const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
+      if (!grouped[monthKey]) grouped[monthKey] = [];
+      grouped[monthKey].push(opp);
+    });
+
+    res.json({ timeline: grouped });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get next 10 upcoming deadlines
+router.get('/upcoming', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    const now = new Date();
+    const r = await pool.query(
+      `SELECT id, title, agency, response_deadline, status, estimated_value, fit_score
+       FROM opportunities
+       WHERE org_id=$1 AND response_deadline > $2 AND status IN ('new', 'pursuing', 'teaming')
+       ORDER BY response_deadline ASC
+       LIMIT 10`,
+      [orgId, now]
+    );
+
+    res.json({ opportunities: r.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get opportunity detail with linked leads, notes, and activity
 router.get('/:id/detail', auth, async (req, res) => {
   try {

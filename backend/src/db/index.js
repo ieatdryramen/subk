@@ -599,6 +599,25 @@ const initDb = async () => {
     );
     CREATE INDEX IF NOT EXISTS idx_proposals_org_id ON proposals(org_id);
     CREATE INDEX IF NOT EXISTS idx_proposals_user_id ON proposals(user_id);
+
+    -- Competitive Intelligence tracking
+    CREATE TABLE IF NOT EXISTS competitive_intel (
+      id SERIAL PRIMARY KEY,
+      org_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      competitor_name TEXT NOT NULL,
+      opportunity_id INT REFERENCES opportunities(id) ON DELETE SET NULL,
+      threat_level TEXT DEFAULT 'medium',
+      notes TEXT,
+      strengths TEXT,
+      weaknesses TEXT,
+      contract_value NUMERIC DEFAULT 0,
+      outcome TEXT DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_competitive_intel_org_id ON competitive_intel(org_id);
+    CREATE INDEX IF NOT EXISTS idx_competitive_intel_user_id ON competitive_intel(user_id);
   `);
   // Cleanup: delete fake seeded opportunities — they have SAM-20xx notice IDs which aren't real
   await pool.query(`

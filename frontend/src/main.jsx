@@ -36,6 +36,7 @@ import CoachPage from './pages/CoachPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PublicProfilePage from './pages/PublicProfilePage';
 import ProposalTrackerPage from './pages/ProposalTrackerPage';
+import CompetitiveIntelPage from './pages/CompetitiveIntelPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -66,6 +67,7 @@ const App = () => (
         <Route path="/opportunities" element={<Protected><OpportunitiesPage /></Protected>} />
         <Route path="/opportunity-board" element={<Protected><OpportunityBoardPage /></Protected>} />
         <Route path="/proposals" element={<Protected><ProposalTrackerPage /></Protected>} />
+        <Route path="/competitive" element={<Protected><CompetitiveIntelPage /></Protected>} />
 
         {/* BD / Sales / Outreach */}
         <Route path="/lists" element={<Protected><LeadListsPage /></Protected>} />

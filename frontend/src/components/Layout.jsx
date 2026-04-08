@@ -12,6 +12,7 @@ const navSections = [
       { to: '/dashboard', label: 'Dashboard', icon: '▦' },
       { to: '/opportunity-board', label: 'Opp Board', icon: '📋' },
       { to: '/opportunities', label: 'Opportunities', icon: '🔍' },
+      { to: '/competitive', label: 'Comp Intel', icon: '🏢' },
       { to: '/pipeline', label: 'Pipeline', icon: '▤' },
     ],
   },
