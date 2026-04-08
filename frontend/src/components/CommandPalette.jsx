@@ -8,6 +8,7 @@ const CommandPalette = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchResults, setSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [recentSearches, setRecentSearches] = useState([]);
   const inputRef = useRef(null);
   const navigate = useNavigate();
   const searchTimeout = useRef(null);
@@ -40,6 +41,28 @@ const CommandPalette = () => {
 
   const allCommands = [...navCommands, ...actionCommands];
 
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('recentSearches');
+    if (stored) {
+      try {
+        setRecentSearches(JSON.parse(stored));
+      } catch {
+        setRecentSearches([]);
+      }
+    }
+  }, []);
+
+  // Save search to recent when performed
+  const addToRecent = useCallback((query) => {
+    setRecentSearches(prev => {
+      const filtered = prev.filter(s => s !== query);
+      const updated = [query, ...filtered].slice(0, 5);
+      localStorage.setItem('recentSearches', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   // Global search when query is 2+ chars
   const searchAll = useCallback(async (query) => {
     if (query.length < 2) { setSearchResults(null); return; }
@@ -47,12 +70,24 @@ const CommandPalette = () => {
     try {
       const { data } = await api.get(`/search?q=${encodeURIComponent(query)}`);
       setSearchResults(data);
+      addToRecent(query);
     } catch {
       setSearchResults({ leads: [], opportunities: [], primes: [] });
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [addToRecent]);
+
+  // Helper function to highlight matching text
+  const highlightMatch = (text, query) => {
+    if (!text || !query) return text;
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase()
+        ? <span key={i} style={{ background: 'var(--warning)', color: 'white', borderRadius: 2, padding: '0 2px', fontWeight: 600 }}>{part}</span>
+        : part
+    );
+  };
 
   const filteredCommands = allCommands.filter((cmd) =>
     cmd.label.toLowerCase().includes(search.toLowerCase())
@@ -131,6 +166,13 @@ const CommandPalette = () => {
     }
   }, [search, searchAll]);
 
+  // Show recent searches when opening palette with empty query
+  useEffect(() => {
+    if (isOpen && search === '') {
+      setSearchResults(null);
+    }
+  }, [isOpen, search]);
+
   const handleSelect = (command) => {
     if (command.action) command.action();
     else if (command.path) navigate(command.path);
@@ -157,54 +199,117 @@ const CommandPalette = () => {
       }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ color: 'var(--text3)', fontSize: 14 }}>⌘</span>
-          <input ref={inputRef} type="text" placeholder="Type a command or search leads..."
+          <input ref={inputRef} type="text" placeholder="Search leads, opportunities, primes, or navigate..."
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ flex: 1, border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 15, outline: 'none', fontFamily: 'inherit' }} />
           <kbd style={{ padding: '2px 6px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 3, fontSize: 10, color: 'var(--text3)', fontFamily: 'monospace' }}>ESC</kbd>
         </div>
 
         <div style={{ overflowY: 'auto', flex: 1, padding: '4px 0' }}>
-          {Object.entries(grouped).map(([category, cmds]) => (
-            <div key={category}>
-              <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{category}</div>
-              {cmds.map(cmd => {
-                idx++;
-                const i = idx;
-                return (
-                  <button key={cmd.path || cmd.label} onClick={() => handleSelect(cmd)}
-                    onMouseEnter={() => setSelectedIndex(i)}
-                    style={{
-                      width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
-                      fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
-                      background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
-                      color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
-                      transition: 'background 0.1s',
-                    }}>
-                    <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>{cmd.icon}</span>
-                    <span>{cmd.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {/* Show commands when no search is active */}
+          {!searchResults && search === '' && (
+            <>
+              {Object.entries(grouped).map(([category, cmds]) => (
+                <div key={category}>
+                  <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{category}</div>
+                  {cmds.map(cmd => {
+                    idx++;
+                    const i = idx;
+                    return (
+                      <button key={cmd.path || cmd.label} onClick={() => handleSelect(cmd)}
+                        onMouseEnter={() => setSelectedIndex(i)}
+                        style={{
+                          width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                          fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
+                          background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
+                          color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
+                          transition: 'background 0.1s',
+                        }}>
+                        <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>{cmd.icon}</span>
+                        <span>{cmd.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Show recent searches when palette opens empty */}
+              {recentSearches.length > 0 && (
+                <div>
+                  <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recent Searches</div>
+                  {recentSearches.map(q => {
+                    idx++;
+                    const i = idx;
+                    return (
+                      <button key={`recent-${q}`} onClick={() => { setSearch(q); setSelectedIndex(0); }}
+                        onMouseEnter={() => setSelectedIndex(i)}
+                        style={{
+                          width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                          fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
+                          background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
+                          color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
+                          transition: 'background 0.1s',
+                        }}>
+                        <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>🕐</span>
+                        <span>{q}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Show filtered commands when typing a query */}
+          {search !== '' && !searchResults && Object.entries(grouped).length > 0 && (
+            <>
+              {Object.entries(grouped).map(([category, cmds]) => (
+                <div key={category}>
+                  <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{category}</div>
+                  {cmds.map(cmd => {
+                    idx++;
+                    const i = idx;
+                    return (
+                      <button key={cmd.path || cmd.label} onClick={() => handleSelect(cmd)}
+                        onMouseEnter={() => setSelectedIndex(i)}
+                        style={{
+                          width: '100%', padding: '10px 16px', border: 'none', textAlign: 'left', cursor: 'pointer',
+                          fontSize: 14, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 10,
+                          background: i === selectedIndex ? 'var(--accent-bg)' : 'transparent',
+                          color: i === selectedIndex ? 'var(--accent2)' : 'var(--text)',
+                          transition: 'background 0.1s',
+                        }}>
+                        <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>{cmd.icon}</span>
+                        <span>{highlightMatch(cmd.label, search)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </>
+          )}
 
           {/* Global search results */}
           {searching && (
-            <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', textAlign: 'center' }}>
+            <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text3)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 16 }}>⏳</span>
               Searching...
             </div>
           )}
           {searchResults && ['leads', 'opportunities', 'primes'].map(type => {
             const items = searchResults[type] || [];
-            if (items.length === 0) return null;
             const config = {
               leads: { label: 'Leads', icon: '👤', getLabel: i => i.full_name || i.email, getSub: i => [i.company, i.title, i.list_name].filter(Boolean).join(' · '), getPath: i => `/lists/${i.list_id}`, getScore: i => i.icp_score },
               opportunities: { label: 'Opportunities', icon: '🔍', getLabel: i => i.title, getSub: i => [i.agency, i.set_aside].filter(Boolean).join(' · '), getPath: () => '/opportunities', getScore: i => i.fit_score },
               primes: { label: 'Primes', icon: '🏢', getLabel: i => i.company_name, getSub: i => [i.contact_name, i.agency_focus].filter(Boolean).join(' · '), getPath: () => '/primes', getScore: i => i.fit_score },
             }[type];
+            if (items.length === 0) return null;
             return (
               <div key={type}>
-                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{config.label}</div>
+                <div style={{ padding: '8px 16px 4px', fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {config.label}
+                  <span style={{ fontSize: 9, background: 'var(--accent-bg)', color: 'var(--accent2)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>{items.length}</span>
+                </div>
                 {items.map(item => {
                   idx++;
                   const i = idx;
@@ -221,7 +326,7 @@ const CommandPalette = () => {
                       }}>
                       <span style={{ fontSize: 14, width: 22, textAlign: 'center', flexShrink: 0 }}>{config.icon}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{config.getLabel(item)}</div>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{highlightMatch(config.getLabel(item), search)}</div>
                         <div style={{ fontSize: 11, color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{config.getSub(item)}</div>
                       </div>
                       {score != null && (
@@ -245,14 +350,14 @@ const CommandPalette = () => {
             </div>
           )}
 
-          {flatList.length === 0 && !searchResults && (
+          {search === '' && recentSearches.length === 0 && flatList.length === 0 && !searchResults && (
             <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>
               No commands found
             </div>
           )}
         </div>
 
-        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 16, fontSize: 11, color: 'var(--text3)' }}>
+        <div style={{ padding: '8px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 16, fontSize: 11, color: 'var(--text3)', flexWrap: 'wrap' }}>
           <span>↑↓ Navigate</span>
           <span>↵ Select</span>
           <span>Type 2+ chars to search everything</span>

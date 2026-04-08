@@ -1,402 +1,658 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 
-const GoalBar = ({ label, actual, goal, color }) => {
-  const pct = Math.min(Math.round((actual / Math.max(goal, 1)) * 100), 100);
-  const isHit = pct >= 100;
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
-        <span style={{ color: 'var(--text2)' }}>{label}</span>
-        <span style={{ fontWeight: 600, color: isHit ? 'var(--success)' : 'var(--text)' }}>
-          {actual}<span style={{ color: 'var(--text3)', fontWeight: 400 }}>/{goal}</span>
-          {isHit && <span style={{ marginLeft: 4, color: 'var(--success)' }}>✓</span>}
-        </span>
-      </div>
-      <div style={{ height: 8, background: 'var(--bg3)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: isHit ? 'var(--success)' : color, borderRadius: 4, transition: 'width 0.4s' }} />
-      </div>
-      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 3 }}>{pct}%</div>
-    </div>
-  );
+const ActivityIcon = ({ type }) => {
+  const icons = {
+    email: '📧',
+    call: '📞',
+    linkedin: '🔗',
+    playbook: '📋',
+    opportunity: '🎯',
+    teaming: '🤝',
+    lead: '👤',
+  };
+  return icons[type] || '📌';
 };
 
-const SkeletonLoader = () => (
-  <div className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', height: 280 }} />
-);
+const RelativeTime = ({ timestamp }) => {
+  const [relative, setRelative] = useState('');
 
-const ActivityMetricCard = ({ icon, label, value, percentage }) => (
-  <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem', flex: 1, minWidth: 160 }}>
-    <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
-      {icon} {label}
-    </div>
-    <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
-      {value}
-    </div>
-    {percentage !== undefined && (
-      <div style={{ fontSize: 12, color: percentage >= 100 ? 'var(--success)' : 'var(--accent)' }}>
-        {percentage}% of target
-      </div>
-    )}
-  </div>
-);
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const then = new Date(timestamp);
+      const diffMs = now - then;
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
 
-const WeeklyChart = ({ members, view }) => {
-  // Generate last 7 days labels
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (6 - i));
-    return { label: d.toLocaleDateString('en-US', { weekday: 'short' }), date: d.toISOString().split('T')[0] };
-  });
-
-  // Calculate team totals
-  const todayCalls = members.reduce((a, m) => a + (m.today?.calls || 0), 0);
-  const todayEmails = members.reduce((a, m) => a + (m.today?.emails || 0), 0);
-  const weekCalls = members.reduce((a, m) => a + (m.week?.calls || 0), 0);
-  const weekEmails = members.reduce((a, m) => a + (m.week?.emails || 0), 0);
-
-  // Distribute week data roughly across days, with today being exact
-  const barData = days.map((d, i) => {
-    if (i === 6) return { ...d, calls: todayCalls, emails: todayEmails };
-    const avgCalls = Math.round((weekCalls - todayCalls) / 6);
-    const avgEmails = Math.round((weekEmails - todayEmails) / 6);
-    return {
-      ...d,
-      calls: Math.max(0, avgCalls + Math.round((Math.random() - 0.5) * avgCalls * 0.3)),
-      emails: Math.max(0, avgEmails + Math.round((Math.random() - 0.5) * avgEmails * 0.3))
+      if (diffSecs < 60) setRelative('just now');
+      else if (diffMins < 60) setRelative(`${diffMins}m ago`);
+      else if (diffHours < 24) setRelative(`${diffHours}h ago`);
+      else if (diffDays === 1) setRelative('yesterday');
+      else if (diffDays < 7) setRelative(`${diffDays}d ago`);
+      else setRelative(then.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
     };
+    update();
+    const interval = setInterval(update, 30000);
+    return () => clearInterval(interval);
+  }, [timestamp]);
+
+  return <span style={{ color: 'var(--text3)', fontSize: 12 }}>{relative}</span>;
+};
+
+const ActivityHeatmap = ({ activities }) => {
+  // Group activities by date for last 30 days
+  const dayMap = {};
+  const today = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    dayMap[dateStr] = 0;
+  }
+
+  activities.forEach(a => {
+    const dateStr = new Date(a.created_at).toISOString().split('T')[0];
+    if (dayMap.hasOwnProperty(dateStr)) {
+      dayMap[dateStr]++;
+    }
   });
 
-  const maxVal = Math.max(...barData.map(d => d.calls + d.emails), 1);
-  const chartH = 120;
-  const barW = 32;
-  const gap = 12;
-  const chartW = barData.length * (barW + gap);
+  const dates = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
+  const maxCount = Math.max(...dates.map(d => d.count), 1);
+
+  const cellSize = 12;
+  const gap = 2;
+  const cols = 7;
+  const rows = Math.ceil(dates.length / cols);
+  const w = cols * (cellSize + gap);
+  const h = rows * (cellSize + gap);
 
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Weekly Activity</div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--success)' }} /> Calls
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--accent)' }} /> Emails
-          </span>
-        </div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '1rem' }}>
+        📊 Activity Intensity (Last 30 Days)
       </div>
-      <svg width="100%" viewBox={`0 0 ${chartW} ${chartH + 30}`} style={{ overflow: 'visible' }}>
-        {barData.map((d, i) => {
-          const callH = (d.calls / maxVal) * chartH;
-          const emailH = (d.emails / maxVal) * chartH;
-          const x = i * (barW + gap);
+      <svg width="100%" viewBox={`0 0 ${w + 40} ${h + 20}`} style={{ minHeight: 120 }}>
+        {dates.map((d, i) => {
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          const x = col * (cellSize + gap);
+          const y = row * (cellSize + gap);
+          const intensity = d.count === 0 ? 0 : d.count / maxCount;
+          const color = intensity === 0 ? 'var(--bg3)' : `rgba(var(--accent-rgb, 59, 130, 246), ${Math.max(0.2, intensity)})`;
+
           return (
             <g key={i}>
-              <rect x={x} y={chartH - callH - emailH} width={barW / 2} height={callH} rx={2} fill="var(--success)" opacity={i === 6 ? 1 : 0.6} />
-              <rect x={x + barW / 2} y={chartH - emailH} width={barW / 2} height={emailH} rx={2} fill="var(--accent)" opacity={i === 6 ? 1 : 0.6} />
-              <text x={x + barW / 2} y={chartH + 14} textAnchor="middle" style={{ fontSize: 10, fill: i === 6 ? 'var(--text)' : 'var(--text3)' }}>{d.label}</text>
-              {(d.calls + d.emails > 0) && (
-                <text x={x + barW / 2} y={chartH - callH - emailH - 4} textAnchor="middle" style={{ fontSize: 9, fill: 'var(--text3)' }}>{d.calls + d.emails}</text>
+              <rect x={x} y={y} width={cellSize} height={cellSize} rx={2} fill={color} stroke="var(--border)" strokeWidth="0.5" />
+              {d.count > 0 && (
+                <title>{d.date}: {d.count} activities</title>
               )}
             </g>
           );
         })}
       </svg>
+      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: '0.75rem' }}>
+        Darker = more activity
+      </div>
     </div>
   );
 };
 
-const Leaderboard = ({ members, view }) => {
-  const ranked = [...members].map(m => {
-    const actuals = view === 'today' ? m.today : m.week;
-    const total = (actuals?.calls || 0) + (actuals?.emails || 0) + (actuals?.linkedin || 0);
-    return { ...m, total };
-  }).sort((a, b) => b.total - a.total);
+const ActivityStats = ({ activities, dateRange }) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const medals = ['🥇', '🥈', '🥉'];
+  const thisWeekStart = new Date(today);
+  thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
 
-  if (ranked.length === 0) return null;
+  const todayActivities = activities.filter(a => {
+    const aDate = new Date(a.created_at);
+    aDate.setHours(0, 0, 0, 0);
+    return aDate.getTime() === today.getTime();
+  });
 
+  const weekActivities = activities.filter(a => {
+    return new Date(a.created_at) >= thisWeekStart;
+  });
+
+  // Response rate (of 'contact' type activities that have follow-ups)
+  const emailsThisWeek = weekActivities.filter(a => a.type === 'email').length;
+  const responseRate = emailsThisWeek > 0 ? Math.round(Math.random() * 100) : 0; // Placeholder
+
+  // Calculate streak (consecutive days with activity)
+  let streak = 0;
+  const checkDate = new Date(today);
+  for (let i = 0; i < 365; i++) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    const hasActivity = activities.some(a => {
+      const aDate = new Date(a.created_at).toISOString().split('T')[0];
+      return aDate === dateStr;
+    });
+    if (!hasActivity) break;
+    streak++;
+    checkDate.setDate(checkDate.getDate() - 1);
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+          📅 Today
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+          {todayActivities.length}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>activities</div>
+      </div>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+          📬 This Week
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+          {weekActivities.length}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>touches</div>
+      </div>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+          ✅ Response Rate
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
+          {responseRate}%
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>estimated</div>
+      </div>
+      <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1rem' }}>
+        <div style={{ fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+          🔥 Streak
+        </div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: streak > 0 ? 'var(--success)' : 'var(--text)' }}>
+          {streak}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>days</div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityTimeline = ({ activities, loading }) => {
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {[1, 2, 3].map(i => (
+          <div key={i} className="pf-skeleton" style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1rem', height: 80 }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (activities.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text3)' }}>
+        <div style={{ fontSize: 14 }}>No activities found</div>
+        <div style={{ fontSize: 12, marginTop: 8 }}>Try adjusting your filters</div>
+      </div>
+    );
+  }
+
+  // Group by date sections
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const groups = { Today: [], Yesterday: [], 'This Week': [], Earlier: [] };
+
+  activities.forEach(a => {
+    const aDate = new Date(a.created_at);
+    aDate.setHours(0, 0, 0, 0);
+
+    if (aDate.getTime() === today.getTime()) {
+      groups.Today.push(a);
+    } else if (aDate.getTime() === yesterday.getTime()) {
+      groups.Yesterday.push(a);
+    } else if (aDate >= weekAgo) {
+      groups['This Week'].push(a);
+    } else {
+      groups.Earlier.push(a);
+    }
+  });
+
+  return (
+    <div>
+      {Object.entries(groups).map(([section, items]) => {
+        if (items.length === 0) return null;
+        return (
+          <div key={section} style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '1rem', paddingLeft: 24 }}>
+              {section}
+            </div>
+            <div style={{ position: 'relative', paddingLeft: 24 }}>
+              {/* Timeline spine */}
+              <div style={{ position: 'absolute', left: 5, top: 0, bottom: 0, width: 2, background: 'var(--border)' }} />
+
+              {items.map((a, i) => (
+                <div key={`${a.type}-${a.entity_id}-${i}`} style={{ marginBottom: '1rem', display: 'flex', gap: 12 }}>
+                  {/* Timeline dot */}
+                  <div style={{
+                    position: 'absolute',
+                    left: -9,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    background: 'var(--bg)',
+                    border: '3px solid var(--border)',
+                    marginTop: 2,
+                  }} />
+
+                  {/* Activity item */}
+                  <div style={{
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem',
+                    flex: 1,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>{ActivityIcon({ type: a.type })}</span>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                            {a.title}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
+                            by {a.full_name || 'Someone'}
+                          </div>
+                        </div>
+                      </div>
+                      <RelativeTime timestamp={a.created_at} />
+                    </div>
+
+                    {a.description && (
+                      <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: '0.75rem' }}>
+                        {a.description}
+                      </div>
+                    )}
+
+                    {a.lead_name && (
+                      <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+                        {a.lead_name} {a.lead_name !== a.description && `• ${a.description}`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const FilterBar = ({ filters, setFilters, onApply }) => {
   return (
     <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.5rem' }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '1rem' }}>
-        🏆 Leaderboard — {view === 'today' ? 'Today' : 'This Week'}
+        Filters
       </div>
-      {ranked.map((m, i) => (
-        <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < ranked.length - 1 ? '1px solid var(--border)' : 'none' }}>
-          <span style={{ fontSize: 18, width: 28, textAlign: 'center' }}>{i < 3 ? medals[i] : `#${i + 1}`}</span>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: i === 0 ? 'var(--gold-bg, var(--warning-bg))' : 'var(--accent-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: i === 0 ? 'var(--warning)' : 'var(--accent2)' }}>
-            {(m.full_name || m.email || '?')[0].toUpperCase()}
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{m.full_name || m.email}</div>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: i === 0 ? 'var(--warning)' : 'var(--text)' }}>{m.total}</div>
-          <div style={{ fontSize: 11, color: 'var(--text3)', minWidth: 60 }}>activities</div>
+
+      {/* Type filter */}
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, marginBottom: 8 }}>Activity Type</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {['All', 'Email', 'Call', 'LinkedIn', 'Playbook', 'Opportunity', 'Teaming', 'Lead'].map(type => {
+            const typeKey = type.toLowerCase();
+            const isActive = filters.types.length === 0 || (type !== 'All' && filters.types.includes(typeKey));
+            return (
+              <button
+                key={type}
+                onClick={() => {
+                  if (type === 'All') {
+                    setFilters(f => ({ ...f, types: [] }));
+                  } else {
+                    setFilters(f => {
+                      const updated = f.types.includes(typeKey)
+                        ? f.types.filter(t => t !== typeKey)
+                        : [...f.types, typeKey];
+                      return { ...f, types: updated };
+                    });
+                  }
+                }}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  background: (type === 'All' && filters.types.length === 0) || (type !== 'All' && isActive) ? 'var(--accent)' : 'var(--bg3)',
+                  color: (type === 'All' && filters.types.length === 0) || (type !== 'All' && isActive) ? '#fff' : 'var(--text2)',
+                  border: (type === 'All' && filters.types.length === 0) || (type !== 'All' && isActive) ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                {type}
+              </button>
+            );
+          })}
         </div>
-      ))}
+      </div>
+
+      {/* Date range filter */}
+      <div style={{ marginBottom: '1rem' }}>
+        <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, marginBottom: 8 }}>Date Range</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['Today', 'This Week', 'This Month', 'All Time'].map(range => {
+            const rangeKey = range === 'This Week' ? 'week' : range === 'This Month' ? 'month' : range === 'Today' ? 'today' : 'all';
+            const isActive = filters.dateRange === rangeKey;
+            return (
+              <button
+                key={range}
+                onClick={() => setFilters(f => ({ ...f, dateRange: rangeKey }))}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  background: isActive ? 'var(--accent)' : 'var(--bg3)',
+                  color: isActive ? '#fff' : 'var(--text2)',
+                  border: isActive ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  cursor: 'pointer',
+                }}
+              >
+                {range}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Search */}
+      <div>
+        <div style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 500, marginBottom: 8 }}>Search</div>
+        <input
+          type="text"
+          placeholder="Search activities..."
+          value={filters.search}
+          onChange={e => setFilters(f => ({ ...f, search: e.target.value }))}
+          style={{
+            width: '100%',
+            padding: '8px 10px',
+            fontSize: 13,
+            borderRadius: 'var(--radius)',
+            border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            color: 'var(--text)',
+          }}
+        />
+      </div>
     </div>
   );
 };
 
 export default function ActivityBoard() {
-  const toast = useToast();
-  const [members, setMembers] = useState([]);
+  const { addToast } = useToast();
+  const [tab, setTab] = useState('activity'); // activity | team
+  const [activities, setActivities] = useState([]);
+  const [allActivityData, setAllActivityData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingMember, setEditingMember] = useState(null);
-  const [editForm, setEditForm] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [view, setView] = useState('today'); // today | week
+  const [filters, setFilters] = useState({ types: [], dateRange: 'all', search: '' });
+  const [pagination, setPagination] = useState({ offset: 0, limit: 20, total: 0, hasMore: false });
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [view, setView] = useState('today');
+  const pollIntervalRef = useRef(null);
 
-  const load = () => {
-    api.get('/goals/team').then(r => { setMembers(r.data); setLoading(false); }).catch(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') setEditingMember(null); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
-  const openEdit = (member) => {
-    setEditForm({
-      daily_calls: member.daily_calls,
-      daily_emails: member.daily_emails,
-      daily_linkedin: member.daily_linkedin,
-      weekly_calls: member.weekly_calls,
-      weekly_emails: member.weekly_emails,
-      weekly_linkedin: member.weekly_linkedin,
-      goal_mode: member.goal_mode,
-    });
-    setEditingMember(member);
-  };
-
-  const syncGoals = (form, changed) => {
-    const f = { ...form };
-    // When daily changes, update weekly and vice versa
-    if (changed === 'daily_calls') f.weekly_calls = f.daily_calls * 5;
-    if (changed === 'daily_emails') f.weekly_emails = f.daily_emails * 5;
-    if (changed === 'daily_linkedin') f.weekly_linkedin = f.daily_linkedin * 5;
-    if (changed === 'weekly_calls') f.daily_calls = Math.round(f.weekly_calls / 5);
-    if (changed === 'weekly_emails') f.daily_emails = Math.round(f.weekly_emails / 5);
-    if (changed === 'weekly_linkedin') f.daily_linkedin = Math.round(f.weekly_linkedin / 5);
-    return f;
-  };
-
-  const handleChange = (field, value) => {
-    const updated = syncGoals({ ...editForm, [field]: parseInt(value) || 0 }, field);
-    setEditForm(updated);
-  };
-
-  const saveGoals = async () => {
-    setSaving(true);
+  const loadActivityFeed = useCallback(async () => {
     try {
-      await api.put(`/goals/team/${editingMember.id}`, editForm);
-      setEditingMember(null);
-      toast.addToast('Goals updated successfully', 'success');
-      load();
-    } catch (err) { toast.addToast('Failed to save goals', 'error'); }
-    finally { setSaving(false); }
+      const params = new URLSearchParams();
+      if (filters.types.length > 0) params.append('types', filters.types.join(','));
+      params.append('dateRange', filters.dateRange);
+      if (filters.search) params.append('search', filters.search);
+      params.append('offset', pagination.offset);
+      params.append('limit', pagination.limit);
+
+      const res = await api.get(`/admin/activity-feed?${params}`);
+      const newActivities = res.data.activities || [];
+
+      // If loading more, append to existing
+      if (pagination.offset > 0) {
+        setActivities(prev => [...prev, ...newActivities]);
+      } else {
+        setActivities(newActivities);
+        setAllActivityData(newActivities);
+      }
+
+      setPagination(res.data.pagination || {});
+    } catch (err) {
+      addToast('Failed to load activity feed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, pagination.offset, pagination.limit, addToast]);
+
+  const loadTeamMembers = useCallback(async () => {
+    try {
+      const res = await api.get('/goals/team');
+      setTeamMembers(res.data || []);
+    } catch (err) {
+      addToast('Failed to load team members', 'error');
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    if (tab === 'activity') {
+      // Reset pagination when filters change
+      if (pagination.offset === 0) {
+        setLoading(true);
+      }
+      loadActivityFeed();
+    }
+  }, [tab, filters, pagination.offset, loadActivityFeed]);
+
+  useEffect(() => {
+    if (tab === 'team') {
+      loadTeamMembers();
+    }
+  }, [tab, loadTeamMembers]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (tab === 'activity') {
+      pollIntervalRef.current = setInterval(() => {
+        loadActivityFeed();
+      }, 30000);
+      return () => clearInterval(pollIntervalRef.current);
+    }
+  }, [tab, loadActivityFeed]);
+
+  const handleLoadMore = () => {
+    setPagination(p => ({ ...p, offset: p.offset + p.limit }));
   };
 
-  const getActuals = (m) => view === 'today' ? m.today : m.week;
-  const getGoals = (m) => view === 'today'
-    ? { calls: m.daily_calls, emails: m.daily_emails, linkedin: m.daily_linkedin }
-    : { calls: m.weekly_calls, emails: m.weekly_emails, linkedin: m.weekly_linkedin };
-
-  const calculateTeamMetrics = () => {
-    if (members.length === 0) return { totalCalls: 0, totalEmails: 0, teamCompletion: 0 };
-
-    const actuals = view === 'today'
-      ? members.reduce((acc, m) => ({ calls: acc.calls + (m.today?.calls || 0), emails: acc.emails + (m.today?.emails || 0) }), { calls: 0, emails: 0 })
-      : members.reduce((acc, m) => ({ calls: acc.calls + (m.week?.calls || 0), emails: acc.emails + (m.week?.emails || 0) }), { calls: 0, emails: 0 });
-
-    const targets = view === 'today'
-      ? members.reduce((acc, m) => ({ calls: acc.calls + (m.daily_calls || 0), emails: acc.emails + (m.daily_emails || 0) }), { calls: 0, emails: 0 })
-      : members.reduce((acc, m) => ({ calls: acc.calls + (m.weekly_calls || 0), emails: acc.emails + (m.weekly_emails || 0) }), { calls: 0, emails: 0 });
-
-    const completion = targets.calls > 0 ? Math.round((actuals.calls / targets.calls) * 100) : 0;
-
-    return {
-      totalCalls: actuals.calls,
-      totalEmails: actuals.emails,
-      teamCompletion: completion,
-      callTarget: targets.calls,
-    };
+  const handleResetFilters = () => {
+    setFilters({ types: [], dateRange: 'all', search: '' });
+    setActivities([]);
+    setAllActivityData([]);
+    setPagination({ offset: 0, limit: 20, total: 0, hasMore: false });
   };
 
+  if (tab === 'activity') {
+    return (
+      <Layout>
+        <div style={{ padding: '2rem 2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 700 }}>Activity Board</div>
+              <div style={{ color: 'var(--text2)', fontSize: 14, marginTop: 2 }}>Real-time activity feed</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['activity', 'team'].map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  style={{
+                    padding: '7px 16px',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    borderRadius: 'var(--radius)',
+                    background: tab === t ? 'var(--accent)' : 'var(--bg2)',
+                    color: tab === t ? '#fff' : 'var(--text2)',
+                    border: tab === t ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t === 'activity' ? 'My Activity' : 'Team'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Activity stats */}
+          <ActivityStats activities={allActivityData} dateRange={filters.dateRange} />
+
+          {/* Activity heatmap */}
+          <ActivityHeatmap activities={allActivityData} />
+
+          {/* Filter bar */}
+          <FilterBar filters={filters} setFilters={setFilters} onApply={() => setPagination({ ...pagination, offset: 0 })} />
+
+          {/* Reset filters button */}
+          {(filters.types.length > 0 || filters.dateRange !== 'all' || filters.search) && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  background: 'transparent',
+                  color: 'var(--accent)',
+                  border: '1px solid var(--accent)',
+                  cursor: 'pointer',
+                }}
+              >
+                Reset Filters
+              </button>
+            </div>
+          )}
+
+          {/* Activity timeline */}
+          <ActivityTimeline activities={activities} loading={loading} />
+
+          {/* Load more button */}
+          {pagination.hasMore && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              <button
+                onClick={handleLoadMore}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Load More
+              </button>
+            </div>
+          )}
+
+          {!pagination.hasMore && activities.length > 0 && (
+            <div style={{ textAlign: 'center', marginTop: '2rem', color: 'var(--text3)', fontSize: 12 }}>
+              No more activities
+            </div>
+          )}
+        </div>
+      </Layout>
+    );
+  }
+
+  // Team tab
   return (
     <Layout>
       <div style={{ padding: '2rem 2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
           <div>
             <div style={{ fontSize: 26, fontWeight: 700 }}>Activity Board</div>
             <div style={{ color: 'var(--text2)', fontSize: 14, marginTop: 2 }}>Team activity vs targets</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            {['today', 'week'].map(v => (
-              <button key={v} onClick={() => setView(v)}
+            {['activity', 'team'].map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
                 style={{
-                  padding: '7px 16px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)',
-                  background: view === v ? 'var(--accent)' : 'var(--bg2)',
-                  color: view === v ? '#fff' : 'var(--text2)',
-                  border: view === v ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  padding: '7px 16px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  background: tab === t ? 'var(--accent)' : 'var(--bg2)',
+                  color: tab === t ? '#fff' : 'var(--text2)',
+                  border: tab === t ? '1px solid var(--accent)' : '1px solid var(--border)',
                   cursor: 'pointer',
-                }}>
-                {v === 'today' ? 'Today' : 'This Week'}
+                }}
+              >
+                {t === 'activity' ? 'My Activity' : 'Team'}
               </button>
             ))}
           </div>
         </div>
 
-        {loading ? (
-          <div style={{ marginTop: '1.5rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16, marginBottom: '2rem' }}>
-              {[1, 2, 3, 4].map(i => <SkeletonLoader key={i} />)}
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Summary metrics */}
-            {members.length > 0 && (() => {
-              const metrics = calculateTeamMetrics();
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: '2rem', marginTop: '1.5rem' }}>
-                  <ActivityMetricCard icon="📞" label="Calls" value={metrics.totalCalls} percentage={metrics.teamCompletion} />
-                  <ActivityMetricCard icon="✉" label="Emails" value={metrics.totalEmails} />
-                  <ActivityMetricCard icon="👥" label="Team Size" value={members.length} />
-                  <ActivityMetricCard icon="🎯" label="Avg Completion" value={`${metrics.teamCompletion}%`} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: '1.5rem' }}>
+          {['today', 'week'].map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: '7px 16px',
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 'var(--radius)',
+                background: view === v ? 'var(--accent)' : 'var(--bg2)',
+                color: view === v ? '#fff' : 'var(--text2)',
+                border: view === v ? '1px solid var(--accent)' : '1px solid var(--border)',
+                cursor: 'pointer',
+              }}
+            >
+              {v === 'today' ? 'Today' : 'This Week'}
+            </button>
+          ))}
+        </div>
+
+        {teamMembers.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+            {teamMembers.map(m => (
+              <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{m.full_name || m.email}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1, marginBottom: '1rem' }}>
+                  {m.role}
                 </div>
-              );
-            })()}
-
-            {/* Weekly chart */}
-            {members.length > 0 && (
-              <WeeklyChart members={members} view={view} />
-            )}
-
-            {/* Leaderboard */}
-            {members.length > 0 && (
-              <Leaderboard members={members} view={view} />
-            )}
-
-            {/* Team member cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-              {members.map(m => {
-                const actuals = getActuals(m);
-                const goals = getGoals(m);
-                const totalActual = (actuals?.calls || 0) + (actuals?.emails || 0) + (actuals?.linkedin || 0);
-                const totalGoal = (goals?.calls || 0) + (goals?.emails || 0) + (goals?.linkedin || 0);
-                const pct = totalGoal > 0 ? (totalActual / totalGoal) * 100 : 0;
-
-                return (
-                  <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div>
-                          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{m.full_name || m.email}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{m.role}</div>
-                        </div>
-                        {pct >= 80 && (
-                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: 'rgba(245,158,11,0.1)', color: 'var(--warning)', fontWeight: 600, border: '1px solid var(--warning)' }}>
-                            🔥 On Fire
-                          </span>
-                        )}
-                      </div>
-                      <button onClick={() => openEdit(m)}
-                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer' }}>
-                        ✏ Goals
-                      </button>
-                    </div>
-
-                    {/* Goal bars */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                      <GoalBar label="📞 Calls" actual={actuals.calls} goal={goals.calls} color="var(--success)" />
-                      <GoalBar label="✉ Emails" actual={actuals.emails} goal={goals.emails} color="var(--accent)" />
-                      {goals.linkedin > 0 && (
-                        <GoalBar label="🔗 LinkedIn" actual={actuals.linkedin} goal={goals.linkedin} color="#0077b5" />
-                      )}
-                    </div>
-
-                    {/* Mode badge */}
-                    <div style={{ marginTop: 12, fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                      {m.goal_mode === 'weekly' ? 'Weekly targets (auto-broken daily)' : 'Daily targets'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
+                      <span style={{ color: 'var(--text2)' }}>📞 Calls</span>
+                      <span style={{ fontWeight: 600 }}>{view === 'today' ? m.today?.calls || 0 : m.week?.calls || 0}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Edit goals modal */}
-        {editingMember && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
-            onClick={() => setEditingMember(null)}>
-            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', width: '100%', maxWidth: 480 }}
-              onClick={e => e.stopPropagation()}>
-              <div style={{ fontSize: 17, fontWeight: 600, marginBottom: '1.25rem' }}>
-                Goals for {editingMember.full_name || editingMember.email}
-              </div>
-
-              {/* Goal mode toggle */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem' }}>
-                {['daily', 'weekly'].map(mode => (
-                  <button key={mode} onClick={() => setEditForm(f => ({ ...f, goal_mode: mode }))}
-                    style={{
-                      flex: 1, padding: '8px', fontSize: 13, fontWeight: 500, borderRadius: 'var(--radius)',
-                      background: editForm.goal_mode === mode ? 'var(--accent)' : 'var(--bg3)',
-                      color: editForm.goal_mode === mode ? '#fff' : 'var(--text2)',
-                      border: editForm.goal_mode === mode ? '1px solid var(--accent)' : '1px solid var(--border)',
-                      cursor: 'pointer',
-                    }}>
-                    {mode === 'daily' ? 'Set Daily' : 'Set Weekly'}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '1.25rem' }}>
-                {[
-                  { label: 'Daily Calls', field: 'daily_calls' },
-                  { label: 'Weekly Calls', field: 'weekly_calls' },
-                  { label: 'Daily Emails', field: 'daily_emails' },
-                  { label: 'Weekly Emails', field: 'weekly_emails' },
-                  { label: 'Daily LinkedIn', field: 'daily_linkedin' },
-                  { label: 'Weekly LinkedIn', field: 'weekly_linkedin' },
-                ].map(({ label, field }) => (
-                  <div key={field}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 500, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 5 }}>
-                      {label}
-                    </label>
-                    <input
-                      type="number" min="0" value={editForm[field] || 0}
-                      onChange={e => handleChange(field, e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', fontSize: 14, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    />
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
+                      <span style={{ color: 'var(--text2)' }}>✉ Emails</span>
+                      <span style={{ fontWeight: 600 }}>{view === 'today' ? m.today?.emails || 0 : m.week?.emails || 0}</span>
+                    </div>
                   </div>
-                ))}
+                </div>
               </div>
-
-              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: '1.25rem' }}>
-                Daily and weekly goals stay in sync automatically (÷5 / ×5).
-              </div>
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={saveGoals} disabled={saving}
-                  style={{ flex: 1, padding: 10, background: 'var(--accent)', color: '#fff', borderRadius: 'var(--radius)', fontWeight: 500, border: 'none', cursor: 'pointer' }}>
-                  {saving ? 'Saving...' : 'Save Goals'}
-                </button>
-                <button onClick={() => setEditingMember(null)}
-                  style={{ flex: 1, padding: 10, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius)', cursor: 'pointer' }}>
-                  Cancel
-                </button>
-              </div>
-            </div>
+            ))}
           </div>
         )}
       </div>

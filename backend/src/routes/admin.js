@@ -251,4 +251,196 @@ router.delete('/members/:memberId', auth, adminOnly, async (req, res) => {
   }
 });
 
+// Get paginated, filterable activity feed
+router.get('/activity-feed', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('SET statement_timeout = 8000');
+
+    const userR = await client.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
+    const u = userR.rows[0];
+    const userId = parseInt(u.id);
+    const orgId = u.org_id ? parseInt(u.org_id) : null;
+
+    // Get all users in the org (or just this user if not in org)
+    let userIds = [userId];
+    if (orgId) {
+      const orgR = await client.query('SELECT id FROM users WHERE org_id=$1', [orgId]);
+      userIds = orgR.rows.map(r => parseInt(r.id));
+    }
+
+    // Parse query params
+    const typeParam = req.query.types ? req.query.types.split(',').filter(t => t) : [];
+    const dateRange = req.query.dateRange || 'all';
+    const searchParam = req.query.search || '';
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = parseInt(req.query.offset) || 0;
+
+    // Calculate date filter
+    let dateCond = '';
+    if (dateRange === 'today') {
+      dateCond = 'DATE(created_at) = CURRENT_DATE';
+    } else if (dateRange === 'week') {
+      dateCond = 'created_at >= NOW() - INTERVAL \'7 days\'';
+    } else if (dateRange === 'month') {
+      dateCond = 'created_at >= NOW() - INTERVAL \'30 days\'';
+    } else {
+      dateCond = '1=1';
+    }
+
+    // Build type filter
+    let typeCond = '1=1';
+    if (typeParam.length > 0) {
+      const validTypes = ['email', 'call', 'linkedin', 'playbook', 'opportunity', 'teaming', 'lead'];
+      const safe = typeParam.filter(t => validTypes.includes(t)).map(t => `'${t}'`).join(',');
+      if (safe) typeCond = `type IN (${safe})`;
+    }
+
+    // Build search condition
+    let searchCond = '1=1';
+    if (searchParam) {
+      const safe = searchParam.replace(/'/g, "''");
+      searchCond = `(title ILIKE '%${safe}%' OR description ILIKE '%${safe}%')`;
+    }
+
+    // Main activity query combining multiple sources
+    const q = `
+      SELECT * FROM (
+        SELECT 'email' as type, u.full_name, l.full_name as lead_name, 'Email sent' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint='email_sent' AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'call' as type, u.full_name, l.full_name as lead_name, 'Call completed' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint='call' AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'linkedin' as type, u.full_name, l.full_name as lead_name, 'LinkedIn action' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint IN ('linkedin_connection', 'linkedin_message') AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'playbook' as type, u.full_name, l.full_name as lead_name, 'Playbook generated' as title, l.company as description, p.generated_at as created_at, p.id as entity_id, 'playbook' as entity_type
+        FROM playbooks p
+        JOIN leads l ON l.id = p.lead_id
+        JOIN users u ON u.id = p.user_id
+        WHERE p.user_id = ANY($1)
+
+        UNION ALL
+
+        SELECT 'opportunity' as type, u.full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
+        FROM opportunities o
+        JOIN users u ON u.id = o.user_id
+        WHERE o.org_id=$2
+
+        UNION ALL
+
+        SELECT 'teaming' as type, u.full_name, u2.full_name as lead_name, 'Teaming request' as title, tr.status as description, tr.created_at, tr.id as entity_id, 'teaming' as entity_type
+        FROM teaming_requests tr
+        JOIN users u ON u.id = tr.from_user_id
+        JOIN users u2 ON u2.id = tr.to_user_id
+        WHERE tr.to_user_id = ANY($1)
+
+        UNION ALL
+
+        SELECT 'lead' as type, u.full_name, l.full_name as lead_name, 'Lead added' as title, l.company as description, l.created_at, l.id as entity_id, 'lead' as entity_type
+        FROM leads l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.user_id = ANY($1)
+      ) combined
+      WHERE ${dateCond} AND ${typeCond} AND ${searchCond}
+      ORDER BY created_at DESC
+      LIMIT $3 OFFSET $4
+    `;
+
+    const result = await client.query(q, [userIds, orgId, limit, offset]);
+
+    // Get total count
+    const countQ = `
+      SELECT COUNT(*) FROM (
+        SELECT 'email' as type, u.full_name, l.full_name as lead_name, 'Email sent' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint='email_sent' AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'call' as type, u.full_name, l.full_name as lead_name, 'Call completed' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint='call' AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'linkedin' as type, u.full_name, l.full_name as lead_name, 'LinkedIn action' as title, l.company as description, se.completed_at as created_at, l.id as entity_id, 'lead' as entity_type
+        FROM sequence_events se
+        JOIN leads l ON l.id = se.lead_id
+        JOIN users u ON u.id = se.user_id
+        WHERE se.user_id = ANY($1) AND se.touchpoint IN ('linkedin_connection', 'linkedin_message') AND se.status='done'
+
+        UNION ALL
+
+        SELECT 'playbook' as type, u.full_name, l.full_name as lead_name, 'Playbook generated' as title, l.company as description, p.generated_at as created_at, p.id as entity_id, 'playbook' as entity_type
+        FROM playbooks p
+        JOIN leads l ON l.id = p.lead_id
+        JOIN users u ON u.id = p.user_id
+        WHERE p.user_id = ANY($1)
+
+        UNION ALL
+
+        SELECT 'opportunity' as type, u.full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
+        FROM opportunities o
+        JOIN users u ON u.id = o.user_id
+        WHERE o.org_id=$2
+
+        UNION ALL
+
+        SELECT 'teaming' as type, u.full_name, u2.full_name as lead_name, 'Teaming request' as title, tr.status as description, tr.created_at, tr.id as entity_id, 'teaming' as entity_type
+        FROM teaming_requests tr
+        JOIN users u ON u.id = tr.from_user_id
+        JOIN users u2 ON u2.id = tr.to_user_id
+        WHERE tr.to_user_id = ANY($1)
+
+        UNION ALL
+
+        SELECT 'lead' as type, u.full_name, l.full_name as lead_name, 'Lead added' as title, l.company as description, l.created_at, l.id as entity_id, 'lead' as entity_type
+        FROM leads l
+        JOIN users u ON u.id = l.user_id
+        WHERE l.user_id = ANY($1)
+      ) combined
+      WHERE ${dateCond} AND ${typeCond} AND ${searchCond}
+    `;
+
+    const countResult = await client.query(countQ, [userIds, orgId]);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
+
+    res.json({
+      activities: result.rows || [],
+      pagination: {
+        offset,
+        limit,
+        total: totalCount,
+        hasMore: offset + limit < totalCount,
+      }
+    });
+  } catch (err) {
+    console.error('Activity feed error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

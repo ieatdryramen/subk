@@ -397,6 +397,84 @@ router.post('/:leadId/stage', auth, async (req, res) => {
   }
 });
 
+// POST /sequence/bulk/touch — complete next touch for multiple leads
+router.post('/bulk/touch', auth, async (req, res) => {
+  const { leadIds } = req.body;
+  if (!Array.isArray(leadIds)) return res.status(400).json({ error: 'leadIds must be array' });
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+    const TOUCHPOINTS = await getOrgTouchpoints(orgId);
+
+    const results = [];
+    for (const leadId of leadIds) {
+      try {
+        // Get current sequence
+        const eventsR = await pool.query(
+          'SELECT * FROM sequence_events WHERE lead_id=$1 ORDER BY created_at ASC',
+          [leadId]
+        );
+        const eventMap = {};
+        eventsR.rows.forEach(e => { eventMap[e.touchpoint] = e; });
+
+        // Find next pending touch
+        let nextTouch = null;
+        for (const tp of TOUCHPOINTS) {
+          const event = eventMap[tp.key];
+          if (!event || event.status !== 'done') {
+            nextTouch = tp;
+            break;
+          }
+        }
+
+        if (nextTouch) {
+          // Mark as done
+          const existing = await pool.query(
+            'SELECT id FROM sequence_events WHERE lead_id=$1 AND touchpoint=$2',
+            [leadId, nextTouch.key]
+          );
+          let result;
+          if (existing.rows.length) {
+            result = await pool.query(
+              `UPDATE sequence_events SET status=$1, completed_at=$2 WHERE id=$3 RETURNING *`,
+              ['done', new Date(), existing.rows[0].id]
+            );
+          } else {
+            result = await pool.query(
+              `INSERT INTO sequence_events (lead_id, user_id, touchpoint, status, completed_at)
+               VALUES ($1,$2,$3,'done',$4) RETURNING *`,
+              [leadId, req.userId, nextTouch.key, new Date()]
+            );
+          }
+
+          // Update sequence stage
+          const doneCount = await pool.query(
+            "SELECT COUNT(*) FROM sequence_events WHERE lead_id=$1 AND status='done' AND touchpoint != 'mefu'",
+            [leadId]
+          );
+          const done = parseInt(doneCount.rows[0].count);
+          let stage;
+          if (done === 0) stage = 'not_started';
+          else if (done >= 10) stage = 'mefu';
+          else stage = `in_progress_${done}`;
+          await pool.query('UPDATE leads SET sequence_stage=$1 WHERE id=$2', [stage, leadId]);
+
+          results.push({ leadId, success: true, touchpoint: nextTouch.key });
+        } else {
+          results.push({ leadId, success: false, reason: 'No pending touch' });
+        }
+      } catch (err) {
+        console.error(`Failed to touch lead ${leadId}:`, err);
+        results.push({ leadId, success: false, reason: err.message });
+      }
+    }
+    res.json({ results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 module.exports = router;
 

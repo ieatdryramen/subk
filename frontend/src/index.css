@@ -132,6 +132,27 @@ tbody tr:hover { background: var(--bg); }
   border-radius: var(--radius);
 }
 
+/* Spinner animation for command palette loading */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Stage transition animation for pipeline cards */
+@keyframes slideRight {
+  0% { opacity: 0; transform: translateX(-8px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.pf-card-transition {
+  animation: slideRight 0.3s ease-out;
+}
+
+/* Pulse animation for hover actions */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
