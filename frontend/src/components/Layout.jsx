@@ -21,6 +21,7 @@ const navSections = [
       { to: '/marketplace', label: 'Marketplace', icon: '🏪' },
       { to: '/teaming', label: 'Teaming Inbox', icon: '🤝' },
       { to: '/primes', label: 'Prime Tracker', icon: '🏢' },
+      { to: '/proposals', label: 'Proposals', icon: '📑' },
     ],
   },
   {

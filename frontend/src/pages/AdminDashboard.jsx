@@ -57,6 +57,7 @@ export default function AdminDashboard() {
 
   const [loadError, setLoadError] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
   const load = () => {
     setLoading(true);
@@ -64,7 +65,18 @@ export default function AdminDashboard() {
     api.get('/admin/dashboard').then(r => { setData(r.data); setLoading(false); }).catch(() => { setLoading(false); setLoadError(true); });
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    // Auto-refresh activity feed every 60 seconds
+    const interval = setInterval(() => {
+      if (autoRefreshEnabled) {
+        api.get('/admin/dashboard')
+          .then(r => setData(r.data))
+          .catch(err => console.error('Auto-refresh failed:', err));
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [autoRefreshEnabled]);
 
   const changeRole = async (memberId, role) => {
     try {
@@ -215,24 +227,54 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Recent activity with better styling */}
+          {/* Team Activity Feed */}
           <div style={s.card}>
-            <div style={{ ...s.cardTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Recent activity</span>
-              {activity.length > 5 && <a href="#" style={{ fontSize: 10, color: 'var(--accent2)', textDecoration: 'none', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px' }}>View all</a>}
+            <div style={{ ...s.cardTitle, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <span>Team Activity Feed</span>
+              <button
+                onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                style={{
+                  fontSize: 10, padding: '4px 8px', borderRadius: 'var(--radius)',
+                  background: autoRefreshEnabled ? 'var(--accent-bg)' : 'var(--bg3)',
+                  color: autoRefreshEnabled ? 'var(--accent2)' : 'var(--text3)',
+                  border: `1px solid ${autoRefreshEnabled ? 'var(--accent)' : 'var(--border)'}`,
+                  cursor: 'pointer', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.4px',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {autoRefreshEnabled ? '◯ Live' : '◯ Paused'}
+              </button>
             </div>
-            {activity.length === 0 && <div style={{ fontSize: 13, color: 'var(--text3)' }}>No activity yet</div>}
-            {activity.slice(0, 8).map((a, i) => (
-              <div key={i} style={s.activityItem}>
-                <div style={s.activityIcon(a.type)}>
-                  {a.type === 'playbook' ? '📋' : '✓'}
-                </div>
-                <div style={s.activityText}>
-                  <strong>{a.user_name || 'Someone'}</strong> {a.type === 'playbook' ? 'generated a playbook for' : 'completed a touchpoint with'} <strong>{[a.lead_name, a.company].filter(Boolean).join(' at ') || 'a lead'}</strong>
-                </div>
-                <div style={s.activityTime}>{timeAgo(a.timestamp)}</div>
+            {activity.length === 0 ? (
+              <div style={{ fontSize: 13, color: 'var(--text3)', textAlign: 'center', padding: '1rem 0' }}>
+                No recent activity yet
               </div>
-            ))}
+            ) : (
+              <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                {activity.map((a, i) => (
+                  <div key={i} style={{ ...s.activityItem, paddingRight: 0 }}>
+                    <div style={s.activityIcon(a.type)}>
+                      {a.type === 'playbook' ? '📋' : '✓'}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={s.activityText}>
+                        <strong style={{ color: 'var(--accent2)' }}>{a.user_name || 'Someone'}</strong> {a.type === 'playbook' ? 'generated a playbook for' : 'completed a touchpoint with'} <strong>{[a.lead_name, a.company].filter(Boolean).join(' at ') || 'a lead'}</strong>
+                      </div>
+                      <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 2 }}>
+                        {timeAgo(a.timestamp)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{
+              fontSize: 10, color: 'var(--text3)', textAlign: 'center',
+              paddingTop: '1rem', borderTop: '1px solid var(--border)',
+              marginTop: '1rem',
+            }}>
+              {autoRefreshEnabled && '⚡ Auto-refreshing every 60 seconds'}
+            </div>
           </div>
         </div>
 

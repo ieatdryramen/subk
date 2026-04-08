@@ -356,6 +356,111 @@ function TodaysFocus({ dueCount, deadlines = [], upcomingTouches = [] }) {
   );
 }
 
+// AI Recommended Actions Widget
+function RecommendedActions({ actions = [], loading = false, onRefresh = () => {} }) {
+  const typeIcon = {
+    follow_up: '📧',
+    opportunity: '🎯',
+    playbook: '📋',
+    deadline: '🔔',
+  };
+
+  const typeLabel = {
+    follow_up: 'Follow-up',
+    opportunity: 'Opportunity',
+    playbook: 'Playbook',
+    deadline: 'Deadline',
+  };
+
+  return (
+    <div style={{
+      background: 'var(--bg2)',
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-lg)',
+      padding: '1.25rem',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          🎯 AI Recommended Actions
+        </div>
+        <button onClick={onRefresh} disabled={loading}
+          style={{
+            background: 'none', border: '1px solid var(--border)', color: 'var(--text2)', fontSize: 12,
+            padding: '4px 10px', borderRadius: 'var(--radius)', cursor: 'pointer', transition: 'all 0.2s',
+            opacity: loading ? 0.5 : 1,
+          }}
+          onMouseEnter={e => !loading && (e.target.style.background = 'var(--bg3)')}
+          onMouseLeave={e => e.target.style.background = 'none'}>
+          {loading ? '⟳' : '↻'}
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
+          Loading actions...
+        </div>
+      ) : actions.length === 0 ? (
+        <div style={{ padding: '1.5rem 0', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, marginBottom: 8 }}>✓</div>
+          <div style={{ color: 'var(--text2)', fontSize: 13 }}>All caught up!</div>
+          <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 4 }}>No priority actions right now.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {actions.map((action, i) => (
+            <div key={i} onClick={() => window.location.href = action.action_url}
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius)',
+                padding: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--bg3)';
+                e.currentTarget.style.borderColor = 'var(--accent)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--bg)';
+                e.currentTarget.style.borderColor = 'var(--border)';
+              }}>
+              <div style={{ fontSize: 16, flexShrink: 0 }}>
+                {typeIcon[action.type] || '→'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                    padding: '2px 6px', borderRadius: 4,
+                    background: action.priority === 'high' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(251, 146, 60, 0.15)',
+                    color: action.priority === 'high' ? 'var(--danger)' : 'var(--warning)',
+                  }}>
+                    {action.priority}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 500 }}>
+                    {typeLabel[action.type]}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 2 }}>
+                  {action.title}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.3 }}>
+                  {action.description}
+                </div>
+              </div>
+              <div style={{ fontSize: 16, flexShrink: 0, opacity: 0.5 }}>→</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -372,6 +477,16 @@ export default function Dashboard() {
   const [primeStats, setPrimeStats] = useState({});
   const [dashboardAnalytics, setDashboardAnalytics] = useState(null);
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [nextActions, setNextActions] = useState([]);
+  const [nextActionsLoading, setNextActionsLoading] = useState(false);
+
+  const fetchNextActions = () => {
+    setNextActionsLoading(true);
+    api.get('/admin/next-actions')
+      .then(r => setNextActions(r.data?.actions || []))
+      .catch(() => setNextActions([]))
+      .finally(() => setNextActionsLoading(false));
+  };
 
   useEffect(() => {
     api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
@@ -412,6 +527,9 @@ export default function Dashboard() {
     api.get('/subk-dashboard/analytics').then(r => {
       setAnalyticsData(r.data);
     }).catch(() => {});
+
+    // Get next actions
+    fetchNextActions();
 
     setStatsError(false);
     api.get('/admin/dashboard')
@@ -583,6 +701,17 @@ export default function Dashboard() {
               dueCount={dueCount}
               deadlines={dashboardAnalytics?.upcoming_deadlines || []}
               upcomingTouches={[]}
+            />
+          </div>
+        )}
+
+        {/* AI Recommended Actions */}
+        {!loading && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <RecommendedActions
+              actions={nextActions}
+              loading={nextActionsLoading}
+              onRefresh={fetchNextActions}
             />
           </div>
         )}

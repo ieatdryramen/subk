@@ -580,6 +580,25 @@ const initDb = async () => {
     -- Add searches tracking to organizations for SubK features
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_used INTEGER DEFAULT 0;
     ALTER TABLE organizations ADD COLUMN IF NOT EXISTS searches_limit INTEGER DEFAULT 100;
+
+    -- Proposal tracker for GovCon capture management
+    CREATE TABLE IF NOT EXISTS proposals (
+      id SERIAL PRIMARY KEY,
+      org_id INT REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      opportunity_id INT REFERENCES opportunities(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      status TEXT DEFAULT 'drafting',
+      deadline TIMESTAMP,
+      team_members JSONB DEFAULT '[]',
+      sections JSONB DEFAULT '[]',
+      estimated_value NUMERIC DEFAULT 0,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_proposals_org_id ON proposals(org_id);
+    CREATE INDEX IF NOT EXISTS idx_proposals_user_id ON proposals(user_id);
   `);
   // Cleanup: delete fake seeded opportunities — they have SAM-20xx notice IDs which aren't real
   await pool.query(`

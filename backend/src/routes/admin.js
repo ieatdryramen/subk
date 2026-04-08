@@ -443,6 +443,151 @@ router.get('/activity-feed', auth, async (req, res) => {
   }
 });
 
+// GET /api/admin/next-actions - AI Next-Best-Action recommendations
+router.get('/next-actions', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('SET statement_timeout = 8000');
+
+    const userR = await client.query('SELECT id, org_id FROM users WHERE id=$1', [req.userId]);
+    const u = userR.rows[0];
+    const userId = parseInt(u.id);
+    const orgId = u.org_id ? parseInt(u.org_id) : null;
+
+    // Get all users in org (or just this user)
+    let userIds = [userId];
+    if (orgId) {
+      const orgR = await client.query('SELECT id FROM users WHERE org_id=$1', [orgId]);
+      userIds = orgR.rows.map(r => parseInt(r.id));
+    }
+
+    const actions = [];
+
+    // 1. Leads with overdue touches (sequence_events where next_touch_date < NOW())
+    const overdueR = await client.query(`
+      SELECT
+        se.id, 'follow_up' as type, se.lead_id, l.full_name, l.company,
+        se.touchpoint, se.created_at
+      FROM sequence_events se
+      JOIN leads l ON l.id = se.lead_id
+      WHERE se.user_id = ANY($1)
+        AND se.status='pending'
+        AND se.created_at < NOW() - INTERVAL '7 days'
+      ORDER BY se.created_at ASC
+      LIMIT 10
+    `, [userIds]);
+
+    overdueR.rows.forEach(r => {
+      actions.push({
+        type: 'follow_up',
+        priority: 'high',
+        title: `Follow up with ${r.full_name}`,
+        description: `No ${r.touchpoint} in 7+ days. Last contact: ${new Date(r.created_at).toLocaleDateString()}`,
+        lead_id: r.lead_id,
+        lead_name: r.full_name,
+        action_url: `/leads/${r.lead_id}`
+      });
+    });
+
+    // 2. Leads with no activity in 7+ days
+    const inactiveR = await client.query(`
+      SELECT
+        l.id, l.full_name, l.company,
+        MAX(se.completed_at) as last_touch
+      FROM leads l
+      LEFT JOIN sequence_events se ON l.id = se.lead_id AND se.status='done'
+      WHERE l.user_id = ANY($1)
+        AND l.status='done'
+        AND (MAX(se.completed_at) IS NULL OR MAX(se.completed_at) < NOW() - INTERVAL '7 days')
+        AND l.icp_score >= 50
+      GROUP BY l.id, l.full_name, l.company
+      ORDER BY MAX(se.completed_at) ASC NULLS FIRST
+      LIMIT 10
+    `, [userIds]);
+
+    inactiveR.rows.forEach(r => {
+      if (!actions.some(a => a.lead_id === r.id)) {
+        actions.push({
+          type: 'follow_up',
+          priority: 'medium',
+          title: `Re-engage ${r.full_name}`,
+          description: `No activity for 7+ days. ICP Score: ${r.icp_score}. Company: ${r.company}`,
+          lead_id: r.id,
+          lead_name: r.full_name,
+          action_url: `/leads/${r.id}`
+        });
+      }
+    });
+
+    // 3. Opportunities with approaching deadlines (< 14 days)
+    const deadlineR = await client.query(`
+      SELECT
+        id, title, agency, response_deadline, fit_score
+      FROM opportunities
+      WHERE user_id = ANY($1)
+        AND response_deadline IS NOT NULL
+        AND response_deadline > NOW()
+        AND response_deadline <= NOW() + INTERVAL '14 days'
+      ORDER BY response_deadline ASC
+      LIMIT 10
+    `, [userIds]);
+
+    deadlineR.rows.forEach(r => {
+      const daysLeft = Math.ceil((new Date(r.response_deadline) - new Date()) / (1000 * 60 * 60 * 24));
+      actions.push({
+        type: 'deadline',
+        priority: daysLeft <= 3 ? 'high' : 'medium',
+        title: `${r.title.substring(0, 40)}...`,
+        description: `${daysLeft} days until deadline. Agency: ${r.agency}. Fit: ${r.fit_score}%`,
+        lead_id: null,
+        lead_name: r.agency,
+        action_url: `/opportunities/${r.id}`
+      });
+    });
+
+    // 4. High ICP leads without playbook
+    const noPlaybookR = await client.query(`
+      SELECT
+        l.id, l.full_name, l.company, l.icp_score
+      FROM leads l
+      LEFT JOIN playbooks p ON l.id = p.lead_id
+      WHERE l.user_id = ANY($1)
+        AND l.status='done'
+        AND l.icp_score >= 70
+        AND p.id IS NULL
+      ORDER BY l.icp_score DESC
+      LIMIT 10
+    `, [userIds]);
+
+    noPlaybookR.rows.forEach(r => {
+      if (!actions.some(a => a.lead_id === r.id)) {
+        actions.push({
+          type: 'playbook',
+          priority: 'medium',
+          title: `Generate playbook for ${r.full_name}`,
+          description: `High ICP score (${r.icp_score}). No playbook yet. Company: ${r.company}`,
+          lead_id: r.id,
+          lead_name: r.full_name,
+          action_url: `/leads/${r.id}`
+        });
+      }
+    });
+
+    // Sort by priority and return top 5
+    const sortedActions = actions.sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    }).slice(0, 5);
+
+    res.json({ actions: sortedActions });
+  } catch (err) {
+    console.error('Next-actions error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // GET /api/admin/reports - Aggregated reporting data for all report sections
 router.get('/reports', auth, async (req, res) => {
   const client = await pool.connect();

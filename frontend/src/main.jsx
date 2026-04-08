@@ -35,6 +35,7 @@ import SubProfilePage from './pages/SubProfilePage';
 import CoachPage from './pages/CoachPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PublicProfilePage from './pages/PublicProfilePage';
+import ProposalTrackerPage from './pages/ProposalTrackerPage';
 
 const Protected = ({ children }) => {
   const { user } = useAuth();
@@ -64,6 +65,7 @@ const App = () => (
         {/* Opportunities & Capture */}
         <Route path="/opportunities" element={<Protected><OpportunitiesPage /></Protected>} />
         <Route path="/opportunity-board" element={<Protected><OpportunityBoardPage /></Protected>} />
+        <Route path="/proposals" element={<Protected><ProposalTrackerPage /></Protected>} />
 
         {/* BD / Sales / Outreach */}
         <Route path="/lists" element={<Protected><LeadListsPage /></Protected>} />
