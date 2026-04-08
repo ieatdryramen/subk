@@ -428,6 +428,8 @@ export default function PipelinePage() {
   const [bulkCompleting, setBulkCompleting] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [hoveredCardId, setHoveredCardId] = useState(null);
+  const [healthScores, setHealthScores] = useState({});
+  const [hoveredBadgeId, setHoveredBadgeId] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -452,6 +454,23 @@ export default function PipelinePage() {
       .then(results => { setLeads(results.flat().filter(l => l.status === 'done')); setLoading(false); })
       .catch(() => setLoading(false));
   }, [selectedList, lists]);
+
+  // Fetch pipeline health scores
+  useEffect(() => {
+    if (leads.length === 0) {
+      setHealthScores({});
+      return;
+    }
+    api.get('/scoring/pipeline-health')
+      .then(r => {
+        const scoreMap = {};
+        (Array.isArray(r.data) ? r.data : []).forEach(score => {
+          scoreMap[score.lead_id] = score;
+        });
+        setHealthScores(scoreMap);
+      })
+      .catch(err => console.error('Failed to load pipeline health:', err));
+  }, [leads]);
 
   // Clear selection when view changes
   useEffect(() => { setSelectedIds(new Set()); setBulkStage(''); }, [viewMode]);
@@ -788,6 +807,64 @@ export default function PipelinePage() {
           ))}
         </div>
 
+        {/* Pipeline Health Summary Strip */}
+        {Object.keys(healthScores).length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(20,184,166,0.08) 0%, rgba(34,197,94,0.05) 100%)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1rem 1.2rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '1.5rem',
+            flexWrap: 'wrap'
+          }}>
+            <style>{`
+              @keyframes pulse-risk {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.6; }
+              }
+            `}</style>
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Pipeline Health:</div>
+              {(() => {
+                const hotCount = Object.values(healthScores).filter(s => s.risk_level === 'hot').length;
+                const warmCount = Object.values(healthScores).filter(s => s.risk_level === 'warm').length;
+                const coldCount = Object.values(healthScores).filter(s => s.risk_level === 'cold').length;
+                const atRiskCount = Object.values(healthScores).filter(s => s.risk_level === 'at_risk').length;
+                return (
+                  <div style={{ display: 'flex', gap: '1rem', fontSize: 13, color: 'var(--text2)' }}>
+                    {hotCount > 0 && <span><span style={{ color: '#22c55e', fontWeight: 600 }}>🔥 {hotCount}</span> hot</span>}
+                    {warmCount > 0 && <span><span style={{ color: '#f59e0b', fontWeight: 600 }}>⚡ {warmCount}</span> warm</span>}
+                    {coldCount > 0 && <span><span style={{ color: '#0ea5e9', fontWeight: 600 }}>❄️ {coldCount}</span> cold</span>}
+                    {atRiskCount > 0 && <span><span style={{ color: '#ef4444', fontWeight: 600 }}>⚠️ {atRiskCount}</span> at risk</span>}
+                  </div>
+                );
+              })()}
+            </div>
+            <div style={{ height: 20, width: 1, background: 'var(--border)' }} />
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                {(() => {
+                  const avgWin = Object.values(healthScores).reduce((a, s) => a + s.win_probability, 0) / Object.values(healthScores).length;
+                  return `${Math.round(avgWin)}%`;
+                })()}
+              </span>
+              {' '}avg win probability
+            </div>
+            <div style={{ height: 20, width: 1, background: 'var(--border)' }} />
+            <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+              <span style={{ fontWeight: 600, color: '#ef4444' }}>
+                {(() => {
+                  const needsAttention = Object.values(healthScores).filter(s => s.days_since_touch >= 7).length;
+                  return needsAttention > 0 ? `${needsAttention} needs attention` : 'All caught up';
+                })()}
+              </span>
+            </div>
+          </div>
+        )}
+
         {total === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text3)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-lg)', background: 'var(--bg2)' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
@@ -983,12 +1060,74 @@ export default function PipelinePage() {
                                     style={{ marginTop: 2, accentColor: 'var(--accent)', flexShrink: 0, cursor: 'pointer', width: 14, height: 14 }}
                                   />
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 2, color: 'var(--text)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
                                       {lead.full_name || lead.email || '—'}
+                                      {healthScores[lead.id] && (
+                                        <div
+                                          style={{
+                                            position: 'relative',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                          }}
+                                          onMouseEnter={() => setHoveredBadgeId(lead.id)}
+                                          onMouseLeave={() => setHoveredBadgeId(null)}
+                                        >
+                                          <div
+                                            style={{
+                                              width: 8,
+                                              height: 8,
+                                              borderRadius: '50%',
+                                              flexShrink: 0,
+                                              background: healthScores[lead.id].risk_level === 'hot' ? '#22c55e' : healthScores[lead.id].risk_level === 'warm' ? '#f59e0b' : healthScores[lead.id].risk_level === 'cold' ? '#0ea5e9' : '#ef4444',
+                                              animation: healthScores[lead.id].risk_level === 'at_risk' ? 'pulse-risk 1.5s ease-in-out infinite' : 'none',
+                                              boxShadow: healthScores[lead.id].risk_level === 'hot' ? '0 0 8px rgba(34,197,94,0.4)' : healthScores[lead.id].risk_level === 'at_risk' ? '0 0 8px rgba(239,68,68,0.4)' : 'none'
+                                            }}
+                                          />
+                                          {hoveredBadgeId === lead.id && (
+                                            <div style={{
+                                              position: 'absolute',
+                                              bottom: '-32px',
+                                              left: '50%',
+                                              transform: 'translateX(-50%)',
+                                              background: 'var(--bg2)',
+                                              border: '1px solid var(--border)',
+                                              borderRadius: 'var(--radius)',
+                                              padding: '6px 10px',
+                                              fontSize: 11,
+                                              color: 'var(--text2)',
+                                              whiteSpace: 'nowrap',
+                                              zIndex: 10,
+                                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                            }}>
+                                              {healthScores[lead.id].suggested_action}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
                                     <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 5, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                       {lead.company || lead.title || '—'}
                                     </div>
+                                    {healthScores[lead.id] && (
+                                      <div style={{ marginBottom: 4 }}>
+                                        <div style={{
+                                          height: 4,
+                                          background: 'var(--bg3)',
+                                          borderRadius: 2,
+                                          overflow: 'hidden'
+                                        }}>
+                                          <div
+                                            style={{
+                                              height: '100%',
+                                              width: `${healthScores[lead.id].win_probability}%`,
+                                              background: healthScores[lead.id].win_probability > 70 ? '#22c55e' : healthScores[lead.id].win_probability >= 40 ? '#f59e0b' : '#ef4444',
+                                              transition: 'width 0.3s ease'
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                    )}
                                     {lead._isOverdue && (
                                       <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--danger)', textTransform: 'uppercase', marginBottom: 4, letterSpacing: '0.3px' }}>
                                         ⚠ Overdue

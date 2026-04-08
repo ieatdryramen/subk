@@ -264,4 +264,84 @@ router.get('/export/csv', auth, async (req, res) => {
   }
 });
 
+// Get opportunity detail with linked leads, notes, and activity
+router.get('/:id/detail', auth, async (req, res) => {
+  try {
+    const oppId = parseInt(req.params.id, 10);
+
+    // Get opportunity
+    const oppR = await pool.query(
+      'SELECT * FROM opportunities WHERE id=$1',
+      [oppId]
+    );
+    if (oppR.rows.length === 0) return res.status(404).json({ error: 'Opportunity not found' });
+    const opp = oppR.rows[0];
+
+    // Get org_id for user to ensure auth
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const userOrgId = userR.rows[0]?.org_id;
+    if (opp.org_id !== userOrgId) return res.status(403).json({ error: 'Unauthorized' });
+
+    // Find linked leads by NAICS or agency match
+    const leadsR = await pool.query(
+      `SELECT l.*, COUNT(se.id) as activity_count
+       FROM leads l
+       LEFT JOIN sequence_events se ON se.lead_id=l.id
+       WHERE l.user_id=$1 AND (
+         l.company ILIKE $2 OR l.company ILIKE $3
+       )
+       GROUP BY l.id
+       ORDER BY l.created_at DESC
+       LIMIT 10`,
+      [req.userId, `%${opp.agency || ''}%`, `%${opp.sub_agency || ''}%`]
+    );
+
+    // Count notes for this opportunity (using localStorage notes - we'll count from frontend)
+    // Or query from a hypothetical opportunity_notes table if it exists
+    const notesCount = 0; // Will be managed on frontend with localStorage
+
+    // Get recent sequence events from linked leads
+    const linkedLeadIds = leadsR.rows.map(l => l.id);
+    let recentActivity = [];
+    if (linkedLeadIds.length > 0) {
+      const activityR = await pool.query(
+        `SELECT se.*, l.full_name, l.company FROM sequence_events se
+         JOIN leads l ON l.id=se.lead_id
+         WHERE se.lead_id = ANY($1)
+         ORDER BY se.created_at DESC
+         LIMIT 5`,
+        [linkedLeadIds]
+      );
+      recentActivity = activityR.rows;
+    }
+
+    // Estimate win probability based on factors
+    const hasLinkedLeads = leadsR.rows.length > 0;
+    const hasNotes = notesCount > 0;
+    const daysUntilDeadline = opp.response_deadline
+      ? Math.ceil((new Date(opp.response_deadline) - new Date()) / 86400000)
+      : null;
+    const isPursuing = opp.status === 'pursuing' || opp.status === 'teaming' || opp.status === 'submitted';
+
+    // Simple win probability calculation (0-100)
+    let winProb = 30; // Base
+    if (hasLinkedLeads) winProb += 20;
+    if (hasNotes) winProb += 15;
+    if (isPursuing) winProb += 25;
+    if (daysUntilDeadline && daysUntilDeadline > 30) winProb += 10;
+    winProb = Math.min(100, winProb);
+
+    res.json({
+      opportunity: opp,
+      linked_leads: leadsR.rows,
+      notes_count: notesCount,
+      recent_activity: recentActivity,
+      win_probability: winProb
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

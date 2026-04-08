@@ -126,4 +126,130 @@ router.post('/score/:leadId', auth, async (req, res) => {
   }
 });
 
+// Get pipeline health scores for all leads in user's pipeline
+router.get('/pipeline-health', auth, async (req, res) => {
+  try {
+    // Get all leads for the user (across all lists)
+    const leadsResult = await pool.query(`
+      SELECT l.*, p.has_playbook
+      FROM leads l
+      LEFT JOIN (SELECT DISTINCT lead_id, true as has_playbook FROM playbooks) p ON l.id = p.lead_id
+      WHERE l.user_id = $1
+      ORDER BY l.id ASC
+    `, [req.userId]);
+
+    const leads = leadsResult.rows;
+
+    // Get the most recent touch timestamps for each lead via sequence_events
+    const touchTimestampsResult = await leads.length > 0 ? pool.query(`
+      SELECT lead_id, MAX(completed_at) as last_touch_at
+      FROM sequence_events
+      WHERE user_id = $1 AND completed_at IS NOT NULL
+      GROUP BY lead_id
+    `, [req.userId]) : { rows: [] };
+
+    const touchMap = {};
+    touchTimestampsResult.rows.forEach(row => {
+      touchMap[row.lead_id] = row.last_touch_at;
+    });
+
+    // Calculate scores
+    const now = new Date();
+    const healthScores = leads.map(lead => {
+      const lastTouchAt = touchMap[lead.id];
+      const daysSinceLastTouch = lastTouchAt
+        ? Math.floor((now - new Date(lastTouchAt)) / (1000 * 60 * 60 * 24))
+        : 999;
+
+      // Calculate win probability (0-100)
+      // Weights: icp_score (0.3), sequence_stage progress (0.25), days_since_last_touch (0.2 - decays), has_playbook (0.15), engagement_signals (0.1)
+      let winProb = 0;
+
+      // ICP score component (0.3 weight)
+      const icpScore = lead.icp_score || 0;
+      winProb += Math.min(100, icpScore) * 0.3;
+
+      // Sequence stage progress (0.25 weight)
+      const stageProgressMap = {
+        'not_started': 0,
+        'in_progress_1': 5, 'in_progress_2': 10, 'in_progress_3': 15,
+        'in_progress_4': 20, 'in_progress_5': 25, 'in_progress_6': 30,
+        'in_progress_7': 35, 'in_progress_8': 40, 'in_progress_9': 45,
+        'in_progress_10': 50,
+        'mefu': 60,
+        'meeting_booked': 80,
+        'completed': 100,
+      };
+      const stageProgress = stageProgressMap[lead.sequence_stage || 'not_started'] || 0;
+      winProb += stageProgress * 0.25;
+
+      // Days since last touch decay (0.2 weight)
+      // Full points if touched in last 3 days, decays to 0 at 30+ days
+      let touchDecay = 100;
+      if (daysSinceLastTouch > 3) {
+        touchDecay = Math.max(0, 100 - ((daysSinceLastTouch - 3) / 27) * 100);
+      }
+      winProb += touchDecay * 0.2;
+
+      // Has playbook (0.15 weight)
+      if (lead.has_playbook) {
+        winProb += 100 * 0.15;
+      }
+
+      // Engagement signals (0.1 weight) - for now, simple signal if any touchpoints are done
+      // In practice, could track opens, clicks, replies
+      let engagementScore = 0;
+      const stageStr = lead.sequence_stage || '';
+      if (stageStr.includes('in_progress') || stageStr === 'mefu' || stageStr === 'meeting_booked' || stageStr === 'completed') {
+        engagementScore = 50;
+      }
+      winProb += engagementScore * 0.1;
+
+      winProb = Math.round(winProb);
+
+      // Determine risk level
+      let riskLevel = 'cold';
+      if (winProb > 70) {
+        riskLevel = 'hot';
+      } else if (winProb >= 40) {
+        riskLevel = 'warm';
+      } else {
+        riskLevel = 'cold';
+      }
+
+      // At-risk if no touch in 7+ days
+      if (daysSinceLastTouch >= 7) {
+        riskLevel = 'at_risk';
+      }
+
+      // Suggest action
+      let suggestedAction = '';
+      if (daysSinceLastTouch >= 7) {
+        suggestedAction = `Follow up - no contact in ${daysSinceLastTouch} days`;
+      } else if (winProb > 70) {
+        suggestedAction = 'Ready for proposal';
+      } else if (winProb >= 40) {
+        suggestedAction = 'Continue sequence';
+      } else if (winProb < 40 && !lead.has_playbook) {
+        suggestedAction = 'Assign playbook';
+      } else {
+        suggestedAction = 'Schedule discovery call';
+      }
+
+      return {
+        lead_id: lead.id,
+        win_probability: winProb,
+        risk_level: riskLevel,
+        suggested_action: suggestedAction,
+        days_since_touch: daysSinceLastTouch,
+      };
+    });
+
+    res.json(healthScores);
+  } catch (err) {
+    console.error('Pipeline health error:', err);
+    res.status(500).json({ error: 'Failed to compute pipeline health' });
+  }
+});
+
 module.exports = router;

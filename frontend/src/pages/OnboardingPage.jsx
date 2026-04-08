@@ -143,7 +143,7 @@ export default function OnboardingPage() {
       // Optionally enable auto-search if configured
       if (result.data?.searchId) {
         try {
-          await api.post(`/api/autosearch/enable/${result.data.searchId}`);
+          await api.post(`/autosearch/enable/${result.data.searchId}`);
         } catch (err) {
           // Auto-search configuration is optional, don't fail if it errors
           console.warn('Auto-search setup failed:', err);

@@ -334,7 +334,7 @@ export default function ReportsPage() {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/admin/reports?days=${dateRange}`);
+      const res = await api.get(`/admin/reports?days=${dateRange}`);
       setReports(res.data);
     } catch (err) {
       addToast('Failed to load reports', 'error');

@@ -3,6 +3,400 @@ import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
 
+// Win Probability Gauge Component
+const WinProbabilityGauge = ({ probability }) => {
+  const cx = 60, cy = 60, r = 50;
+  const angle = (probability / 100) * 180; // 0-180 degrees (semicircle)
+  const rad = (angle * Math.PI) / 180;
+  const x = cx + r * Math.cos(rad - Math.PI / 2);
+  const y = cy + r * Math.sin(rad - Math.PI / 2);
+
+  const color = probability >= 70 ? 'var(--success)' : probability >= 40 ? 'var(--warning)' : 'var(--danger)';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <svg width="120" height="70" viewBox="0 0 120 70" style={{ overflow: 'visible' }}>
+        {/* Background arc */}
+        <path
+          d={`M 10 60 A 50 50 0 0 1 110 60`}
+          stroke="var(--bg3)"
+          strokeWidth="8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* Progress arc */}
+        <path
+          d={`M 10 60 A 50 50 0 ${angle > 90 ? 1 : 0} 1 ${x} ${y}`}
+          stroke={color}
+          strokeWidth="8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        {/* Center percentage text */}
+        <text x="60" y="40" fontSize="20" fontWeight="700" textAnchor="middle" fill={color}>
+          {Math.round(probability)}%
+        </text>
+      </svg>
+      <span style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', fontWeight: 500 }}>
+        Win Probability
+      </span>
+    </div>
+  );
+};
+
+// Opportunity Detail Drawer Component
+const OpportunityDetailDrawer = ({ opp, linkedLeads, recentActivity, winProbability, onClose, notes, onAddNote, addToast }) => {
+  const [noteInput, setNoteInput] = useState('');
+
+  if (!opp) return null;
+
+  const handleAddNote = () => {
+    if (!noteInput.trim()) return;
+    onAddNote(opp.id, noteInput.trim());
+    setNoteInput('');
+    addToast('Note added', 'success');
+  };
+
+  const statusColors = {
+    new: 'var(--text3)', reviewing: 'var(--accent2)', pursuing: 'var(--warning)',
+    teaming: 'var(--accent2)', submitted: 'var(--warning)', won: 'var(--success)',
+    lost: 'var(--danger)', no_bid: 'var(--text3)',
+  };
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 999,
+        }}
+      />
+      {/* Drawer */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 600,
+          background: 'var(--bg)',
+          borderLeft: '1px solid var(--border)',
+          boxShadow: '-2px 0 8px rgba(0,0,0,0.15)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideInRight 0.3s ease-out',
+        }}
+      >
+        <style>{`
+          @keyframes slideInRight {
+            from {
+              transform: translateX(100%);
+            }
+            to {
+              transform: translateX(0);
+            }
+          }
+        `}</style>
+
+        {/* Header */}
+        <div style={{
+          padding: '1.5rem',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8, color: 'var(--text)', margin: 0 }}>
+              {opp.title}
+            </h2>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 500,
+                background: statusColors[opp.status] ? `${statusColors[opp.status]}22` : 'var(--bg3)',
+                color: statusColors[opp.status] || 'var(--text2)',
+              }}>
+                {(opp.status || 'new').replace(/_/g, ' ')}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text2)' }}>{opp.agency}</span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: 20,
+              cursor: 'pointer',
+              color: 'var(--text2)',
+              padding: '4px 8px',
+              marginLeft: 8,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+          {/* Key Fields */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+              Opportunity Details
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {opp.sam_notice_id && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Notice ID
+                  </div>
+                  <div style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--text)', wordBreak: 'break-all' }}>
+                    {opp.sam_notice_id}
+                  </div>
+                </div>
+              )}
+              {opp.posted_date && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Posted Date
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                    {new Date(opp.posted_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+              )}
+              {opp.response_deadline && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Response Deadline
+                  </div>
+                  <div style={{ fontSize: 13, color: (() => {
+                    const days = Math.ceil((new Date(opp.response_deadline) - new Date()) / 86400000);
+                    return days <= 7 ? 'var(--danger)' : days <= 14 ? 'var(--warning)' : 'var(--text)';
+                  })() }}>
+                    {new Date(opp.response_deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </div>
+                </div>
+              )}
+              {opp.set_aside && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Set-Aside Type
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>{opp.set_aside}</div>
+                </div>
+              )}
+              {opp.naics_code && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    NAICS Code
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>{opp.naics_code}</div>
+                </div>
+              )}
+              {(opp.value_min || opp.value_max) && (
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', marginBottom: 2 }}>
+                    Estimated Value
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>
+                    {opp.value_min ? `$${(opp.value_min / 1000000).toFixed(1)}M` : ''}
+                    {opp.value_min && opp.value_max ? ' - ' : ''}
+                    {opp.value_max ? `$${(opp.value_max / 1000000).toFixed(1)}M` : ''}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Linked Leads Section */}
+          {linkedLeads && linkedLeads.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+                Linked Leads ({linkedLeads.length})
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {linkedLeads.map(lead => (
+                  <div key={lead.id} style={{
+                    padding: '10px 12px',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>
+                      {lead.full_name || 'Unknown'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                      {lead.company} {lead.title && `· ${lead.title}`}
+                    </div>
+                    {lead.activity_count > 0 && (
+                      <div style={{ fontSize: 10, color: 'var(--accent2)', marginTop: 4 }}>
+                        {lead.activity_count} activity {lead.activity_count === 1 ? 'item' : 'items'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Activity Timeline */}
+          {recentActivity && recentActivity.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+                Recent Activity
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {recentActivity.map(activity => (
+                  <div key={activity.id} style={{
+                    padding: '10px 12px',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: 12,
+                  }}>
+                    <div style={{ fontWeight: 500, color: 'var(--text)' }}>
+                      {activity.full_name}: {activity.touchpoint}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                      {activity.completed_at
+                        ? new Date(activity.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : new Date(activity.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Notes Section */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+              Notes
+            </h3>
+            {notes && notes.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+                {notes.map((note, i) => (
+                  <div key={i} style={{
+                    padding: '10px 12px',
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius)',
+                  }}>
+                    <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.4 }}>
+                      {note.text}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 6 }}>
+                      {new Date(note.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                placeholder="Add a note..."
+                onKeyDown={e => e.key === 'Enter' && handleAddNote()}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  fontSize: 12,
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg2)',
+                  color: 'var(--text)',
+                }}
+              />
+              <button
+                onClick={handleAddNote}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius)',
+                  border: 'none',
+                  background: 'var(--accent)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
+          {/* Win Probability Gauge */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <WinProbabilityGauge probability={winProbability || 0} />
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+              Quick Actions
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 'var(--radius)',
+                border: 'none',
+                background: 'var(--accent)',
+                color: '#fff',
+                cursor: 'pointer',
+              }}>
+                Start Sequence
+              </button>
+              <button style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg2)',
+                color: 'var(--text2)',
+                cursor: 'pointer',
+              }}>
+                Add to Pipeline
+              </button>
+              <button style={{
+                width: '100%',
+                padding: '10px 12px',
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--border)',
+                background: 'var(--bg2)',
+                color: 'var(--text2)',
+                cursor: 'pointer',
+              }}>
+                Generate Playbook
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
 const scoreColor = (score) => {
   if (!score) return { color: 'var(--text3)', bg: 'var(--bg3)' };
   if (score >= 70) return { color: 'var(--success)', bg: 'var(--success-bg)' };
@@ -48,6 +442,8 @@ export default function OpportunitiesPage() {
   const [noteOpen, setNoteOpen] = useState(null);
   const [proposalLoading, setProposalLoading] = useState(null);
   const [proposalResult, setProposalResult] = useState({});
+  const [drawerOpen, setDrawerOpen] = useState(null);
+  const [drawerData, setDrawerData] = useState(null);
 
   useEffect(() => {
     api.get('/opportunities').then(r => {
@@ -92,6 +488,28 @@ export default function OpportunitiesPage() {
       setProposalResult(prev => ({ ...prev, [oppId]: r.data.reply }));
     } catch { addToast('Failed to generate proposal outline', 'error'); }
     finally { setProposalLoading(null); }
+  };
+
+  // Open drawer with opportunity detail
+  const openDrawer = async (oppId) => {
+    setDrawerOpen(oppId);
+    try {
+      const r = await api.get(`/opportunities/${oppId}/detail`);
+      setDrawerData(r.data);
+    } catch (err) {
+      addToast('Failed to load opportunity details', 'error');
+      setDrawerOpen(null);
+    }
+  };
+
+  // Add note to opportunity
+  const addDrawerNote = (oppId, noteText) => {
+    const updated = { ...oppNotes, [oppId]: [...(oppNotes[oppId] || []), { text: noteText, date: new Date().toISOString() }] };
+    setOppNotes(updated);
+    localStorage.setItem('sumx_opp_notes', JSON.stringify(updated));
+    if (drawerData) {
+      setDrawerData(prev => ({ ...prev, notes: updated[oppId] || [] }));
+    }
   };
 
   const [samError, setSamError] = useState(null);
@@ -450,7 +868,14 @@ export default function OpportunitiesPage() {
 
         {tab !== 'search' && displayOpps.map(opp => (
           <div key={opp.id || opp.sam_notice_id} style={s.oppCard(expanded === (opp.id || opp.sam_notice_id))}>
-            <div style={s.oppHeader} onClick={() => setExpanded(prev => prev === (opp.id || opp.sam_notice_id) ? null : (opp.id || opp.sam_notice_id))}>
+            <div style={s.oppHeader} onClick={() => {
+              // If opportunity has an ID, open drawer; otherwise expand inline
+              if (opp.id) {
+                openDrawer(opp.id);
+              } else {
+                setExpanded(prev => prev === (opp.id || opp.sam_notice_id) ? null : (opp.id || opp.sam_notice_id));
+              }
+            }}>
               <div style={s.scoreBadge(opp.fit_score)}>{opp.fit_score || '—'}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4, lineHeight: 1.3 }}>{opp.title}</div>
@@ -695,6 +1120,20 @@ export default function OpportunitiesPage() {
             )}
           </div>
         ))}
+
+        {/* Opportunity Detail Drawer */}
+        {drawerOpen && drawerData && (
+          <OpportunityDetailDrawer
+            opp={drawerData.opportunity}
+            linkedLeads={drawerData.linked_leads}
+            recentActivity={drawerData.recent_activity}
+            winProbability={drawerData.win_probability}
+            notes={oppNotes[drawerOpen] || []}
+            onAddNote={addDrawerNote}
+            onClose={() => setDrawerOpen(null)}
+            addToast={addToast}
+          />
+        )}
       </div>
     </Layout>
   );
