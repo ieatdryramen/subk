@@ -5,7 +5,9 @@ const { pool } = require('../db');
 // POST /api/seed/by-email - Seed for a specific user (secured by ANTHROPIC_API_KEY or bootstrap token)
 router.post('/by-email', async (req, res) => {
   const apiKey = req.headers['x-api-key'];
-  if (!apiKey || apiKey !== process.env.ANTHROPIC_API_KEY) {
+  // Use dedicated SEED_API_KEY; fall back to ANTHROPIC_API_KEY if not set
+  const expectedKey = process.env.SEED_API_KEY || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || !expectedKey || apiKey !== expectedKey) {
     return res.status(403).json({ error: 'Invalid API key' });
   }
   const { email } = req.body;

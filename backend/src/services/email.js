@@ -1,5 +1,16 @@
 const nodemailer = require('nodemailer');
 
+// HTML-encode user input to prevent injection in email templates
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Create transporter — uses SMTP_* env vars if set, otherwise logs to console
 let transporter;
 
@@ -30,7 +41,7 @@ async function sendTeamingRequestNotification({ toEmail, toName, fromName, fromC
     await transporter.sendMail({
       from: FROM,
       to: toEmail,
-      subject: `New teaming request from ${fromCompany || fromName}`,
+      subject: `New teaming request from ${escapeHtml(fromCompany || fromName)}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a2e;">
           <div style="padding: 24px 0; border-bottom: 2px solid #6366f1;">
@@ -38,9 +49,9 @@ async function sendTeamingRequestNotification({ toEmail, toName, fromName, fromC
             <p style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin: 2px 0 0;">GovCon Teaming</p>
           </div>
           <div style="padding: 24px 0;">
-            <p>Hi ${toName || 'there'},</p>
-            <p><strong>${fromCompany || fromName}</strong> has sent you a teaming request on SubK.</p>
-            ${message ? `<div style="background: #f5f5ff; border-left: 3px solid #6366f1; padding: 12px 16px; margin: 16px 0; border-radius: 4px;"><em>"${message}"</em></div>` : ''}
+            <p>Hi ${escapeHtml(toName) || 'there'},</p>
+            <p><strong>${escapeHtml(fromCompany || fromName)}</strong> has sent you a teaming request on SubK.</p>
+            ${message ? `<div style="background: #f5f5ff; border-left: 3px solid #6366f1; padding: 12px 16px; margin: 16px 0; border-radius: 4px;"><em>"${escapeHtml(message)}"</em></div>` : ''}
             <p>Log in to your SubK account to review and respond:</p>
             <a href="${process.env.FRONTEND_URL || 'https://subk-production.up.railway.app'}/teaming"
                style="display: inline-block; background: #6366f1; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; margin: 8px 0;">
@@ -65,7 +76,7 @@ async function sendInterestNotification({ toEmail, toName, subName, subCompany, 
     await transporter.sendMail({
       from: FROM,
       to: toEmail,
-      subject: `${subCompany || subName} is interested in: ${opportunityTitle}`,
+      subject: `${escapeHtml(subCompany || subName)} is interested in: ${escapeHtml(opportunityTitle)}`,
       html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a2e;">
           <div style="padding: 24px 0; border-bottom: 2px solid #6366f1;">
@@ -73,13 +84,13 @@ async function sendInterestNotification({ toEmail, toName, subName, subCompany, 
             <p style="font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.8px; margin: 2px 0 0;">GovCon Teaming</p>
           </div>
           <div style="padding: 24px 0;">
-            <p>Hi ${toName || 'there'},</p>
+            <p>Hi ${escapeHtml(toName) || 'there'},</p>
             <p>A subcontractor has expressed interest in your posted opportunity:</p>
             <div style="background: #f5f5ff; padding: 12px 16px; border-radius: 6px; margin: 12px 0;">
-              <strong>${opportunityTitle}</strong>
+              <strong>${escapeHtml(opportunityTitle)}</strong>
             </div>
-            <p><strong>${subCompany || subName}</strong> wants to team up.</p>
-            ${message ? `<div style="background: #f9f9f9; border-left: 3px solid #6366f1; padding: 12px 16px; margin: 16px 0; border-radius: 4px;"><em>"${message}"</em></div>` : ''}
+            <p><strong>${escapeHtml(subCompany || subName)}</strong> wants to team up.</p>
+            ${message ? `<div style="background: #f9f9f9; border-left: 3px solid #6366f1; padding: 12px 16px; margin: 16px 0; border-radius: 4px;"><em>"${escapeHtml(message)}"</em></div>` : ''}
             <a href="${process.env.FRONTEND_URL || 'https://subk-production.up.railway.app'}/marketplace"
                style="display: inline-block; background: #6366f1; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; margin: 8px 0;">
               View Interested Subs

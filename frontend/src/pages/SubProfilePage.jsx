@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
@@ -722,7 +723,7 @@ export default function SubProfilePage() {
                 </button>
               </div>
             </div>
-            <div style={{ background: 'white', color: '#333', padding: '1rem', borderRadius: 'var(--radius)', maxHeight: '60vh', overflowY: 'auto', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: capStmtHtml }} />
+            <div style={{ background: 'white', color: '#333', padding: '1rem', borderRadius: 'var(--radius)', maxHeight: '60vh', overflowY: 'auto', border: '1px solid var(--border)' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(capStmtHtml) }} />
           </div>
         </div>
       )}

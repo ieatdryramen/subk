@@ -1,15 +1,28 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 const { initDb } = require('./db');
 
 const app = express();
 
+// Trust first proxy (Railway) so req.ip reads X-Forwarded-For correctly
+app.set('trust proxy', 1);
+
+// Security headers (X-Frame-Options, CSP, HSTS, etc.)
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP managed separately for SPA
+}));
+
 // Stripe webhook needs raw body - must come BEFORE express.json()
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
-app.use(cors({ origin: process.env.FRONTEND_URL || '*', credentials: true }));
+// CORS: fail closed — reject all cross-origin if FRONTEND_URL not set
+app.use(cors({
+  origin: process.env.FRONTEND_URL || false,
+  credentials: true,
+}));
 app.use(express.json({ limit: '30mb' })); // cap statement PDFs can be large
 
 // Simple in-memory rate limiter for auth endpoints

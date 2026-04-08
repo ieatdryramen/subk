@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import Modal from '../components/Modal';
@@ -740,7 +741,7 @@ Format as clean HTML with proper sections: Company Overview, Core Capabilities, 
       </div>
 
       <Modal isOpen={showCapabilityModal} onClose={() => setShowCapabilityModal(false)} title="Capability Statement">
-        <div style={s.capabilityHtml} dangerouslySetInnerHTML={{ __html: capabilityText }} />
+        <div style={s.capabilityHtml} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(capabilityText) }} />
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button style={s.saveBtn} onClick={copyCapabilityToClipboard}>Copy to Clipboard</button>
           <button style={s.secondaryBtn} onClick={printCapability}>Print</button>

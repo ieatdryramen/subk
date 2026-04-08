@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../hooks/useAuth';
@@ -372,7 +373,7 @@ export default function CoachPage() {
                       border: msg.role === 'user' ? 'none' : '1px solid var(--border)',
                       wordWrap: 'break-word',
                     }}
-                      dangerouslySetInnerHTML={msg.role === 'assistant' ? { __html: simpleMarkdown(msg.content) } : undefined}>
+                      dangerouslySetInnerHTML={msg.role === 'assistant' ? { __html: DOMPurify.sanitize(simpleMarkdown(msg.content)) } : undefined}>
                       {msg.role === 'user' ? msg.content : undefined}
                     </div>
                     {msg.role === 'assistant' && (

@@ -4,10 +4,38 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool } = require('../db');
 
+const ACCESS_TOKEN_EXPIRY = '2h';
+const REFRESH_TOKEN_DAYS = 30;
+
+// Generate a cryptographically random refresh token and store in DB
+async function createRefreshToken(userId) {
+  const token = crypto.randomBytes(48).toString('hex');
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  await pool.query(
+    'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+    [userId, token, expiresAt]
+  );
+  return token;
+}
+
 router.post('/register', async (req, res) => {
   const { email, password, full_name, invite_code } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (password.length < 12) return res.status(400).json({ error: 'Password must be at least 12 characters' });
+
+  // Enforce password complexity
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    const missing = [];
+    if (!hasUpper) missing.push('one uppercase letter');
+    if (!hasLower) missing.push('one lowercase letter');
+    if (!hasNumber) missing.push('one number');
+    if (!hasSpecial) missing.push('one special character');
+    return res.status(400).json({ error: `Password must include at least ${missing.join(', ')}` });
+  }
 
   // Enforce work email
   const personalDomains = ['gmail.com','yahoo.com','hotmail.com','outlook.com','aol.com','icloud.com','live.com','msn.com','protonmail.com','me.com'];
@@ -18,8 +46,8 @@ router.post('/register', async (req, res) => {
 
   try {
     const exists = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
-    if (exists.rows.length) return res.status(400).json({ error: 'Email already registered' });
-    const hash = await bcrypt.hash(password, 10);
+    if (exists.rows.length) return res.status(400).json({ error: 'Unable to create account. Please try again or contact support.' });
+    const hash = await bcrypt.hash(password, 12);
 
     let org_id = null;
     let role = 'admin';
@@ -47,8 +75,9 @@ router.post('/register', async (req, res) => {
 
     // Get invite code for this org
     const orgData = await pool.query('SELECT invite_code, name FROM organizations WHERE id=$1', [org_id]);
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { ...user, onboarding_complete: false, org: orgData.rows[0] } });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const refreshToken = await createRefreshToken(user.id);
+    res.json({ token, refreshToken, user: { ...user, onboarding_complete: false, org: orgData.rows[0] } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -65,12 +94,47 @@ router.post('/login', async (req, res) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
     const orgData = user.org_id ? await pool.query('SELECT invite_code, name FROM organizations WHERE id=$1', [user.org_id]) : null;
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-    res.json({ token, user: { id: user.id, email: user.email, full_name: user.full_name, org_id: user.org_id, role: user.role, onboarding_complete: user.onboarding_complete || false, org: orgData?.rows[0] || null } });
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const refreshToken = await createRefreshToken(user.id);
+    res.json({ token, refreshToken, user: { id: user.id, email: user.email, full_name: user.full_name, org_id: user.org_id, role: user.role, onboarding_complete: user.onboarding_complete || false, org: orgData?.rows[0] || null } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
+});
+
+// Refresh access token using a valid refresh token
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+  try {
+    const result = await pool.query(
+      'SELECT * FROM refresh_tokens WHERE token=$1 AND expires_at > NOW()',
+      [refreshToken]
+    );
+    if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired refresh token' });
+
+    const rt = result.rows[0];
+
+    // Rotate: delete old token and issue new pair
+    await pool.query('DELETE FROM refresh_tokens WHERE id=$1', [rt.id]);
+    const newAccessToken = jwt.sign({ userId: rt.user_id }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const newRefreshToken = await createRefreshToken(rt.user_id);
+
+    res.json({ token: newAccessToken, refreshToken: newRefreshToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Logout: delete refresh token server-side
+router.post('/logout', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (refreshToken) {
+    await pool.query('DELETE FROM refresh_tokens WHERE token=$1', [refreshToken]).catch(() => {});
+  }
+  res.json({ success: true });
 });
 
 router.post('/complete-onboarding', require('../middleware/auth'), async (req, res) => {

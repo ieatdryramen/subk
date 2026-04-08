@@ -9,7 +9,7 @@ const adminOnly = async (req, res, next) => {
 };
 
 // Get team overview dashboard - uses dedicated client with timeout
-router.get('/dashboard', auth, async (req, res) => {
+router.get('/dashboard', auth, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('SET statement_timeout = 8000');
@@ -105,7 +105,7 @@ router.get('/dashboard', auth, async (req, res) => {
 });
 
 // Get 7-day trend data for dashboard analytics
-router.get('/dashboard-analytics', auth, async (req, res) => {
+router.get('/dashboard-analytics', auth, adminOnly, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('SET statement_timeout = 8000');
@@ -296,11 +296,18 @@ router.get('/activity-feed', auth, async (req, res) => {
       if (safe) typeCond = `type IN (${safe})`;
     }
 
-    // Build search condition
-    let searchCond = '1=1';
+    // Build search condition (parameterized to prevent SQL injection)
+    // Main query: $1=userIds, $2=orgId, $3=limit, $4=offset, $5=search
+    // Count query: $1=userIds, $2=orgId, $3=search
+    let searchCondMain = '1=1';
+    let searchCondCount = '1=1';
+    const mainExtraParams = [];
+    const countExtraParams = [];
     if (searchParam) {
-      const safe = searchParam.replace(/'/g, "''");
-      searchCond = `(title ILIKE '%${safe}%' OR description ILIKE '%${safe}%')`;
+      searchCondMain = `(title ILIKE '%' || $5 || '%' OR description ILIKE '%' || $5 || '%')`;
+      searchCondCount = `(title ILIKE '%' || $3 || '%' OR description ILIKE '%' || $3 || '%')`;
+      mainExtraParams.push(searchParam);
+      countExtraParams.push(searchParam);
     }
 
     // Main activity query combining multiple sources
@@ -358,12 +365,12 @@ router.get('/activity-feed', auth, async (req, res) => {
         JOIN users u ON u.id = l.user_id
         WHERE l.user_id = ANY($1)
       ) combined
-      WHERE ${dateCond} AND ${typeCond} AND ${searchCond}
+      WHERE ${dateCond} AND ${typeCond} AND ${searchCondMain}
       ORDER BY created_at DESC
       LIMIT $3 OFFSET $4
     `;
 
-    const result = await client.query(q, [userIds, orgId, limit, offset]);
+    const result = await client.query(q, [userIds, orgId, limit, offset, ...mainExtraParams]);
 
     // Get total count
     const countQ = `
@@ -420,10 +427,10 @@ router.get('/activity-feed', auth, async (req, res) => {
         JOIN users u ON u.id = l.user_id
         WHERE l.user_id = ANY($1)
       ) combined
-      WHERE ${dateCond} AND ${typeCond} AND ${searchCond}
+      WHERE ${dateCond} AND ${typeCond} AND ${searchCondCount}
     `;
 
-    const countResult = await client.query(countQ, [userIds, orgId]);
+    const countResult = await client.query(countQ, [userIds, orgId, ...countExtraParams]);
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
