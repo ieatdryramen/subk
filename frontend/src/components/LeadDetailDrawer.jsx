@@ -88,6 +88,22 @@ export default function LeadDetailDrawer({ lead, isOpen, onClose, showToast, onL
     }
   }, [currentTab, lead?.id]);
 
+  // Get responsive drawer width
+  const getDrawerWidth = () => {
+    if (typeof window === 'undefined') return 560;
+    return window.innerWidth <= 768 ? '100vw' : 560;
+  };
+
+  const [drawerWidth, setDrawerWidth] = useState(getDrawerWidth());
+
+  useEffect(() => {
+    const handleResize = () => {
+      setDrawerWidth(getDrawerWidth());
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const handleClose = () => {
     setDrawerVisible(false);
     setTimeout(onClose, 250);
@@ -181,7 +197,7 @@ export default function LeadDetailDrawer({ lead, isOpen, onClose, showToast, onL
           position: 'fixed',
           top: 0,
           right: 0,
-          width: 560,
+          width: drawerWidth,
           height: '100vh',
           background: 'var(--bg2)',
           borderLeft: '1px solid var(--border)',

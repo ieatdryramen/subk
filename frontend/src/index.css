@@ -23,6 +23,60 @@
   --radius-lg: 12px;
 }
 
+html.dark {
+  --bg: #0f172a;
+  --bg2: #1e293b;
+  --bg3: #334155;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #f1f5f9;
+  --text2: #cbd5e1;
+  --text3: #94a3b8;
+  --accent: #2dd4bf;
+  --accent2: #14b8a6;
+  --accent-bg: rgba(45,212,191,0.10);
+  --accent-gold: #2dd4bf;
+  --success: #4ade80;
+  --success-bg: rgba(74,222,128,0.08);
+  --warning: #fbbf24;
+  --warning-bg: rgba(251,191,36,0.08);
+  --danger: #f87171;
+  --danger-bg: rgba(248,113,113,0.08);
+}
+
+html.dark body {
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: var(--bg2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+html.dark select::placeholder {
+  color: var(--text3);
+}
+
+html.dark select option {
+  background: var(--bg2);
+  color: var(--text);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+html.dark ::selection {
+  background-color: var(--accent);
+  color: var(--bg);
+}
+
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background: var(--bg);
@@ -41,7 +95,7 @@ h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 600; }
 input, textarea, select {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
-  background: #FFFFFF;
+  background: var(--bg2);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: var(--radius);
@@ -53,7 +107,7 @@ input, textarea { width: 100%; }
 select { width: auto; }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
-select option { background: #FFFFFF; }
+select option { background: var(--bg2); color: var(--text); }
 
 button {
   font-family: 'Plus Jakarta Sans', sans-serif;
@@ -155,7 +209,9 @@ tbody tr:hover { background: var(--bg); }
 
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E0; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 3px; }
+
+html.dark ::-webkit-scrollbar-thumb { background: #475569; }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
@@ -327,4 +383,67 @@ tbody tr:hover { background: var(--bg); }
   .pf-stat-grid {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* ============================================
+   DRAWER & MODAL MOBILE FIXES
+   ============================================ */
+@media (max-width: 768px) {
+  /* LeadDetailDrawer & similar drawers full-width on mobile */
+  [style*="width: 560"][style*="position: fixed"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    right: 0 !important;
+  }
+
+  [style*="width: 600"][style*="position: fixed"] {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    right: 0 !important;
+  }
+
+  /* Larger tap targets for mobile */
+  button {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  a {
+    min-height: 44px !important;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Form inputs with good padding for touch */
+  input, textarea, select {
+    padding: 12px 14px !important;
+    font-size: 16px !important; /* Prevent zoom on iOS */
+    min-height: 44px !important;
+  }
+
+  /* Card padding on mobile */
+  .pf-card {
+    padding: 12px !important;
+  }
+
+  /* Typography scaling for mobile */
+  h1 { font-size: 20px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 16px !important; }
+
+  /* Reduced line-height on mobile for space */
+  body { line-height: 1.5 !important; }
+}
+
+/* ============================================
+   RESPONSIVE SPACING UTILITIES
+   ============================================ */
+@media (max-width: 768px) {
+  [style*="padding: 2rem"] { padding: 1rem !important; }
+  [style*="gap: 24px"] { gap: 12px !important; }
+  [style*="gap: 20px"] { gap: 12px !important; }
+  [style*="gap: 16px"] { gap: 8px !important; }
+
+  /* Tight spacing on mobile */
+  .pf-section { margin-bottom: 1rem !important; }
 }

@@ -252,7 +252,7 @@ function DeadlineCountdown({ deadlines = [] }) {
             <div style={{
               padding: '4px 10px',
               background: countdownColor,
-              color: '#fff',
+              color: 'var(--bg2)',
               borderRadius: 'var(--radius)',
               fontSize: 11,
               fontWeight: 700,
