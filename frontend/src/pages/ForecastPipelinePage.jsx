@@ -99,8 +99,8 @@ export default function ForecastPipelinePage() {
         api.get('/forecast'),
         api.get('/forecast/agency-budgets'),
       ]);
-      setForecasts(forecastRes.data.forecasts || []);
-      setAgencyBudgets(budgetRes.data.budgets || []);
+      setForecasts(forecastRes.data?.data || forecastRes.data?.forecasts || []);
+      setAgencyBudgets(budgetRes.data?.data || budgetRes.data?.budgets || {});
     } catch (err) {
       addToast('Failed to load forecasts', 'error');
     } finally {
@@ -112,7 +112,7 @@ export default function ForecastPipelinePage() {
     try {
       setScanning(true);
       const res = await api.post('/forecast/scan');
-      setForecasts(res.data.forecasts || []);
+      setForecasts(res.data?.data || res.data?.forecasts || []);
       addToast('Scan complete - new opportunities found', 'success');
     } catch (err) {
       addToast('Scan failed', 'error');

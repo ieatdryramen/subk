@@ -391,6 +391,8 @@ const initDb = async () => {
       last_auto_run TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW()
     );
+    ALTER TABLE opportunity_searches ADD COLUMN IF NOT EXISTS auto_frequency VARCHAR(20) DEFAULT NULL;
+    ALTER TABLE opportunity_searches ADD COLUMN IF NOT EXISTS last_auto_run TIMESTAMP;
 
     -- Federal opportunities from SAM.gov
     CREATE TABLE IF NOT EXISTS opportunities (
@@ -716,11 +718,13 @@ const initDb = async () => {
       milestones JSONB DEFAULT '[]',
       notes TEXT,
       go_no_go VARCHAR(20),
+      estimated_value NUMERIC,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_capture_items_org ON capture_items(org_id);
     CREATE INDEX IF NOT EXISTS idx_capture_items_phase ON capture_items(phase);
+    ALTER TABLE capture_items ADD COLUMN IF NOT EXISTS estimated_value NUMERIC;
 
     CREATE TABLE IF NOT EXISTS forecast_opportunities (
       id SERIAL PRIMARY KEY,

@@ -494,7 +494,7 @@ export default function GovConEventsPage() {
     try {
       setLoading(true);
       const res = await api.get('/events');
-      setEvents(res.data || []);
+      setEvents(res.data?.data || res.data || []);
     } catch (err) {
       addToast('Failed to load events', 'error');
       console.error(err);

@@ -477,7 +477,7 @@ export default function ContractVehiclesPage() {
     try {
       setLoading(true);
       const res = await api.get('/contract-vehicles');
-      setVehicles(res.data || []);
+      setVehicles(res.data?.data || res.data || []);
     } catch (err) {
       addToast('Failed to load vehicles', 'error');
       console.error(err);

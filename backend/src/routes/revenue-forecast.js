@@ -109,7 +109,7 @@ router.get('/scenarios', auth, async (req, res) => {
     const submittedR = await pool.query(
       `SELECT COALESCE(SUM(estimated_value), 0) as total
        FROM proposals
-       WHERE org_id=$1 AND status IN ('submitted', 'won')`,
+       WHERE org_id=$1 AND status IN ('submitted', 'awarded')`,
       [orgId]
     );
 
@@ -119,7 +119,7 @@ router.get('/scenarios', auth, async (req, res) => {
     const worstR = await pool.query(
       `SELECT COALESCE(SUM(estimated_value), 0) as total
        FROM proposals
-       WHERE org_id=$1 AND status='won'`,
+       WHERE org_id=$1 AND status='awarded'`,
       [orgId]
     );
 

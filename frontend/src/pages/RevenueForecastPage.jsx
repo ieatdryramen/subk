@@ -350,8 +350,8 @@ export default function RevenueForecastPage() {
         api.get('/revenue-forecast'),
         api.get('/revenue-forecast/scenarios'),
       ]);
-      setData(forecastRes.data);
-      setScenarios(scenariosRes.data);
+      setData(forecastRes.data?.data || forecastRes.data);
+      setScenarios(scenariosRes.data?.data || scenariosRes.data);
     } catch (err) {
       addToast('Failed to load forecast data', 'error');
       console.error(err);

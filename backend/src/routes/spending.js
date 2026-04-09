@@ -11,13 +11,10 @@ const usaspending = require('../services/usaspending');
 router.get('/by-agency', auth, async (req, res) => {
   try {
     const { fiscalYear, limit = 20 } = req.query;
-
-    if (!fiscalYear) {
-      return res.status(400).json({ error: 'fiscalYear query parameter is required' });
-    }
+    const fy = parseInt(fiscalYear) || new Date().getFullYear();
 
     const results = await usaspending.getSpendingByAgency({
-      fiscalYear: parseInt(fiscalYear),
+      fiscalYear: fy,
       limit: parseInt(limit),
     });
 
@@ -38,14 +35,11 @@ router.get('/by-agency', auth, async (req, res) => {
 router.get('/by-naics', auth, async (req, res) => {
   try {
     const { fiscalYear, naics, limit = 20 } = req.query;
-
-    if (!fiscalYear || !naics) {
-      return res.status(400).json({ error: 'fiscalYear and naics query parameters are required' });
-    }
+    const fy = parseInt(fiscalYear) || new Date().getFullYear();
 
     const results = await usaspending.getSpendingByNaics({
-      fiscalYear: parseInt(fiscalYear),
-      naics,
+      fiscalYear: fy,
+      naics: naics || null,
       limit: parseInt(limit),
     });
 

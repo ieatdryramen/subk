@@ -544,7 +544,7 @@ export default function GovContactsPage() {
     try {
       setLoading(true);
       const res = await api.get('/gov-contacts');
-      setContacts(res.data || []);
+      setContacts(res.data?.data || res.data || []);
     } catch (err) {
       addToast('Failed to load contacts', 'error');
       console.error(err);
@@ -561,7 +561,7 @@ export default function GovContactsPage() {
     }
     try {
       const res = await api.get(`/gov-contacts/search?q=${encodeURIComponent(query)}`);
-      setContacts(res.data || []);
+      setContacts(res.data?.data || res.data || []);
     } catch (err) {
       addToast('Search failed', 'error');
       console.error(err);

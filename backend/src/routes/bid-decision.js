@@ -178,8 +178,45 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 /**
+ * POST /api/bid-decision/score
+ * Calculate weighted score (no ID required — stateless calculation)
+ */
+router.post('/score', auth, async (req, res) => {
+  try {
+    const { criteria } = req.body;
+
+    if (!criteria) {
+      return res.status(400).json({ error: 'Criteria object is required' });
+    }
+
+    for (const [key, value] of Object.entries(criteria)) {
+      if (typeof value !== 'number' || value < 1 || value > 5) {
+        return res.status(400).json({ error: `${key} must be a number between 1 and 5` });
+      }
+    }
+
+    const totalScore = calculateWeightedScore(criteria);
+    const recommendation = getRecommendation(totalScore);
+
+    const breakdown = {};
+    for (const [criterion, score] of Object.entries(criteria)) {
+      const weight = SCORING_WEIGHTS[criterion] || 0;
+      breakdown[criterion] = { score, weight, weighted_points: (score / 5) * weight };
+    }
+
+    res.json({
+      success: true,
+      data: { total_score: totalScore, recommendation, breakdown, criteria },
+    });
+  } catch (err) {
+    console.error('POST /bid-decision/score error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * POST /api/bid-decision/:id/score
- * Calculate weighted score for bid decision
+ * Calculate weighted score for a specific bid decision
  */
 router.post('/:id/score', auth, async (req, res) => {
   try {

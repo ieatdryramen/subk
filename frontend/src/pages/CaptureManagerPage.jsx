@@ -277,8 +277,8 @@ export default function CaptureManagerPage() {
         api.get('/opportunities'),
         api.get('/capture/stats'),
       ]);
-      setCaptures(captureRes.data.captures || []);
-      setOpportunities(oppRes.data.opportunities || []);
+      setCaptures(captureRes.data?.data || captureRes.data?.captures || []);
+      setOpportunities(oppRes.data?.opportunities || []);
     } catch (err) {
       addToast('Failed to load captures', 'error');
     } finally {
@@ -293,7 +293,7 @@ export default function CaptureManagerPage() {
         opportunity_id: data.opportunity_id ? parseInt(data.opportunity_id) : null,
         phase: data.initial_phase,
       });
-      setCaptures([...captures, res.data]);
+      setCaptures([...captures, res.data?.data || res.data]);
       setModalOpen(false);
       addToast('Capture created', 'success');
     } catch (err) {
@@ -313,7 +313,7 @@ export default function CaptureManagerPage() {
       const res = await api.put(`/capture/${id}`, {
         phase: nextPhase,
       });
-      setCaptures(captures.map(c => c.id === id ? res.data : c));
+      setCaptures(captures.map(c => c.id === id ? (res.data?.data || res.data) : c));
       addToast(`Advanced to ${nextPhase}`, 'success');
     } catch (err) {
       addToast('Failed to advance phase', 'error');
@@ -325,7 +325,7 @@ export default function CaptureManagerPage() {
       const res = await api.put(`/capture/${id}/gate-review`, {
         criteria: gateReviewCriteria[id] || {},
       });
-      setCaptures(captures.map(c => c.id === id ? res.data : c));
+      setCaptures(captures.map(c => c.id === id ? (res.data?.data || res.data) : c));
       setReviewingId(null);
       addToast('Gate review completed', 'success');
     } catch (err) {

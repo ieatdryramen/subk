@@ -78,6 +78,39 @@ router.post('/', auth, async (req, res) => {
 });
 
 /**
+ * GET /api/capture/stats
+ * Pipeline stats by phase (must be before /:id to avoid matching "stats" as an ID)
+ */
+router.get('/stats', auth, async (req, res) => {
+  try {
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    if (!orgId) {
+      return res.status(400).json({ error: 'User not in an organization' });
+    }
+
+    const r = await pool.query(
+      `SELECT
+        phase,
+        COUNT(*) as count,
+        AVG(pwin) as avg_pwin,
+        SUM(COALESCE((CASE WHEN go_no_go='go' THEN 1 ELSE 0 END), 0)) as go_count
+       FROM capture_items
+       WHERE org_id=$1
+       GROUP BY phase
+       ORDER BY ARRAY_POSITION(ARRAY['lead', 'qualify', 'capture', 'proposal', 'submit', 'award'], phase)`,
+      [orgId]
+    );
+
+    res.json({ success: true, data: r.rows });
+  } catch (err) {
+    console.error('GET /capture/stats error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
  * GET /api/capture/:id
  * Get capture item details
  */
@@ -232,33 +265,4 @@ router.delete('/:id', auth, async (req, res) => {
  * GET /api/capture/stats
  * Get pipeline stats by phase
  */
-router.get('/stats', auth, async (req, res) => {
-  try {
-    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
-    const orgId = userR.rows[0]?.org_id;
-
-    if (!orgId) {
-      return res.status(400).json({ error: 'User not in an organization' });
-    }
-
-    const r = await pool.query(
-      `SELECT
-        phase,
-        COUNT(*) as count,
-        AVG(pwin) as avg_pwin,
-        SUM(COALESCE((CASE WHEN go_no_go='go' THEN 1 ELSE 0 END), 0)) as go_count
-       FROM capture_items
-       WHERE org_id=$1
-       GROUP BY phase
-       ORDER BY ARRAY_POSITION(ARRAY['lead', 'qualify', 'capture', 'proposal', 'submit', 'award'], phase)`,
-      [orgId]
-    );
-
-    res.json({ success: true, data: r.rows });
-  } catch (err) {
-    console.error('GET /capture/stats error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 module.exports = router;

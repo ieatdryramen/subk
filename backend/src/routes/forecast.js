@@ -266,11 +266,10 @@ router.get('/agency-budgets', auth, async (req, res) => {
   try {
     const { agencies } = req.query;
 
-    if (!agencies) {
-      return res.status(400).json({ error: 'agencies query parameter is required' });
-    }
-
-    const agencyList = agencies.split(',').map(a => a.trim());
+    // Default to top agencies if none specified
+    const agencyList = agencies
+      ? agencies.split(',').map(a => a.trim())
+      : ['DOD', 'HHS', 'DHS', 'VA', 'GSA'];
     const budgets = {};
 
     for (const agency of agencyList) {

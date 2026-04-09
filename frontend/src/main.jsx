@@ -138,6 +138,12 @@ const App = () => (
         {/* Public routes */}
         <Route path="/sub/:id" element={<PublicProfilePage />} />
 
+        {/* Route aliases for common URLs */}
+        <Route path="/leads" element={<Navigate to="/lists" replace />} />
+        <Route path="/calendar" element={<Navigate to="/events" replace />} />
+        <Route path="/relationships" element={<Navigate to="/gov-contacts" replace />} />
+        <Route path="/settings" element={<Navigate to="/profile" replace />} />
+
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>

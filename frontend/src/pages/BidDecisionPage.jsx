@@ -138,7 +138,7 @@ const DecisionModal = ({ visible, onClose, onSave, loading, initial = null }) =>
       const res = await api.post('/bid-decision/score', {
         criteria: form.criteria,
       });
-      setScore(res.data.total_score);
+      setScore(res.data?.data?.total_score ?? res.data?.total_score);
     } catch (err) {
       console.error(err);
     }
@@ -335,7 +335,7 @@ export default function BidDecisionPage() {
     try {
       setLoading(true);
       const res = await api.get('/bid-decision');
-      setDecisions(res.data || []);
+      setDecisions(res.data?.data || res.data || []);
     } catch (err) {
       addToast('Failed to load decisions', 'error');
       console.error(err);
