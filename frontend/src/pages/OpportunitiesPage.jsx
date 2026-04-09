@@ -661,7 +661,7 @@ export default function OpportunitiesPage() {
     searchCard: { background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', marginBottom: '1.5rem' },
     row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 },
     label: { display: 'block', fontSize: 11, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4, fontWeight: 500 },
-    oppCard: (active) => ({ background: 'var(--bg2)', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', marginBottom: 8, overflow: 'hidden', transition: 'border-color 0.15s' }),
+    oppCard: (active) => ({ background: 'var(--bg2)', border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--radius-lg)', marginBottom: 8, transition: 'border-color 0.15s' }),
     oppHeader: { padding: '1rem 1.25rem', cursor: 'pointer', display: 'flex', gap: 12, alignItems: 'flex-start' },
     scoreBadge: (score) => ({ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 10, fontSize: 14, fontWeight: 700, flexShrink: 0, ...scoreColor(score) }),
     btn: (v) => ({ padding: '6px 12px', fontSize: 12, fontWeight: 500, borderRadius: 'var(--radius)', cursor: 'pointer', border: '1px solid var(--border)', background: v === 'primary' ? 'var(--accent)' : 'var(--bg3)', color: v === 'primary' ? '#FFFFFF' : 'var(--text2)' }),
@@ -904,7 +904,7 @@ export default function OpportunitiesPage() {
               }
             }}>
               <div style={s.scoreBadge(opp.fit_score)}>{opp.fit_score || '—'}</div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4, lineHeight: 1.3 }}>{opp.title}</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, color: 'var(--text2)', alignItems: 'center' }}>
                   <span>{opp.agency}</span>
