@@ -277,7 +277,7 @@ export default function SubProfilePage() {
   const generateCapStmt = async () => {
     setCapStmtLoading(true);
     try {
-      const r = await api.post('/profile/generate-capstmt');
+      const r = await api.post('/sub-profile/generate-capstmt');
       setCapStmtHtml(r.data.html);
       setCapStmtModal(true);
     } catch (err) {
@@ -301,7 +301,7 @@ export default function SubProfilePage() {
 
   const shareProfile = async () => {
     try {
-      const r = await api.post('/profile/share');
+      const r = await api.post('/sub-profile/share');
       navigator.clipboard.writeText(r.data.shareUrl).catch(() => {});
       showToast('Link copied to clipboard!', 'success');
     } catch (err) {

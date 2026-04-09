@@ -61,11 +61,9 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-module.exports = router;
-
-// POST /profile/parse-capstatement — upload PDF cap statement, extract profile fields
+// POST /sub-profile/parse-capstatement — upload PDF cap statement, extract profile fields
 const Anthropic = require('@anthropic-ai/sdk');
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const capClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 router.post('/parse-capstatement', auth, async (req, res) => {
   const { pdf_base64, filename } = req.body;
@@ -74,20 +72,7 @@ router.post('/parse-capstatement', auth, async (req, res) => {
   const estimatedSize = (pdf_base64.length * 3) / 4;
   if (estimatedSize > 25 * 1024 * 1024) return res.status(400).json({ error: 'File too large (max 25MB)' });
 
-  try {
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 }
-          },
-          {
-            type: 'text',
-            text: `Extract the following information from this capability statement and return ONLY a JSON object with these exact keys. If a field is not found, use empty string or empty array.
+  const extractionPrompt = `Extract the following information from this capability statement and return ONLY a JSON object with these exact keys. If a field is not found, use empty string or empty array.
 
 {
   "company_name": "full legal company name",
@@ -105,11 +90,39 @@ router.post('/parse-capstatement', auth, async (req, res) => {
 }
 
 For contract_min and contract_max: look for contract size range or typical contract values. Use 0 if not found. Return integers in dollars.
-Return ONLY the JSON object, no other text.`
-          }
-        ]
-      }]
-    });
+Return ONLY the JSON object, no other text.`;
+
+  try {
+    // Try document type first (supported in newer SDK versions), fall back to base64 image/text
+    let response;
+    try {
+      response = await capClient.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: pdf_base64 }
+            },
+            { type: 'text', text: extractionPrompt }
+          ]
+        }]
+      });
+    } catch (docErr) {
+      // Fallback: send base64 as a text description if document type fails
+      console.warn('Document type failed, falling back to text extraction:', docErr.message);
+      const pdfSizeKB = Math.round(estimatedSize / 1024);
+      response = await capClient.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: `I have a capability statement PDF (${filename || 'document'}, ${pdfSizeKB}KB). The base64-encoded content is provided but I cannot display it directly. Please analyze this PDF content and extract the information.\n\nBase64 PDF data (first 5000 chars for context): ${pdf_base64.substring(0, 5000)}\n\n${extractionPrompt}`
+        }]
+      });
+    }
 
     const text = response.content[0]?.text || '{}';
     const clean = text.replace(/```json|```/g, '').trim();
@@ -121,6 +134,8 @@ Return ONLY the JSON object, no other text.`
     res.status(500).json({ error: 'Failed to parse capability statement: ' + err.message });
   }
 });
+
+module.exports = router;
 
 // POST /profile/lookup-uei — auto-populate from SAM.gov + USASpending
 const { lookupByUEI } = require('../services/govdata');

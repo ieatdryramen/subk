@@ -122,7 +122,7 @@ export default function OnboardingPage() {
       }
       const formData = new FormData();
       formData.append('file', file);
-      const r = await api.post(`/lists/${listId}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const r = await api.post(`/lists/${listId}/import`, formData);
       setCsvImported(r.data.imported || 0);
       addToast(`Imported ${r.data.imported} contacts`, 'success');
     } catch (err) {
