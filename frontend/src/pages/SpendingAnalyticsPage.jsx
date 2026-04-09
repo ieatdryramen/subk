@@ -299,7 +299,7 @@ export default function SpendingAnalyticsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [fiscalYear]);
 
   const handleRefresh = async () => {
     try {

@@ -185,7 +185,18 @@ const VehicleModal = ({ visible, onClose, onSave, loading, initial = null }) => 
 
   useEffect(() => {
     if (initial) {
-      setForm(initial);
+      // Format dates for date input (YYYY-MM-DD)
+      const formatDate = (d) => {
+        if (!d) return '';
+        const date = new Date(d);
+        if (isNaN(date.getTime())) return '';
+        return date.toISOString().split('T')[0];
+      };
+      setForm({
+        ...initial,
+        start_date: formatDate(initial.start_date),
+        end_date: formatDate(initial.end_date),
+      });
     }
   }, [initial]);
 

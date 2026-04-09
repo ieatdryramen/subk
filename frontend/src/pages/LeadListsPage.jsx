@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../lib/api';
 import Layout from '../components/Layout';
 import { useToast } from '../components/Toast';
@@ -46,6 +46,7 @@ export default function LeadListsPage() {
   const [editForm, setEditForm] = useState({ name: '', description: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [loadError, setLoadError] = useState(null);
   const load = () => {
@@ -54,6 +55,12 @@ export default function LeadListsPage() {
     api.get('/lists').then(r => { setLists(r.data); setLoadingData(false); }).catch(err => { console.error(err); setLoadError('Failed to load lists'); setLoadingData(false); });
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (searchParams.get('create') === 'true') {
+      setShowModal(true);
+      setSearchParams({});
+    }
+  }, [searchParams]);
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') { setShowModal(false); setEditingList(null); } };
     document.addEventListener('keydown', onKey);

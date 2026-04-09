@@ -59,8 +59,8 @@ export default function ComplianceCenterPage() {
     try {
       setLoading(true);
       const res = await api.get('/compliance');
-      setItems(res.items || []);
-      setStats(res.stats || {});
+      setItems(res.data?.items || res.data?.data || []);
+      setStats(res.data?.stats || {});
     } catch (err) {
       addToast(err.message, 'error');
     } finally {
@@ -68,9 +68,25 @@ export default function ComplianceCenterPage() {
     }
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleStatusChange = async (itemOrKey, newStatus, template) => {
     try {
-      await api.put(`/compliance/${id}`, { status: newStatus });
+      if (typeof itemOrKey === 'number' || (typeof itemOrKey === 'string' && /^\d+$/.test(itemOrKey))) {
+        // Existing item — update by ID
+        await api.put(`/compliance/${itemOrKey}`, { status: newStatus });
+      } else {
+        // New item — create it first with the template data
+        await api.post('/compliance', {
+          items: [{
+            key: template.key,
+            category: template.category,
+            name: template.name,
+            description: template.description,
+            status: newStatus,
+            expiration_date: null,
+            notes: '',
+          }],
+        });
+      }
       addToast('Status updated', 'success');
       loadData();
     } catch (err) {
@@ -245,7 +261,7 @@ export default function ComplianceCenterPage() {
                     </div>
                     <select
                       value={status}
-                      onChange={(e) => handleStatusChange(item?.id || `new-${template.key}`, e.target.value)}
+                      onChange={(e) => handleStatusChange(item?.id || template.key, e.target.value, template)}
                       style={{
                         padding: '0.375rem 0.5rem',
                         border: `1px solid var(--border)`,

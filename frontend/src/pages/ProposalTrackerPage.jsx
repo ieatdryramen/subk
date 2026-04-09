@@ -671,8 +671,10 @@ export default function ProposalTrackerPage() {
 
   const handleGenerateDraft = async (proposalId, section) => {
     try {
+      // Convert display name to snake_case (e.g. "Executive Summary" → "executive_summary")
+      const sectionKey = section.toLowerCase().replace(/\s+/g, '_');
       const res = await api.post(`/proposals/${proposalId}/generate-draft`, {
-        section,
+        section: sectionKey,
       });
       const draft = res.data.content || res.data.draft || '';
 

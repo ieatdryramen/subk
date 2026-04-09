@@ -60,11 +60,16 @@ export default function SubConPlanPage() {
       addToast('Please fill in all fields', 'warning');
       return;
     }
+    const val = parseFloat(formData.contract_value);
+    if (isNaN(val) || val <= 0) {
+      addToast('Contract value must be a positive number', 'warning');
+      return;
+    }
 
     try {
       const res = await api.post('/subcon-plan', {
         title: formData.title,
-        contract_value: parseFloat(formData.contract_value),
+        contract_value: val,
       });
       addToast('Plan created', 'success');
       setFormData({ title: '', contract_value: '' });
@@ -77,6 +82,16 @@ export default function SubConPlanPage() {
 
   const handleUpdateGoals = async () => {
     if (!selectedPlan || !editingGoals) return;
+
+    // Validate percentages
+    const pctFields = ['sb_goal_pct', 'sdb_goal_pct', 'wosb_goal_pct', 'hubzone_goal_pct', 'sdvosb_goal_pct'];
+    for (const field of pctFields) {
+      const val = parseFloat(editingGoals[field]) || 0;
+      if (val < 0 || val > 100) {
+        addToast('Goal percentages must be between 0 and 100', 'warning');
+        return;
+      }
+    }
 
     try {
       await api.put(`/subcon-plan/${selectedPlan.id}`, editingGoals);
@@ -167,6 +182,7 @@ export default function SubConPlanPage() {
                 />
                 <input
                   type="number"
+                  min="0"
                   placeholder="Contract Value"
                   value={formData.contract_value}
                   onChange={(e) => setFormData({ ...formData, contract_value: e.target.value })}

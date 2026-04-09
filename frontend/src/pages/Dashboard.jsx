@@ -737,7 +737,7 @@ export default function Dashboard() {
   const pipelineValue = analyticsData?.pipeline_value || 0;
 
   const statCards = [
-    { n: stats?.total_playbooks || 0, label: 'Playbooks created', sub: `+${stats?.playbooks_this_week || 0} this week`, color: 'var(--accent2)', icon: '📋', trend: dashboardAnalytics?.playbook_trends?.map(t => t.count) || [] },
+    { n: stats?.total_playbooks || 0, label: 'Playbooks created', sub: (stats?.total_playbooks || 0) > 0 ? `+${stats?.playbooks_this_week || 0} this week` : 'Generate from a lead list', color: 'var(--accent2)', icon: '📋', trend: dashboardAnalytics?.playbook_trends?.map(t => t.count) || [] },
     { n: stats?.total_leads || totalLeads, label: 'Total leads', sub: `${readyLeads} ready`, color: 'var(--text)', icon: '👤', trend: [] },
     { n: stats?.touchpoints_completed || 0, label: 'Touches sent', sub: 'All sequences', color: 'var(--success)', icon: '🎯', trend: dashboardAnalytics?.touch_trends?.map(t => t.count) || [] },
     { n: oppCount || 0, label: 'Opportunities', sub: `${recentOpps.filter(o => o.fit_score >= 70).length} high-fit`, color: 'var(--accent)', icon: '🔍', trend: [] },
@@ -774,7 +774,7 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div style={{ display: 'flex', gap: 10, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {[
-            { label: '+ New List', path: '/lists', bg: 'var(--bg2)', color: 'var(--text)' },
+            { label: '+ New List', path: '/lists?create=true', bg: 'var(--bg2)', color: 'var(--text)' },
             { label: 'Find Opportunities', path: '/opportunities', bg: 'var(--bg2)', color: 'var(--text)', icon: '🔍' },
             { label: 'View Touches', path: '/reminders', bg: 'var(--bg2)', color: 'var(--text)', icon: '📋' },
             { label: 'AI Coach', path: '/coach', bg: 'var(--accent)', color: '#fff', icon: '✨' },

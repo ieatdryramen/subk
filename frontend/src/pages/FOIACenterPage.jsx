@@ -26,13 +26,19 @@ export default function FOIACenterPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [reqRes, templateRes] = await Promise.all([
+      const results = await Promise.allSettled([
         api.get('/foia'),
         api.get('/foia/templates'),
       ]);
-      setRequests(reqRes.data?.requests || []);
-      setStats({ ...(reqRes.data?.stats || {}), total: reqRes.data?.total || reqRes.data?.requests?.length || 0 });
-      setTemplates(templateRes.data?.templates || []);
+      const reqRes = results[0].status === 'fulfilled' ? results[0].value : null;
+      const templateRes = results[1].status === 'fulfilled' ? results[1].value : null;
+      if (reqRes) {
+        setRequests(reqRes.data?.requests || []);
+        setStats({ ...(reqRes.data?.stats || {}), total: reqRes.data?.total || reqRes.data?.requests?.length || 0 });
+      }
+      if (templateRes) {
+        setTemplates(templateRes.data?.templates || []);
+      }
     } catch (err) {
       addToast(err.message, 'error');
     } finally {
@@ -58,9 +64,10 @@ export default function FOIACenterPage() {
       });
       setSelectedTemplate('');
       setShowNewModal(false);
-      loadData();
+      await loadData();
     } catch (err) {
-      addToast(err.message, 'error');
+      addToast(err.message || 'Failed to create request', 'error');
+      setLoading(false);
     }
   };
 
