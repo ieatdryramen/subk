@@ -132,6 +132,8 @@ export default function Layout({ children }) {
       display: 'flex',
       flexDirection: 'column',
       flexShrink: 0,
+      height: '100vh',
+      overflow: 'hidden',
     }}>
       <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -141,7 +143,7 @@ export default function Layout({ children }) {
         </div>
         <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text2)', fontSize: 20, cursor: 'pointer', padding: 0 }} className="mobile-close">✕</button>
       </div>
-      <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
+      <nav style={{ flex: 1, minHeight: 0, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto' }}>
         {navSections.map(section => {
           const visibleItems = section.items.filter(item => !item.adminOnly || isAdmin);
           if (visibleItems.length === 0) return null;

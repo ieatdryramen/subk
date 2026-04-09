@@ -442,6 +442,216 @@ async function demoSeedHandler(req, res) {
     }
     results.profile = true;
 
+    // ══════════════════════════════════════════════
+    // NEW MODULE SEED DATA (Batch 1-3 features)
+    // ══════════════════════════════════════════════
+
+    // Clean new module data
+    await client.query(`DELETE FROM govcon_events WHERE org_id = $1 OR is_global = true`, [user.org_id]);
+    await client.query(`DELETE FROM contract_vehicles WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM gov_contacts WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM capture_items WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM compliance_items WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM foia_requests WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM subcon_plans WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM market_research_reports WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM bid_decisions WHERE org_id = $1`, [user.org_id]);
+    await client.query(`DELETE FROM revenue_entries WHERE org_id = $1`, [user.org_id]);
+
+    results.events = 0;
+    results.contract_vehicles = 0;
+    results.gov_contacts = 0;
+    results.capture_items = 0;
+    results.compliance_items = 0;
+    results.foia_requests = 0;
+    results.subcon_plans = 0;
+    results.market_research = 0;
+    results.bid_decisions = 0;
+
+    // ── EVENTS ──
+    const events = [
+      { title: 'AFCEA TechNet Cyber', event_type: 'conference', agency: 'Department of Defense', location: 'Baltimore, MD', start_date: '2026-05-05', end_date: '2026-05-07', description: 'Premier DoD cybersecurity conference with exhibits and technical panels' },
+      { title: 'PSC Vision Federal Market Forecast', event_type: 'conference', agency: null, location: 'Washington, DC', start_date: '2026-06-10', end_date: '2026-06-11', description: 'Industry forecast for federal IT spending and acquisition trends' },
+      { title: 'GovConWire GovCon Summit', event_type: 'conference', agency: null, location: 'Tysons Corner, VA', start_date: '2026-04-22', end_date: '2026-04-22', description: 'Executive-level networking and panel discussions on GovCon trends' },
+      { title: 'DHS Industry Day — Cybersecurity Services BPA', event_type: 'industry_day', agency: 'Department of Homeland Security', location: 'Virtual', start_date: '2026-04-28', end_date: '2026-04-28', description: 'Pre-solicitation industry day for upcoming CISA cybersecurity BPA' },
+      { title: 'Army IT Infrastructure Modernization Industry Day', event_type: 'industry_day', agency: 'Department of Defense', location: 'Fort Belvoir, VA', start_date: '2026-05-15', end_date: '2026-05-15', description: 'Army CIO briefing on cloud migration and zero trust architecture requirements' },
+      { title: 'OSDBU Small Business Conference', event_type: 'conference', agency: 'General Services Administration', location: 'Washington, DC', start_date: '2026-06-03', end_date: '2026-06-04', description: 'Annual small business matchmaking and capability briefings' },
+      { title: 'VA EHR Modernization Vendor Forum', event_type: 'industry_day', agency: 'Department of Veterans Affairs', location: 'Virtual', start_date: '2026-03-18', end_date: '2026-03-18', description: 'VA OEHRM quarterly vendor engagement on Oracle Health EHR deployment' },
+      { title: 'NIST Cybersecurity Framework Workshop', event_type: 'webinar', agency: null, location: 'Virtual', start_date: '2026-05-20', end_date: '2026-05-20', description: 'NIST-led workshop on CSF 2.0 implementation and CMMC alignment' },
+      { title: 'Air Force SBIR/STTR Pitch Day', event_type: 'networking', agency: 'Department of Defense', location: 'Wright-Patterson AFB, OH', start_date: '2026-07-14', end_date: '2026-07-15', description: 'Fast-track pitch event for innovative small business technology solutions' },
+      { title: 'HHS Data Analytics Pre-Solicitation Conference', event_type: 'industry_day', agency: 'Department of Health and Human Services', location: 'Bethesda, MD', start_date: '2026-04-16', end_date: '2026-04-16', description: 'Upcoming $200M data analytics platform modernization' },
+    ];
+    for (const e of events) {
+      await client.query(
+        `INSERT INTO govcon_events (org_id, title, event_type, agency, location, start_date, end_date, description, rsvp_status, is_global)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true)`,
+        [user.org_id, e.title, e.event_type, e.agency, e.location, e.start_date, e.end_date, e.description, e.rsvp_status || 'none']
+      );
+      results.events++;
+    }
+
+    // ── CONTRACT VEHICLES ──
+    const vehicles = [
+      { name: 'GSA MAS (Multiple Award Schedule)', vehicle_type: 'GSA Schedule', contract_number: 'GS-35F-0521T', agency: 'General Services Administration', ceiling_value: 25000000, current_value: 8500000, start_date: '2022-06-01', end_date: '2027-05-31', option_years: 3, naics_codes: '["541512","541511","541519"]', status: 'active' },
+      { name: 'CIO-SP3 Small Business', vehicle_type: 'GWAC', contract_number: 'HHSN316201500055W', agency: 'National Institutes of Health', ceiling_value: 20000000000, current_value: null, start_date: '2019-05-01', end_date: '2029-04-30', option_years: 0, naics_codes: '["541512","541511","518210"]', status: 'active' },
+      { name: 'Alliant 2 Small Business', vehicle_type: 'GWAC', contract_number: '47QTCK18D0001', agency: 'General Services Administration', ceiling_value: 15000000000, current_value: null, start_date: '2018-07-01', end_date: '2028-06-30', option_years: 0, naics_codes: '["541512","541519","541330"]', status: 'active' },
+      { name: 'SEWP V', vehicle_type: 'GWAC', contract_number: 'NNG15SC35B', agency: 'NASA', ceiling_value: 50000000000, current_value: null, start_date: '2015-05-01', end_date: '2025-04-30', option_years: 0, naics_codes: '["334111","541512"]', status: 'expiring' },
+      { name: 'OASIS SB Pool 1', vehicle_type: 'IDIQ', contract_number: '47QRAA20D0001', agency: 'General Services Administration', ceiling_value: 60000000000, current_value: null, start_date: '2020-07-01', end_date: '2030-06-30', option_years: 5, naics_codes: '["541611","541512","541330"]', status: 'active' },
+      { name: '8(a) STARS III', vehicle_type: 'GWAC', contract_number: '47QTCB21D0001', agency: 'General Services Administration', ceiling_value: 50000000000, current_value: null, start_date: '2021-07-02', end_date: '2029-07-01', option_years: 0, naics_codes: '["541512","541511","541519"]', status: 'active' },
+      { name: 'DHS EAGLE II', vehicle_type: 'IDIQ', contract_number: 'HSHQDC-13-D-E2001', agency: 'Department of Homeland Security', ceiling_value: 22000000000, current_value: 3200000, start_date: '2014-09-01', end_date: '2025-08-31', option_years: 0, naics_codes: '["541512","541519"]', status: 'expiring' },
+    ];
+    for (const v of vehicles) {
+      await client.query(
+        `INSERT INTO contract_vehicles (org_id, name, vehicle_type, contract_number, agency, ceiling_value, current_value, start_date, end_date, option_years, naics_codes, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12)`,
+        [user.org_id, v.name, v.vehicle_type, v.contract_number, v.agency, v.ceiling_value, v.current_value, v.start_date, v.end_date, v.option_years, v.naics_codes, v.status]
+      );
+      results.contract_vehicles++;
+    }
+
+    // ── GOV CONTACTS ──
+    const contacts = [
+      { name: 'Col. James Peterson', title: 'Program Manager, Army Cyber Command', agency: 'Department of Defense', office: 'ARCYBER G-6', email: 'james.peterson@army.mil', phone: '703-555-0142', notes: 'Key contact for network defense programs. Met at AFCEA 2025.', last_interaction: '2026-03-15', interaction_count: 5 },
+      { name: 'Sarah Chen', title: 'Contracting Officer', agency: 'Department of Homeland Security', office: 'CISA Acquisitions', email: 'sarah.chen@cisa.dhs.gov', phone: '202-555-0198', notes: 'Manages cyber services BPA. Responsive to capability statements.', last_interaction: '2026-04-01', interaction_count: 3 },
+      { name: 'Dr. Michael Torres', title: 'Chief Information Officer', agency: 'Department of Veterans Affairs', office: 'Office of Information Technology', email: 'michael.torres@va.gov', phone: '202-555-0237', notes: 'Driving EHR modernization. Interested in data migration solutions.', last_interaction: '2026-02-20', interaction_count: 2 },
+      { name: 'Patricia Williams', title: 'Deputy CTO', agency: 'Department of Health and Human Services', office: 'OCIO', email: 'patricia.williams@hhs.gov', phone: '202-555-0305', notes: 'Oversees cloud-first strategy. Budget authority for data analytics.', last_interaction: '2026-03-28', interaction_count: 4 },
+      { name: 'Robert Kim', title: 'Small Business Specialist', agency: 'General Services Administration', office: 'OSDBU', email: 'robert.kim@gsa.gov', phone: '202-555-0176', notes: 'Helpful with GSA Schedule and OASIS questions. Annual conference organizer.', last_interaction: '2026-04-05', interaction_count: 8 },
+      { name: 'LCDR Nicole Davis', title: 'IT Acquisitions Lead', agency: 'Department of Defense', office: 'NAVSEA', email: 'nicole.davis@navy.mil', phone: '703-555-0289', notes: 'Manages $50M+ IT modernization portfolio. Prefers technical white papers.', last_interaction: '2026-01-10', interaction_count: 2 },
+      { name: 'Ahmad Hassan', title: 'Program Analyst', agency: 'Department of Defense', office: 'DISA', email: 'ahmad.hassan@disa.mil', phone: '301-555-0154', notes: 'Zero trust implementation lead. Connected us to milCloud program.', last_interaction: '2026-03-22', interaction_count: 6 },
+      { name: 'Jennifer Lopez-Rivera', title: 'Contracting Officer Representative', agency: 'Department of Energy', office: 'NNSA', email: 'jennifer.lopezrivera@nnsa.doe.gov', phone: '505-555-0211', notes: 'Oversees classified computing contracts. ITAR-cleared programs.', last_interaction: '2026-02-14', interaction_count: 1 },
+      { name: 'David Washington', title: 'Branch Chief, Cloud Services', agency: 'Department of Defense', office: 'Pentagon OCIO', email: 'david.washington@osd.mil', phone: '703-555-0322', notes: 'JWCC decision-maker. Strong advocate for multi-cloud strategy.', last_interaction: '2026-04-02', interaction_count: 3 },
+      { name: 'Maria Gonzalez', title: 'Deputy Director, IT Modernization', agency: 'Department of Homeland Security', office: 'CBP', email: 'maria.gonzalez@cbp.dhs.gov', phone: '202-555-0267', notes: 'Leading border technology upgrades. $80M program in planning.', last_interaction: '2026-03-10', interaction_count: 4 },
+      { name: 'Thomas Anderson', title: 'Contracting Officer', agency: 'Department of Defense', office: 'Air Force LCMC', email: 'thomas.anderson@us.af.mil', phone: '937-555-0199', notes: 'Wright-Patterson contracting. Manages SBIR/STTR evaluations.', last_interaction: '2026-01-28', interaction_count: 2 },
+      { name: 'Lisa Park', title: 'Chief Data Officer', agency: 'Department of Health and Human Services', office: 'CDC', email: 'lisa.park@cdc.gov', phone: '404-555-0143', notes: 'Manages data platform modernization. FY26 $35M budget for analytics.', last_interaction: '2026-03-05', interaction_count: 3 },
+    ];
+    for (const c of contacts) {
+      await client.query(
+        `INSERT INTO gov_contacts (org_id, name, title, agency, office, email, phone, notes, last_interaction, interaction_count, tags)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'[]'::jsonb)`,
+        [user.org_id, c.name, c.title, c.agency, c.office, c.email, c.phone, c.notes, c.last_interaction, c.interaction_count]
+      );
+      results.gov_contacts++;
+    }
+
+    // ── CAPTURE ITEMS ──
+    const captures = [
+      { title: 'DHS CISA Cybersecurity Services BPA', phase: 'capture', pwin: 55, estimated_value: 12000000, notes: 'Strong incumbent relationship. Solution architecture in progress.', go_no_go: 'go' },
+      { title: 'Army Network Modernization - Cyber Defense', phase: 'qualify', pwin: 35, estimated_value: 48000000, notes: 'Large program. Need teaming partner with TS/SCI cleared staff.', go_no_go: null },
+      { title: 'VA Data Migration & Analytics Platform', phase: 'proposal', pwin: 70, estimated_value: 8500000, notes: 'Proposal due June 15. Technical volume drafted. Past performance strong.', go_no_go: 'go' },
+      { title: 'HHS Cloud Infrastructure Modernization', phase: 'lead', pwin: 15, estimated_value: 25000000, notes: 'Early stage. RFI expected Q3 FY26. Building agency relationships.', go_no_go: null },
+      { title: 'DISA Zero Trust Architecture Implementation', phase: 'capture', pwin: 45, estimated_value: 35000000, notes: 'Teaming with Booz Allen. Gate review passed. Pricing model being developed.', go_no_go: 'go' },
+      { title: 'CBP Border Technology Upgrades', phase: 'qualify', pwin: 25, estimated_value: 4800000, notes: 'Small business set-aside. Matches 541512 NAICS. Investigating past performance gap.', go_no_go: null },
+    ];
+    for (const cap of captures) {
+      const gateCriteria = { lead: ['Funded?','Matches capabilities?','Worth pursuing?'], qualify: ['Customer access?','Past performance?','Know incumbent?'], capture: ['Solution defined?','Team identified?','Price competitive?'], proposal: ['Compliant?','Reviewed?','Competitive?'] };
+      await client.query(
+        `INSERT INTO capture_items (org_id, user_id, title, phase, pwin, estimated_value, gate_criteria, notes, go_no_go)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+        [user.org_id, user.id, cap.title, cap.phase, cap.pwin, cap.estimated_value, JSON.stringify(gateCriteria[cap.phase] || []), cap.notes, cap.go_no_go]
+      );
+      results.capture_items++;
+    }
+
+    // ── COMPLIANCE ITEMS ──
+    const compItems = [
+      { requirement_key: 'sam_registration', category: 'Registrations', status: 'pass', expiration_date: '2027-03-15', notes: 'SAM.gov registration active. Renewal March 2027.' },
+      { requirement_key: 'far_52_204_21', category: 'FAR/DFARS', status: 'pass', expiration_date: null, notes: 'Basic safeguarding of covered contractor information. Implemented.' },
+      { requirement_key: 'dfars_252_204_7012', category: 'FAR/DFARS', status: 'in_progress', expiration_date: null, notes: 'Cyber incident reporting. NIST 800-171 assessment in progress.' },
+      { requirement_key: 'cmmc_level_1', category: 'CMMC', status: 'pass', expiration_date: '2027-01-01', notes: 'Level 1 self-assessment complete. 17 practices verified.' },
+      { requirement_key: 'cmmc_level_2', category: 'CMMC', status: 'in_progress', expiration_date: null, notes: 'C3PAO assessment scheduled for July 2026. 78/110 practices implemented.' },
+      { requirement_key: 'cui_handling', category: 'CUI', status: 'in_progress', expiration_date: null, notes: 'CUI marking and handling procedures drafted. Training 60% complete.' },
+      { requirement_key: 'section_508', category: 'Section 508', status: 'pass', expiration_date: null, notes: 'VPAT completed for all deliverable software. WCAG 2.1 AA compliant.' },
+      { requirement_key: 'itar_compliance', category: 'ITAR', status: 'not_started', expiration_date: null, notes: 'Not currently required. Will need for DISA contract if awarded.' },
+      { requirement_key: 'dcaa_audit', category: 'Registrations', status: 'pass', expiration_date: '2026-12-31', notes: 'Incurred cost audit passed. Accounting system approved.' },
+      { requirement_key: 'iso_27001', category: 'FAR/DFARS', status: 'in_progress', expiration_date: null, notes: 'ISO 27001 certification in progress. Stage 1 audit complete.' },
+    ];
+    for (const ci of compItems) {
+      await client.query(
+        `INSERT INTO compliance_items (org_id, requirement_key, category, status, expiration_date, notes)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [user.org_id, ci.requirement_key, ci.category, ci.status, ci.expiration_date, ci.notes]
+      );
+      results.compliance_items++;
+    }
+
+    // ── FOIA REQUESTS ──
+    const foiaReqs = [
+      { title: 'Incumbent pricing on DHS CISA Cyber BPA', agency: 'Department of Homeland Security', template_type: 'pricing', status: 'submitted', tracking_number: 'DHS-2026-FOIA-04521', submitted_date: '2026-02-10', notes: 'Requested full pricing volume from incumbent contract N6523419C0045.' },
+      { title: 'Past performance evaluation — Army NetMod', agency: 'Department of Defense', template_type: 'past_performance', status: 'processing', tracking_number: 'DOD-2026-FOIA-11892', submitted_date: '2026-01-15', notes: 'Requested past performance evaluation of Leidos on Army Network contract.' },
+      { title: 'VA EHRM contract modifications FY25', agency: 'Department of Veterans Affairs', template_type: 'contract_modifications', status: 'completed', tracking_number: 'VA-2026-FOIA-00892', submitted_date: '2025-11-20', response_date: '2026-03-01', notes: 'Received 47 pages of contract modifications. Key intel on scope changes.' },
+      { title: 'CBP border tech RFP evaluation criteria', agency: 'Department of Homeland Security', template_type: 'competitor_proposals', status: 'draft', notes: 'Draft request for evaluation criteria and scoring from prior CBP tech procurement.' },
+    ];
+    for (const f of foiaReqs) {
+      await client.query(
+        `INSERT INTO foia_requests (org_id, user_id, title, agency, template_type, status, tracking_number, submitted_date, response_date, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [user.org_id, user.id, f.title, f.agency, f.template_type, f.status, f.tracking_number || null, f.submitted_date || null, f.response_date || null, f.notes]
+      );
+      results.foia_requests++;
+    }
+
+    // ── SUBCONTRACTING PLANS ──
+    const subPlans = [
+      { title: 'DHS CISA Cybersecurity BPA — SubCon Plan', contract_value: 12000000, sb_goal_pct: 35, sdb_goal_pct: 8, wosb_goal_pct: 6, hubzone_goal_pct: 4, sdvosb_goal_pct: 5, identified_subs: '[{"name":"CyberShield Solutions","type":"8(a) SDB","naics":"541512","value":1200000},{"name":"SecureNet Women-Owned","type":"WOSB","naics":"541519","value":720000}]', status: 'draft' },
+      { title: 'Army Network Modernization — SubCon Plan', contract_value: 48000000, sb_goal_pct: 23, sdb_goal_pct: 5, wosb_goal_pct: 5, hubzone_goal_pct: 3, sdvosb_goal_pct: 3, identified_subs: '[{"name":"VetTech Cyber","type":"SDVOSB","naics":"541512","value":2400000},{"name":"HubZone IT Solutions","type":"HUBZone","naics":"541511","value":1440000},{"name":"Minority Tech Partners","type":"SDB","naics":"541330","value":2400000}]', status: 'draft' },
+    ];
+    for (const sp of subPlans) {
+      await client.query(
+        `INSERT INTO subcon_plans (org_id, title, contract_value, sb_goal_pct, sdb_goal_pct, wosb_goal_pct, hubzone_goal_pct, sdvosb_goal_pct, identified_subs, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)`,
+        [user.org_id, sp.title, sp.contract_value, sp.sb_goal_pct, sp.sdb_goal_pct, sp.wosb_goal_pct, sp.hubzone_goal_pct, sp.sdvosb_goal_pct, sp.identified_subs, sp.status]
+      );
+      results.subcon_plans++;
+    }
+
+    // ── MARKET RESEARCH REPORTS ──
+    const mrReports = [
+      { title: 'NAICS 541512 — Computer Systems Design Services Market Analysis', naics: '541512', agency: 'Department of Defense', content: '## Market Overview\n\nThe Computer Systems Design Services market (NAICS 541512) represents one of the largest federal IT spending categories, with $18.2B in obligations in FY2025. The DoD accounts for approximately 45% of total spend.\n\n## Key Trends\n\nCloud migration continues to drive growth, with DoD JWCC and CIA C2E contracts leading the way. Zero trust architecture mandates (per EO 14028) are creating new opportunities in network security and identity management.\n\n## Competitive Landscape\n\nTop contractors by revenue: Leidos ($4.2B), Booz Allen Hamilton ($3.8B), SAIC ($2.9B), Perspecta/Peraton ($2.1B). Small business share has grown to 28% in FY2025.\n\n## Opportunities\n\n$3.4B in upcoming recompetes identified for FY2026-2027. Key programs include Army network modernization ($2.1B), DISA infrastructure ($890M), and VA data analytics ($350M).\n\n## Recommendations\n\nFocus on zero trust and cloud migration capabilities. Build past performance in DoD cyber. Consider teaming with established primes for larger opportunities while pursuing 8(a) and SDVOSB set-asides independently.' },
+      { title: 'NAICS 541519 — Other Computer Related Services (HHS Focus)', naics: '541519', agency: 'Department of Health and Human Services', content: '## Market Overview\n\nNAICS 541519 covers IT services not classified elsewhere, including data analytics, AI/ML, and specialized technical services. HHS spent $2.8B in this category in FY2025.\n\n## Agency Analysis: HHS\n\nCDC data modernization ($1.1B program) is the largest initiative. CMS continues to invest in Medicare/Medicaid fraud detection using AI. NIH research computing represents a growing segment.\n\n## Small Business Landscape\n\nSmall business participation at 34% — above governmentwide average. 8(a) and WOSB set-asides are common. CIO-SP3 SB is the preferred vehicle.\n\n## Forecast\n\nExpect $450M in new procurements in FY2026, primarily in data analytics and AI/ML platforms. HHS is consolidating its data infrastructure, creating opportunities for firms with both technical depth and healthcare domain expertise.' },
+      { title: 'Cybersecurity Services Market — Cross-Agency Analysis', naics: '541512', agency: null, content: '## Executive Summary\n\nFederal cybersecurity spending reached $22.8B in FY2025, up 12% from FY2024. This growth is driven by CMMC implementation, zero trust mandates, and increased threat landscape.\n\n## Spending by Agency\n\nDoD: $10.2B (45%), DHS/CISA: $3.1B (14%), Intelligence Community: $2.8B (12%), Civilian agencies: $6.7B (29%).\n\n## Market Dynamics\n\nThe shift to managed security services and security-as-a-service models is accelerating. Endpoint detection and response (EDR), security orchestration (SOAR), and cloud security posture management (CSPM) are fastest-growing segments.\n\n## Entry Strategy\n\nFor small businesses: target DHS CISA set-asides and DoD SBIR programs. Build CMMC Level 2 certification as a differentiator. Partner with large primes on enterprise programs while pursuing $5-15M standalone opportunities.' },
+    ];
+    for (const mr of mrReports) {
+      await client.query(
+        `INSERT INTO market_research_reports (org_id, user_id, title, naics, agency, content)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [user.org_id, user.id, mr.title, mr.naics, mr.agency, mr.content]
+      );
+      results.market_research++;
+    }
+
+    // ── BID DECISIONS ──
+    const bidDecisions = [
+      { title: 'DHS CISA Cybersecurity Services BPA', criteria: '{"strategic_fit":5,"technical_capability":4,"past_performance":4,"pricing_competitiveness":4,"competition_level":3,"timeline_feasibility":4,"resource_availability":4}', total_score: 82, recommendation: 'bid', decision: 'bid', decision_date: '2026-01-20', rationale: 'Strong strategic fit with our core cyber capabilities. Past performance on similar DHS work. Pricing competitive based on rate benchmarks. Proceed to capture phase.' },
+      { title: 'Army Network Modernization', criteria: '{"strategic_fit":4,"technical_capability":3,"past_performance":2,"pricing_competitiveness":3,"competition_level":2,"timeline_feasibility":3,"resource_availability":3}', total_score: 58, recommendation: 'consider', decision: 'bid', decision_date: '2026-02-05', rationale: 'Large opportunity with growth potential but gaps in past performance. Decision to bid contingent on securing teaming partner with Army network experience.' },
+      { title: 'IRS Tax Processing System Rewrite', criteria: '{"strategic_fit":2,"technical_capability":3,"past_performance":1,"pricing_competitiveness":2,"competition_level":1,"timeline_feasibility":2,"resource_availability":2}', total_score: 36, recommendation: 'no_bid', decision: 'no_bid', decision_date: '2026-02-28', rationale: 'No relevant past performance in tax systems. Heavy competition from incumbents. Resource requirements exceed current capacity. Focus efforts on DHS and DoD opportunities.' },
+      { title: 'VA Data Migration & Analytics', criteria: '{"strategic_fit":5,"technical_capability":5,"past_performance":4,"pricing_competitiveness":4,"competition_level":4,"timeline_feasibility":4,"resource_availability":5}', total_score: 90, recommendation: 'bid', decision: 'bid', decision_date: '2026-03-12', rationale: 'Excellent fit. Strong past performance on similar VA data work. Competitive pricing with high win probability. Small business set-aside reduces competition.' },
+    ];
+    for (const bd of bidDecisions) {
+      await client.query(
+        `INSERT INTO bid_decisions (org_id, user_id, title, criteria, total_score, recommendation, decision, decision_date, rationale)
+         VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8,$9)`,
+        [user.org_id, user.id, bd.title, bd.criteria, bd.total_score, bd.recommendation, bd.decision, bd.decision_date, bd.rationale]
+      );
+      results.bid_decisions++;
+    }
+
+    // ── REVENUE ENTRIES (actuals for past months) ──
+    const revenueEntries = [
+      { title: 'GSA MAS Task Order — DHS CISA', amount: 450000, month: '2026-01-01', source: 'contract', is_actual: true },
+      { title: 'GSA MAS Task Order — DHS CISA', amount: 450000, month: '2026-02-01', source: 'contract', is_actual: true },
+      { title: 'GSA MAS Task Order — DHS CISA', amount: 450000, month: '2026-03-01', source: 'contract', is_actual: true },
+      { title: 'VA Data Analytics Support', amount: 180000, month: '2026-02-01', source: 'contract', is_actual: true },
+      { title: 'VA Data Analytics Support', amount: 180000, month: '2026-03-01', source: 'contract', is_actual: true },
+      { title: 'DISA Consulting Engagement', amount: 95000, month: '2026-03-01', source: 'contract', is_actual: true },
+    ];
+    for (const re of revenueEntries) {
+      await client.query(
+        `INSERT INTO revenue_entries (org_id, title, amount, month, source, is_actual)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [user.org_id, re.title, re.amount, re.month, re.source, re.is_actual]
+      );
+    }
+
     res.json({ success: true, summary: results });
   } catch (err) {
     console.error('Seed error:', err.message);
