@@ -378,10 +378,10 @@ export default function BidDecisionPage() {
   };
 
   // Statistics
-  const bidCount = decisions.filter((d) => d.recommendation === 'Bid').length;
-  const considerCount = decisions.filter((d) => d.recommendation === 'Consider').length;
-  const noBidCount = decisions.filter((d) => d.recommendation === 'No-Bid').length;
-  const avgScore = decisions.length > 0 ? Math.round(decisions.reduce((sum, d) => sum + (d.total_score || 0), 0) / decisions.length) : 0;
+  const bidCount = decisions.filter((d) => (d.recommendation || '').toLowerCase() === 'bid').length;
+  const considerCount = decisions.filter((d) => (d.recommendation || '').toLowerCase() === 'consider').length;
+  const noBidCount = decisions.filter((d) => ['no-bid', 'no_bid', 'nobid'].includes((d.recommendation || '').toLowerCase())).length;
+  const avgScore = decisions.length > 0 ? Math.round(decisions.reduce((sum, d) => sum + (Number(d.total_score) || 0), 0) / decisions.length) : 0;
 
   return (
     <Layout>

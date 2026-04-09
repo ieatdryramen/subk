@@ -100,7 +100,8 @@ export default function ForecastPipelinePage() {
         api.get('/forecast/agency-budgets'),
       ]);
       setForecasts(forecastRes.data?.data || forecastRes.data?.forecasts || []);
-      setAgencyBudgets(budgetRes.data?.data || budgetRes.data?.budgets || {});
+      const budgetData = budgetRes.data?.data || budgetRes.data?.budgets || [];
+      setAgencyBudgets(Array.isArray(budgetData) ? budgetData : []);
     } catch (err) {
       addToast('Failed to load forecasts', 'error');
     } finally {
@@ -525,7 +526,7 @@ export default function ForecastPipelinePage() {
           <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: '0 0 1.5rem 0' }}>
             Agency Budget Trends
           </h2>
-          <AgencyBudgetChart data={agencyBudgets.slice(0, 10)} />
+          <AgencyBudgetChart data={Array.isArray(agencyBudgets) ? agencyBudgets.slice(0, 10) : []} />
         </div>
       </div>
     </Layout>

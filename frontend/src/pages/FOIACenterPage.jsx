@@ -31,7 +31,7 @@ export default function FOIACenterPage() {
         api.get('/foia/templates'),
       ]);
       setRequests(reqRes.data?.requests || []);
-      setStats(reqRes.data?.stats || {});
+      setStats({ ...(reqRes.data?.stats || {}), total: reqRes.data?.total || reqRes.data?.requests?.length || 0 });
       setTemplates(templateRes.data?.templates || []);
     } catch (err) {
       addToast(err.message, 'error');

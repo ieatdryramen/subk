@@ -335,18 +335,18 @@ export default function CaptureManagerPage() {
 
   // Calculate stats
   const stats = {
-    totalValue: captures.reduce((sum, c) => sum + (c.estimated_value || 0), 0),
-    avgPwin: Math.round(captures.reduce((sum, c) => sum + (c.pwin || 0), 0) / Math.max(captures.length, 1)),
+    totalValue: captures.reduce((sum, c) => sum + (Number(c.estimated_value) || 0), 0),
+    avgPwin: Math.round(captures.reduce((sum, c) => sum + (Number(c.pwin) || 0), 0) / Math.max(captures.length, 1)),
     byPhase: PHASES.map(phase => ({
       phase,
-      count: captures.filter(c => c.phase === phase).length,
+      count: captures.filter(c => (c.phase || '').toLowerCase() === phase.toLowerCase()).length,
     })),
   };
 
   // Group captures by phase
   const capturesByPhase = PHASES.map(phase => ({
     phase,
-    items: captures.filter(c => c.phase === phase),
+    items: captures.filter(c => (c.phase || '').toLowerCase() === phase.toLowerCase()),
   }));
 
   return (
@@ -537,7 +537,7 @@ export default function CaptureManagerPage() {
             ) : (
               captures.map(capture => {
                 const opp = opportunities.find(o => o.id === capture.opportunity_id);
-                const phaseIdx = PHASES.indexOf(capture.phase);
+                const phaseIdx = PHASES.findIndex(p => p.toLowerCase() === (capture.phase || '').toLowerCase());
 
                 return (
                   <div

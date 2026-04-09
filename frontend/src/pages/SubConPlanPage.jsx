@@ -33,10 +33,11 @@ export default function SubConPlanPage() {
     try {
       setLoading(true);
       const res = await api.get('/subcon-plan');
-      setPlans(res.plans || []);
-      if (res.plans?.length > 0) {
-        setSelectedPlan(res.plans[0]);
-        loadGoals(res.plans[0].id);
+      const planData = res.data?.plans || res.data?.data || [];
+      setPlans(planData);
+      if (planData.length > 0) {
+        setSelectedPlan(planData[0]);
+        loadGoals(planData[0].id);
       }
     } catch (err) {
       addToast(err.message, 'error');
@@ -48,7 +49,7 @@ export default function SubConPlanPage() {
   const loadGoals = async (planId) => {
     try {
       const res = await api.get(`/subcon-plan/${planId}/goals`);
-      setGoals(res.goals || {});
+      setGoals(res.data?.goals || {});
     } catch (err) {
       console.error('Load goals error:', err);
     }

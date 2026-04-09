@@ -332,7 +332,7 @@ export default function MarketResearchPage() {
     try {
       setLoading(true);
       const res = await api.get('/market-research');
-      setReports(res.data || []);
+      setReports(res.data?.data || res.data?.reports || []);
     } catch (err) {
       addToast('Failed to load reports', 'error');
       console.error(err);
@@ -348,7 +348,8 @@ export default function MarketResearchPage() {
       addToast('Generating report... this may take a minute', 'info');
 
       const res = await api.post('/market-research/generate', form);
-      setReports([res.data, ...reports]);
+      const newReport = res.data?.data || res.data;
+      setReports([newReport, ...reports]);
       addToast('Report generated successfully', 'success');
     } catch (err) {
       addToast('Failed to generate report', 'error');
