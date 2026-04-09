@@ -596,40 +596,22 @@ router.get('/onboarding-status', auth, async (req, res) => {
     const userId = parseInt(u.id);
     const orgId = u.org_id ? parseInt(u.org_id) : null;
 
-    // 1. has_profile: Check if company profile exists
-    const profileR = await pool.query(
-      'SELECT 1 FROM company_profiles WHERE user_id=$1 AND company_name IS NOT NULL LIMIT 1',
-      [userId]
-    );
-    const has_profile = profileR.rows.length > 0;
+    // Each check wrapped defensively — missing tables return false instead of crashing
+    const safeCheck = async (query, params) => {
+      try { return (await pool.query(query, params)).rows.length > 0; }
+      catch (e) { console.warn('[onboarding-status] Query failed:', e.message); return false; }
+    };
 
-    // 2. has_lists: Check if any lists exist
-    const listsR = await pool.query(
-      'SELECT 1 FROM lead_lists WHERE user_id=$1 LIMIT 1',
-      [userId]
-    );
-    const has_lists = listsR.rows.length > 0;
-
-    // 3. has_touches: Check if any sequence events marked as done
-    const touchesR = await pool.query(
-      "SELECT 1 FROM sequence_events WHERE user_id=$1 AND status='done' LIMIT 1",
-      [userId]
-    );
-    const has_touches = touchesR.rows.length > 0;
-
-    // 4. has_opportunities: Check if any opportunities exist in org
-    const oppR = await pool.query(
-      'SELECT 1 FROM opportunities WHERE org_id=$1 LIMIT 1',
-      [orgId || userId]
-    );
-    const has_opportunities = oppR.rows.length > 0;
-
-    // 5. has_primes: Check if any prime contractors exist
-    const primesR = await pool.query(
-      'SELECT 1 FROM primes WHERE org_id=$1 LIMIT 1',
-      [orgId || userId]
-    );
-    const has_primes = primesR.rows.length > 0;
+    const has_profile = await safeCheck(
+      'SELECT 1 FROM company_profiles WHERE user_id=$1 AND company_name IS NOT NULL LIMIT 1', [userId]);
+    const has_lists = await safeCheck(
+      'SELECT 1 FROM lead_lists WHERE user_id=$1 LIMIT 1', [userId]);
+    const has_touches = await safeCheck(
+      "SELECT 1 FROM sequence_events WHERE user_id=$1 AND status='done' LIMIT 1", [userId]);
+    const has_opportunities = await safeCheck(
+      'SELECT 1 FROM opportunities WHERE org_id=$1 LIMIT 1', [orgId || userId]);
+    const has_primes = await safeCheck(
+      'SELECT 1 FROM primes WHERE org_id=$1 LIMIT 1', [orgId || userId]);
 
     const tasks = [has_profile, has_lists, has_touches, has_opportunities, has_primes];
     const completed = tasks.filter(t => t).length;
@@ -796,7 +778,7 @@ router.get('/reports', auth, async (req, res) => {
           COUNT(DISTINCT CASE WHEN outreach_status IS NOT NULL AND outreach_status != 'not_contacted' THEN id END) as contacted,
           COUNT(DISTINCT CASE WHEN outreach_status IN ('responded','meeting_set','teaming_agreement') THEN id END) as responded,
           COUNT(DISTINCT CASE WHEN outreach_status='teaming_agreement' THEN id END) as teaming_agreements
-        FROM subk_primes
+        FROM primes
         WHERE org_id=$1
       `, [orgId]);
       primeSummary = {

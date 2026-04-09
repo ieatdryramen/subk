@@ -48,7 +48,7 @@ function PipelineFunnel({ funnelData }) {
   const stages = [
     { label: 'Not Started', value: funnelData?.not_started || 0, color: 'var(--text3)' },
     { label: 'Touched (1-10)', value: funnelData?.touched || 0, color: 'var(--accent2)' },
-    { label: 'MEFU', value: funnelData?.mefu || 0, color: 'var(--warning)' },
+    { label: 'Follow-up', value: funnelData?.mefu || 0, color: 'var(--warning)' },
     { label: 'Completed', value: funnelData?.completed || 0, color: 'var(--success)' },
   ];
 
