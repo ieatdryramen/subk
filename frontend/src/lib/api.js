@@ -4,9 +4,22 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 
+// ── CSRF Token Management ──
+let csrfToken = localStorage.getItem('sumx_csrf_token') || '';
+
+export function setCsrfToken(token) {
+  csrfToken = token;
+  localStorage.setItem('sumx_csrf_token', token);
+}
+
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('sumx_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // Attach CSRF token to state-changing requests
+  if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
+    config.headers['X-CSRF-Token'] = csrfToken;
+  }
   return config;
 });
 
@@ -34,7 +47,6 @@ api.interceptors.response.use(
         originalRequest._retry = true;
 
         if (isRefreshing) {
-          // Queue this request while refresh is in progress
           return new Promise((resolve, reject) => {
             refreshQueue.push({ resolve, reject });
           }).then(token => {
@@ -49,18 +61,19 @@ api.interceptors.response.use(
             (import.meta.env.VITE_API_URL || '/api') + '/auth/refresh',
             { refreshToken }
           );
-          const { token: newToken, refreshToken: newRefreshToken } = res.data;
+          const { token: newToken, refreshToken: newRefreshToken, csrfToken: newCsrf } = res.data;
           localStorage.setItem('sumx_token', newToken);
           localStorage.setItem('sumx_refresh_token', newRefreshToken);
+          if (newCsrf) setCsrfToken(newCsrf);
           processQueue(null, newToken);
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
           return api(originalRequest);
         } catch (refreshErr) {
           processQueue(refreshErr, null);
-          // Refresh failed — force logout
           localStorage.removeItem('sumx_token');
           localStorage.removeItem('sumx_refresh_token');
           localStorage.removeItem('sumx_user');
+          localStorage.removeItem('sumx_csrf_token');
           window.location.href = '/login';
           return Promise.reject(refreshErr);
         } finally {
@@ -68,10 +81,10 @@ api.interceptors.response.use(
         }
       }
 
-      // No refresh token — force logout
       localStorage.removeItem('sumx_token');
       localStorage.removeItem('sumx_refresh_token');
       localStorage.removeItem('sumx_user');
+      localStorage.removeItem('sumx_csrf_token');
       window.location.href = '/login';
     }
 

@@ -655,8 +655,49 @@ const initDb = async () => {
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
     CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
   `);
-  // Clean up expired refresh tokens on startup
+
+  // Audit logging
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      action VARCHAR(50) NOT NULL,
+      resource_type VARCHAR(50) NOT NULL,
+      resource_id VARCHAR(100),
+      ip_address VARCHAR(100),
+      details JSONB,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+  `);
+
+  // Login history for suspicious login detection
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS login_history (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      ip_address VARCHAR(100),
+      user_agent VARCHAR(500),
+      success BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_login_history_user ON login_history(user_id);
+    CREATE INDEX IF NOT EXISTS idx_login_history_created ON login_history(created_at);
+  `);
+
+  // 2FA columns on users
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_secret VARCHAR(255);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_enabled BOOLEAN DEFAULT false;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_backup_codes JSONB;
+  `);
+
+  // Clean up expired refresh tokens and old login history on startup
   await pool.query(`DELETE FROM refresh_tokens WHERE expires_at < NOW()`);
+  await pool.query(`DELETE FROM login_history WHERE created_at < NOW() - INTERVAL '90 days'`).catch(() => {});
+  await pool.query(`DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '365 days'`).catch(() => {});
   console.log('SumX CRM database initialized');
 };
 

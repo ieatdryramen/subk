@@ -1,12 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { pool } = require('../db');
-
-const adminOnly = async (req, res, next) => {
-  const user = await pool.query('SELECT role FROM users WHERE id=$1', [req.userId]);
-  if (user.rows[0]?.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
-  next();
-};
+const { adminOnly, rbac } = require('../middleware/rbac');
 
 // Get team overview dashboard - uses dedicated client with timeout
 router.get('/dashboard', auth, adminOnly, async (req, res) => {
@@ -947,6 +942,85 @@ router.post('/fix-lead-distribution', auth, adminOnly, async (req, res) => {
     client.release();
     console.error('Fix distribution error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /admin/audit-logs — View audit trail (admin only) ──
+router.get('/audit-logs', auth, adminOnly, async (req, res) => {
+  try {
+    const { action, resource_type, user_id, from, to } = req.query;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+
+    let conditions = [];
+    let params = [];
+    let idx = 1;
+
+    if (action) { conditions.push(`a.action=$${idx++}`); params.push(action); }
+    if (resource_type) { conditions.push(`a.resource_type=$${idx++}`); params.push(resource_type); }
+    if (user_id) { conditions.push(`a.user_id=$${idx++}`); params.push(parseInt(user_id)); }
+    if (from) { conditions.push(`a.created_at >= $${idx++}`); params.push(from); }
+    if (to) { conditions.push(`a.created_at <= $${idx++}`); params.push(to); }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    params.push(limit, offset);
+
+    const logs = await pool.query(
+      `SELECT a.*, u.email, u.full_name
+       FROM audit_logs a
+       LEFT JOIN users u ON u.id = a.user_id
+       ${where}
+       ORDER BY a.created_at DESC
+       LIMIT $${idx++} OFFSET $${idx}`,
+      params
+    );
+
+    const countR = await pool.query(
+      `SELECT COUNT(*) FROM audit_logs a ${where}`,
+      params.slice(0, -2) // Remove limit/offset
+    );
+
+    res.json({
+      logs: logs.rows,
+      pagination: { limit, offset, total: parseInt(countR.rows[0].count) },
+    });
+  } catch (err) {
+    console.error('Audit logs error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── GET /admin/login-history — View login history (admin only) ──
+router.get('/login-history', auth, adminOnly, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+    const userId = req.query.user_id;
+
+    let where = '';
+    const params = [];
+    if (userId) {
+      where = 'WHERE lh.user_id=$1';
+      params.push(parseInt(userId));
+    }
+
+    params.push(limit, offset);
+    const pIdx = params.length;
+
+    const logs = await pool.query(
+      `SELECT lh.*, u.email, u.full_name
+       FROM login_history lh
+       LEFT JOIN users u ON u.id = lh.user_id
+       ${where}
+       ORDER BY lh.created_at DESC
+       LIMIT $${pIdx - 1} OFFSET $${pIdx}`,
+      params
+    );
+
+    res.json({ logs: logs.rows });
+  } catch (err) {
+    console.error('Login history error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

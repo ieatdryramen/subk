@@ -4,86 +4,82 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 const { initDb } = require('./db');
+const { authLimiter, apiLimiter, aiLimiter } = require('./middleware/rateLimiter');
+const { csrfProtection } = require('./middleware/csrf');
+const { auditMiddleware } = require('./middleware/audit');
 
 const app = express();
 
 // Trust first proxy (Railway) so req.ip reads X-Forwarded-For correctly
 app.set('trust proxy', 1);
 
-// Security headers (X-Frame-Options, CSP, HSTS, etc.)
+// ── Security Headers ──
 app.use(helmet({
-  contentSecurityPolicy: false, // CSP managed separately for SPA
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://api.anthropic.com", "https://sam.gov", "https://js.stripe.com"],
+      frameSrc: ["'self'", "https://js.stripe.com"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow cross-origin images
+  permissionsPolicy: {
+    features: {
+      camera: [],           // Disable camera
+      microphone: [],       // Disable microphone
+      geolocation: [],      // Disable geolocation
+      payment: ["'self'"],  // Allow Stripe payments
+    },
+  },
 }));
 
 // Stripe webhook needs raw body - must come BEFORE express.json()
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }));
 
-// CORS: fail closed — reject all cross-origin if FRONTEND_URL not set
+// ── CORS: fail closed ──
 app.use(cors({
   origin: process.env.FRONTEND_URL || false,
   credentials: true,
 }));
-app.use(express.json({ limit: '30mb' })); // cap statement PDFs can be large
 
-// Simple in-memory rate limiter for auth endpoints
-const authAttempts = new Map();
-const authRateLimit = (req, res, next) => {
-  const key = req.ip + ':' + req.path;
-  const now = Date.now();
-  const windowMs = 15 * 60 * 1000; // 15 minutes
-  const maxAttempts = 20;
-  const attempts = authAttempts.get(key) || [];
-  const recent = attempts.filter(t => now - t < windowMs);
-  if (recent.length >= maxAttempts) {
-    return res.status(429).json({ error: 'Too many attempts — try again in 15 minutes' });
-  }
-  recent.push(now);
-  authAttempts.set(key, recent);
-  next();
-};
-// Clean up old entries every 30 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, attempts] of authAttempts) {
-    const recent = attempts.filter(t => now - t < 15 * 60 * 1000);
-    if (recent.length === 0) authAttempts.delete(key);
-    else authAttempts.set(key, recent);
-  }
-}, 30 * 60 * 1000);
+// ── Request Size Limits ──
+// Routes that need larger payloads (PDF cap statements, base64 images)
+app.use('/api/sub-profile', express.json({ limit: '10mb' }));
+app.use('/api/cardscan', express.json({ limit: '10mb' }));
+// Default: 1MB for everything else
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Rate limiter for AI-heavy endpoints (chat, playbooks, search)
-const aiAttempts = new Map();
-const aiRateLimit = (req, res, next) => {
-  const key = req.ip + ':ai';
-  const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute window
-  const maxAttempts = 10; // 10 AI calls per minute
-  const attempts = aiAttempts.get(key) || [];
-  const recent = attempts.filter(t => now - t < windowMs);
-  if (recent.length >= maxAttempts) {
-    return res.status(429).json({ error: 'Too many AI requests — slow down a bit' });
-  }
-  recent.push(now);
-  aiAttempts.set(key, recent);
-  next();
-};
+// ── CSRF Protection (state-changing requests) ──
+app.use(csrfProtection);
 
-app.use('/api/auth', authRateLimit, require('./routes/auth'));
+// ── General API rate limit (100/min per user) ──
+app.use('/api', apiLimiter);
+
+// ── Routes ──
+app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/auth/2fa', authLimiter, require('./routes/twofa'));
 app.use('/api/profile', require('./routes/profile'));
-app.use('/api/lists', require('./routes/lists'));
-app.use('/api/playbooks', aiRateLimit, require('./routes/playbooks'));
-app.use('/api/chat', aiRateLimit, require('./routes/chat'));
+app.use('/api/lists', auditMiddleware('list'), require('./routes/lists'));
+app.use('/api/playbooks', aiLimiter, require('./routes/playbooks'));
+app.use('/api/chat', aiLimiter, require('./routes/chat'));
 app.use('/api/zoho', require('./routes/zoho'));
 app.use('/api/scoring', require('./routes/scoring'));
 app.use('/api/export', require('./routes/export'));
-app.use('/api/autofill', aiRateLimit, require('./routes/autofill'));
+app.use('/api/autofill', aiLimiter, require('./routes/autofill'));
 app.use('/api/billing', require('./routes/billing'));
 app.use('/api/sequence', require('./routes/sequence'));
 app.use('/api/engagement', require('./routes/engagement'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/outlook', require('./routes/outlook'));
 app.use('/api/gmail', require('./routes/gmail'));
-app.use('/api/notes', require('./routes/notes'));
+app.use('/api/notes', auditMiddleware('note'), require('./routes/notes'));
 app.use('/api/battlecard', require('./routes/battlecard'));
 app.use('/api/slack', require('./routes/slack'));
 app.use('/api/calls', require('./routes/calls'));
@@ -91,10 +87,10 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/goals', require('./routes/goals'));
 app.use('/api/tracking', require('./routes/tracking'));
 app.use('/api/templates', require('./routes/templates'));
-app.use('/api/cardscan', aiRateLimit, require('./routes/cardscan'));
+app.use('/api/cardscan', aiLimiter, require('./routes/cardscan'));
 
-// ── SubK Routes (teaming, marketplace, opportunities) ──
-app.use('/api/opportunities', aiRateLimit, require('./routes/opportunities'));
+// ── SubK Routes ──
+app.use('/api/opportunities', aiLimiter, auditMiddleware('opportunity'), require('./routes/opportunities'));
 app.use('/api/marketplace', require('./routes/marketplace'));
 app.use('/api/sub-profile', require('./routes/sub-profile'));
 app.use('/api/subk-primes', require('./routes/subk-primes'));
@@ -104,15 +100,12 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/seed', require('./routes/seed'));
 app.use('/api/search', require('./routes/search'));
-app.use('/api/proposals', require('./routes/proposals'));
-app.use('/api/competitive', require('./routes/competitive'));
+app.use('/api/proposals', auditMiddleware('proposal'), require('./routes/proposals'));
+app.use('/api/competitive', auditMiddleware('competitive_intel'), require('./routes/competitive'));
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.29.1', app: 'SumX CRM', uptime: process.uptime() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.30.0', app: 'SumX CRM', uptime: process.uptime() }));
 
 // ── Global Error Handler ──
-// Catches unhandled errors from route handlers
-// To integrate Sentry: npm install @sentry/node, then add Sentry.init() at top of file
-// and replace console.error with Sentry.captureException(err)
 app.use((err, req, res, _next) => {
   const status = err.status || 500;
   const message = status === 500 ? 'Internal server error' : err.message;
@@ -123,16 +116,12 @@ app.use((err, req, res, _next) => {
   }
 });
 
-// Catch unhandled rejections and exceptions at process level
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('[UNHANDLED REJECTION]', reason);
-  // With Sentry: Sentry.captureException(reason);
 });
 
 process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION]', err);
-  // With Sentry: Sentry.captureException(err);
-  // Give time for error to be logged, then exit
   setTimeout(() => process.exit(1), 1000);
 });
 
@@ -147,19 +136,14 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3001;
 
 initDb().then(async () => {
-  // Clean up any leads stuck in 'generating' state from previous crashes
   const { pool } = require('./db');
   try {
-    const result = await pool.query(
-      "UPDATE leads SET status='pending' WHERE status='generating'"
-    );
-    if (result.rowCount > 0) {
-      console.log(`Reset ${result.rowCount} stuck generating leads`);
-    }
+    const result = await pool.query("UPDATE leads SET status='pending' WHERE status='generating'");
+    if (result.rowCount > 0) console.log(`Reset ${result.rowCount} stuck generating leads`);
   } catch(e) { console.error('Cleanup error:', e.message); }
 
   app.listen(PORT, () => {
-    console.log(`SumX CRM v3.1 running on port ${PORT}`);
+    console.log(`SumX CRM v3.30.0 running on port ${PORT}`);
     console.log(`SAM_API_KEY: ${process.env.SAM_API_KEY ? 'configured (' + process.env.SAM_API_KEY.substring(0, 6) + '...)' : 'NOT SET — using mock data'}`);
     console.log(`ANTHROPIC_API_KEY: ${process.env.ANTHROPIC_API_KEY ? 'configured' : 'NOT SET'}`);
     console.log(`STRIPE_SECRET_KEY: ${process.env.STRIPE_SECRET_KEY ? 'configured' : 'NOT SET'}`);
@@ -168,4 +152,3 @@ initDb().then(async () => {
   console.error('DB init failed:', err);
   process.exit(1);
 });
-
