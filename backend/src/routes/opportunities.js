@@ -323,7 +323,7 @@ router.get('/timeline', auth, async (req, res) => {
     const sixMonthsAhead = new Date(now.getFullYear(), now.getMonth() + 6, 0);
 
     const r = await pool.query(
-      `SELECT id, title, agency, response_deadline, status, estimated_value, fit_score
+      `SELECT id, title, agency, response_deadline, status, value_min, value_max, fit_score
        FROM opportunities
        WHERE org_id=$1 AND response_deadline >= $2 AND response_deadline <= $3
        ORDER BY response_deadline ASC`,
@@ -354,7 +354,7 @@ router.get('/upcoming', auth, async (req, res) => {
 
     const now = new Date();
     const r = await pool.query(
-      `SELECT id, title, agency, response_deadline, status, estimated_value, fit_score
+      `SELECT id, title, agency, response_deadline, status, value_min, value_max, fit_score
        FROM opportunities
        WHERE org_id=$1 AND response_deadline > $2 AND status IN ('new', 'pursuing', 'teaming')
        ORDER BY response_deadline ASC

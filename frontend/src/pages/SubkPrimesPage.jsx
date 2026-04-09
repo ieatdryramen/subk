@@ -576,7 +576,7 @@ export default function PrimesPage() {
 
       <div style={s.page}>
         <div style={s.heading}>Prime Tracker</div>
-        <div style={s.sub}>Track federal prime contractors and manage outreach — v3.13.0</div>
+        <div style={s.sub}>Track federal prime contractors and manage outreach</div>
 
         {/* Main tabs */}
         <div style={s.tabs}>

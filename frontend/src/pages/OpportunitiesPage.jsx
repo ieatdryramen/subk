@@ -909,7 +909,7 @@ export default function OpportunitiesPage() {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 12, color: 'var(--text2)', alignItems: 'center' }}>
                   <span>{opp.agency}</span>
                   {opp.naics_code && <span style={{ color: 'var(--text3)' }}>NAICS {opp.naics_code}</span>}
-                  {opp.set_aside && <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, background: 'var(--accent-bg)', color: 'var(--accent2)', fontWeight: 500 }}>{opp.set_aside}</span>}
+                  {opp.set_aside && <span style={{ padding: '1px 6px', borderRadius: 8, fontSize: 10, background: 'var(--accent-bg)', color: 'var(--accent2)', fontWeight: 500, whiteSpace: 'nowrap' }}>{opp.set_aside}</span>}
                   {opp.response_deadline && (() => {
                     const urg = deadlineUrgency(opp.response_deadline);
                     return urg && (

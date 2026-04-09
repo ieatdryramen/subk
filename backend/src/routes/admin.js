@@ -4,7 +4,7 @@ const { pool } = require('../db');
 const { adminOnly, rbac } = require('../middleware/rbac');
 
 // Get team overview dashboard - uses dedicated client with timeout
-router.get('/dashboard', auth, adminOnly, async (req, res) => {
+router.get('/dashboard', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('SET statement_timeout = 8000');
@@ -100,7 +100,7 @@ router.get('/dashboard', auth, adminOnly, async (req, res) => {
 });
 
 // Get 7-day trend data for dashboard analytics
-router.get('/dashboard-analytics', auth, adminOnly, async (req, res) => {
+router.get('/dashboard-analytics', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('SET statement_timeout = 8000');
@@ -193,13 +193,13 @@ router.get('/dashboard-analytics', auth, adminOnly, async (req, res) => {
     const deadlinesR = await client.query(`
       SELECT id, title, agency, response_deadline, fit_score
       FROM opportunities
-      WHERE user_id = ANY($1)
+      WHERE org_id=$1
         AND response_deadline IS NOT NULL
         AND response_deadline > NOW()
         AND response_deadline <= NOW() + INTERVAL '14 days'
       ORDER BY response_deadline ASC
       LIMIT 10
-    `, [userIds]);
+    `, [orgId]);
 
     res.json({
       touch_trends: touchTrends,
@@ -218,7 +218,7 @@ router.get('/dashboard-analytics', auth, adminOnly, async (req, res) => {
 // Change a member's role
 router.put('/members/:memberId/role', auth, adminOnly, async (req, res) => {
   const { role } = req.body;
-  if (!['admin', 'member'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (!['admin', 'manager', 'analyst', 'viewer', 'member'].includes(role)) return res.status(400).json({ error: 'Invalid role' });
   try {
     const user = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = user.rows[0]?.org_id;
@@ -340,9 +340,8 @@ router.get('/activity-feed', auth, async (req, res) => {
 
         UNION ALL
 
-        SELECT 'opportunity' as type, u.full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
+        SELECT 'opportunity' as type, '' as full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
         FROM opportunities o
-        JOIN users u ON u.id = o.user_id
         WHERE o.org_id=$2
 
         UNION ALL
@@ -402,9 +401,8 @@ router.get('/activity-feed', auth, async (req, res) => {
 
         UNION ALL
 
-        SELECT 'opportunity' as type, u.full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
+        SELECT 'opportunity' as type, '' as full_name, o.title as lead_name, 'Opportunity added' as title, o.agency as description, o.created_at, o.id as entity_id, 'opportunity' as entity_type
         FROM opportunities o
-        JOIN users u ON u.id = o.user_id
         WHERE o.org_id=$2
 
         UNION ALL
@@ -494,15 +492,15 @@ router.get('/next-actions', auth, async (req, res) => {
     // 2. Leads with no activity in 7+ days
     const inactiveR = await client.query(`
       SELECT
-        l.id, l.full_name, l.company,
+        l.id, l.full_name, l.company, l.icp_score,
         MAX(se.completed_at) as last_touch
       FROM leads l
       LEFT JOIN sequence_events se ON l.id = se.lead_id AND se.status='done'
       WHERE l.user_id = ANY($1)
         AND l.status='done'
-        AND (MAX(se.completed_at) IS NULL OR MAX(se.completed_at) < NOW() - INTERVAL '7 days')
         AND l.icp_score >= 50
-      GROUP BY l.id, l.full_name, l.company
+      GROUP BY l.id, l.full_name, l.company, l.icp_score
+      HAVING MAX(se.completed_at) IS NULL OR MAX(se.completed_at) < NOW() - INTERVAL '7 days'
       ORDER BY MAX(se.completed_at) ASC NULLS FIRST
       LIMIT 10
     `, [userIds]);
@@ -526,13 +524,13 @@ router.get('/next-actions', auth, async (req, res) => {
       SELECT
         id, title, agency, response_deadline, fit_score
       FROM opportunities
-      WHERE user_id = ANY($1)
+      WHERE org_id=$1
         AND response_deadline IS NOT NULL
         AND response_deadline > NOW()
         AND response_deadline <= NOW() + INTERVAL '14 days'
       ORDER BY response_deadline ASC
       LIMIT 10
-    `, [userIds]);
+    `, [orgId]);
 
     deadlineR.rows.forEach(r => {
       const daysLeft = Math.ceil((new Date(r.response_deadline) - new Date()) / (1000 * 60 * 60 * 24));
@@ -628,7 +626,7 @@ router.get('/onboarding-status', auth, async (req, res) => {
 
     // 5. has_primes: Check if any prime contractors exist
     const primesR = await pool.query(
-      'SELECT 1 FROM subk_primes WHERE org_id=$1 LIMIT 1',
+      'SELECT 1 FROM primes WHERE org_id=$1 LIMIT 1',
       [orgId || userId]
     );
     const has_primes = primesR.rows.length > 0;

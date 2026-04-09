@@ -43,7 +43,7 @@ const ALL_STAGES = [
   { key: 'in_progress_8', label: 'Touch 8 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
   { key: 'in_progress_9', label: 'Touch 9 ✉', color: '#08A5BF', bg: 'rgba(8,165,191,0.1)' },
   { key: 'in_progress_10', label: 'Touch 10 📞', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  { key: 'mefu', label: 'MEFU 📅', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+  { key: 'mefu', label: 'Follow-up 📅', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
   { key: 'meeting_booked', label: '🗓 Meeting Booked', color: '#22c55e', bg: 'rgba(34,197,94,0.15)' },
   { key: 'completed', label: 'Completed ✓', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
 ];
@@ -752,7 +752,10 @@ export default function PipelinePage() {
     return s.includes('in_progress') || ['email1_sent','email2_sent','email3_sent','call_attempted','call_connected','call_voicemail','linkedin_connected','linkedin_dm_sent'].includes(s);
   }).length;
   const completed = filteredLeads.filter(l => ['completed','replied','call_booked','linkedin_replied'].includes(l[stageField] || l.sequence_stage || '')).length;
-  const notStarted = filteredLeads.filter(l => !l[stageField] && (!l.sequence_stage || l.sequence_stage === 'not_started')).length;
+  const notStarted = filteredLeads.filter(l => {
+    const stage = l[stageField] || l.sequence_stage || 'not_started';
+    return stage === 'not_started';
+  }).length;
   const meetingBooked = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'meeting_booked').length;
   const mefu = filteredLeads.filter(l => (l[stageField] || l.sequence_stage || '') === 'mefu').length;
   const engagementRate = total > 0 ? Math.round(((inProgress + completed) / total) * 100) : 0;
