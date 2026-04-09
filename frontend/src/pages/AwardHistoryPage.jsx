@@ -53,6 +53,11 @@ export default function AwardHistoryPage() {
   const [maxAmount, setMaxAmount] = useState('');
 
   const handleSearch = async () => {
+    // Validate at least one filter is filled
+    if (!keyword && !agency && !naics && !psc && !dateFrom && !dateTo && !minAmount && !maxAmount) {
+      addToast('Please enter at least one search filter', 'warning');
+      return;
+    }
     try {
       setLoading(true);
       setPage(1);

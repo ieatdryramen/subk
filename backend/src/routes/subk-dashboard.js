@@ -81,7 +81,7 @@ router.get('/analytics', auth, async (req, res) => {
     // Pipeline value (sum of value_max for pursuing or submitted)
     const pipelineValueR = await pool.query(
       `SELECT COALESCE(SUM(value_max), 0) as total FROM opportunities
-       WHERE org_id=$1 AND status IN ('pursuing', 'submitted')`,
+       WHERE org_id=$1 AND status IN ('pursuing', 'submitted', 'tracking', 'saved', 'active', 'review')`,
       [orgId]
     );
     const pipelineValue = parseInt(pipelineValueR.rows[0]?.total || 0);
@@ -89,8 +89,8 @@ router.get('/analytics', auth, async (req, res) => {
     // Win rate: count won / (count won + count lost)
     const winRateR = await pool.query(
       `SELECT
-        (SELECT COUNT(*) FROM opportunities WHERE org_id=$1 AND status='won') as won,
-        (SELECT COUNT(*) FROM opportunities WHERE org_id=$1 AND status='lost') as lost`,
+        (SELECT COUNT(*) FROM opportunities WHERE org_id=$1 AND status IN ('won', 'awarded')) as won,
+        (SELECT COUNT(*) FROM opportunities WHERE org_id=$1 AND status IN ('lost', 'no_bid')) as lost`,
       [orgId]
     );
     const won = parseInt(winRateR.rows[0]?.won || 0);

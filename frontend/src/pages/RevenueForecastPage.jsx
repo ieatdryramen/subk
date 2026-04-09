@@ -40,22 +40,30 @@ const PipelineTable = ({ captures, opportunities, proposals }) => {
       pwin: c.pwin,
       color: 'var(--accent)',
     })),
-    ...(opportunities || []).map((o) => ({
-      type: 'Opportunity',
-      title: o.title,
-      value: o.value_max,
-      weighted: o.value_max,
-      pwin: 0,
-      color: 'var(--text2)',
-    })),
-    ...(proposals || []).map((p) => ({
-      type: 'Proposal',
-      title: p.title,
-      value: p.estimated_value,
-      weighted: p.estimated_value,
-      pwin: p.status === 'won' ? 100 : p.status === 'submitted' ? 50 : 10,
-      color: 'var(--success)',
-    })),
+    ...(opportunities || []).map((o) => {
+      const val = Number(o.value_max) || 0;
+      const pw = Number(o.fit_score) || 0;
+      return {
+        type: 'Opportunity',
+        title: o.title,
+        value: val,
+        weighted: Math.round(val * (pw / 100)),
+        pwin: pw,
+        color: 'var(--text2)',
+      };
+    }),
+    ...(proposals || []).map((p) => {
+      const val = Number(p.estimated_value) || 0;
+      const pw = p.status === 'won' || p.status === 'awarded' ? 100 : p.status === 'submitted' ? 50 : 10;
+      return {
+        type: 'Proposal',
+        title: p.title,
+        value: val,
+        weighted: Math.round(val * (pw / 100)),
+        pwin: pw,
+        color: 'var(--success)',
+      };
+    }),
   ];
 
   if (allItems.length === 0) {

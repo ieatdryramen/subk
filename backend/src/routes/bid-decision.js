@@ -92,8 +92,8 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'User not in an organization' });
     }
 
-    // Initialize criteria with default scores
-    const criteria = {
+    // Initialize criteria with default scores or use provided criteria
+    const criteria = req.body.criteria || {
       strategic_fit: 3,
       technical_capability: 3,
       past_performance: 3,
@@ -103,12 +103,22 @@ router.post('/', auth, async (req, res) => {
       resource_availability: 3,
     };
 
+    // Calculate total score
+    let totalScore = 0;
+    for (const [key, weight] of Object.entries(SCORING_WEIGHTS)) {
+      totalScore += ((criteria[key] || 3) / 5) * weight;
+    }
+    totalScore = Math.round(totalScore);
+
+    // Determine recommendation
+    const recommendation = totalScore > 70 ? 'bid' : totalScore >= 50 ? 'consider' : 'no_bid';
+
     const result = await pool.query(
       `INSERT INTO bid_decisions
-       (org_id, user_id, opportunity_id, title, criteria, rationale)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       (org_id, user_id, opportunity_id, title, criteria, total_score, recommendation, rationale)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [orgId, req.userId, opportunity_id || null, title, JSON.stringify(criteria), rationale || '']
+      [orgId, req.userId, opportunity_id || null, title, JSON.stringify(criteria), totalScore, recommendation, rationale || '']
     );
 
     res.status(201).json({ success: true, data: result.rows[0] });

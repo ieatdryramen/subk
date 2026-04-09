@@ -485,7 +485,7 @@ router.get('/next-actions', auth, async (req, res) => {
         description: `No ${r.touchpoint} in 7+ days. Last contact: ${new Date(r.created_at).toLocaleDateString()}`,
         lead_id: r.lead_id,
         lead_name: r.full_name,
-        action_url: `/leads/${r.lead_id}`
+        action_url: `/pipeline`
       });
     });
 
@@ -514,7 +514,7 @@ router.get('/next-actions', auth, async (req, res) => {
           description: `No activity for 7+ days. ICP Score: ${r.icp_score}. Company: ${r.company}`,
           lead_id: r.id,
           lead_name: r.full_name,
-          action_url: `/leads/${r.id}`
+          action_url: `/pipeline`
         });
       }
     });
@@ -541,7 +541,7 @@ router.get('/next-actions', auth, async (req, res) => {
         description: `${daysLeft} days until deadline. Agency: ${r.agency}. Fit: ${r.fit_score}%`,
         lead_id: null,
         lead_name: r.agency,
-        action_url: `/opportunities/${r.id}`
+        action_url: `/opportunities`
       });
     });
 
@@ -568,7 +568,7 @@ router.get('/next-actions', auth, async (req, res) => {
           description: `High ICP score (${r.icp_score}). No playbook yet. Company: ${r.company}`,
           lead_id: r.id,
           lead_name: r.full_name,
-          action_url: `/leads/${r.id}`
+          action_url: `/pipeline`
         });
       }
     });
@@ -603,7 +603,9 @@ router.get('/onboarding-status', auth, async (req, res) => {
     };
 
     const has_profile = await safeCheck(
-      'SELECT 1 FROM company_profiles WHERE user_id=$1 AND company_name IS NOT NULL LIMIT 1', [userId]);
+      'SELECT 1 FROM company_profiles WHERE user_id=$1 AND company_name IS NOT NULL LIMIT 1', [userId])
+      || await safeCheck(
+      'SELECT 1 FROM sub_profiles WHERE (user_id=$1 OR org_id=$2) AND company_name IS NOT NULL LIMIT 1', [userId, orgId || userId]);
     const has_lists = await safeCheck(
       'SELECT 1 FROM lead_lists WHERE user_id=$1 LIMIT 1', [userId]);
     const has_touches = await safeCheck(

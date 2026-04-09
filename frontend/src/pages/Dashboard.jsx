@@ -364,7 +364,7 @@ function GettingStartedChecklist({ onboarding = {}, navigate = () => {} }) {
       id: 1,
       title: 'Set up company profile',
       completed: onboarding.has_profile,
-      path: '/company-profile',
+      path: '/profile',
       icon: '🏢',
     },
     {

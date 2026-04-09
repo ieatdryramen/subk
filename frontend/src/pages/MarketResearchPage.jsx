@@ -236,6 +236,34 @@ const GenerateModal = ({ visible, onClose, onGenerate, loading }) => {
   );
 };
 
+// Simple markdown renderer: handles ## headings, **bold**, \n\n paragraphs, bullet lists
+const renderMarkdown = (text) => {
+  if (!text) return null;
+  return text.split('\n').map((line, i) => {
+    // Heading
+    if (line.startsWith('## ')) {
+      return <h3 key={i} style={{ fontSize: 15, fontWeight: 700, margin: '1.25rem 0 0.5rem', color: 'var(--text)' }}>{line.replace('## ', '')}</h3>;
+    }
+    if (line.startsWith('### ')) {
+      return <h4 key={i} style={{ fontSize: 14, fontWeight: 600, margin: '1rem 0 0.25rem', color: 'var(--text)' }}>{line.replace('### ', '')}</h4>;
+    }
+    // Bullet
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      const content = line.slice(2);
+      return <li key={i} style={{ marginLeft: '1rem', fontSize: 13, lineHeight: 1.6, color: 'var(--text2)' }}>{content}</li>;
+    }
+    // Empty line
+    if (line.trim() === '') return <br key={i} />;
+    // Bold inline
+    const parts = line.split(/\*\*(.*?)\*\*/g);
+    return (
+      <p key={i} style={{ margin: '0.25rem 0', fontSize: 13, lineHeight: 1.7, color: 'var(--text2)' }}>
+        {parts.map((part, j) => j % 2 === 1 ? <strong key={j}>{part}</strong> : part)}
+      </p>
+    );
+  });
+};
+
 const ReportViewer = ({ report, visible, onClose }) => {
   if (!visible || !report) return null;
 
@@ -291,8 +319,8 @@ const ReportViewer = ({ report, visible, onClose }) => {
           )}
         </div>
 
-        <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--text2)', whiteSpace: 'pre-wrap', marginBottom: '1.5rem' }}>
-          {report.content}
+        <div style={{ fontSize: 13, lineHeight: 1.8, color: 'var(--text2)', marginBottom: '1.5rem' }}>
+          {renderMarkdown(report.content)}
         </div>
 
         <button

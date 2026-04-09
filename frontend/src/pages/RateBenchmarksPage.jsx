@@ -41,9 +41,9 @@ export default function RateBenchmarksPage() {
         api.get('/rate-benchmarks/market-data'),
         api.get('/rate-benchmarks/compare'),
       ]);
-      setBenchmarks(benchRes.benchmarks || []);
-      setMarketData(marketRes.marketData || []);
-      setComparisons(compRes.comparisons || []);
+      setBenchmarks(benchRes.data?.benchmarks || benchRes.data?.data || []);
+      setMarketData(marketRes.data?.marketData || marketRes.data?.data || []);
+      setComparisons(compRes.data?.comparisons || compRes.data?.data || []);
     } catch (err) {
       addToast(err.message, 'error');
     } finally {

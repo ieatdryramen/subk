@@ -79,13 +79,23 @@ router.post('/', auth, async (req, res) => {
  */
 router.post('/scan', auth, async (req, res) => {
   try {
-    const { agencies = [], naicsCodes = [], fiscalYear } = req.body;
+    let { agencies = [], naicsCodes = [], fiscalYear } = req.body;
 
     const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
 
     if (!orgId) {
       return res.status(400).json({ error: 'User not in an organization' });
+    }
+
+    // Auto-populate NAICS codes from company profile if not provided
+    if (naicsCodes.length === 0) {
+      try {
+        const profR = await pool.query('SELECT naics_codes FROM sub_profiles WHERE org_id=$1 LIMIT 1', [orgId]);
+        if (profR.rows.length && profR.rows[0].naics_codes) {
+          naicsCodes = profR.rows[0].naics_codes.split(',').map(c => c.trim()).filter(Boolean);
+        }
+      } catch (e) { /* ignore */ }
     }
 
     const year = fiscalYear || new Date().getFullYear();

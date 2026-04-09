@@ -6,6 +6,7 @@ import PlaybookViewer from '../components/PlaybookViewer';
 import { useToast } from '../components/Toast';
 
 const statusColors = {
+  not_started: { bg: 'var(--bg3)', color: 'var(--text3)', label: 'Not Started' },
   pending: { bg: 'var(--bg3)', color: 'var(--text3)', label: 'Pending' },
   generating: { bg: 'var(--warning-bg)', color: 'var(--warning)', label: 'Generating...' },
   done: { bg: 'var(--success-bg)', color: 'var(--success)', label: 'Ready' },

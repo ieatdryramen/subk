@@ -302,8 +302,12 @@ export default function SpendingAnalyticsPage() {
   }, []);
 
   const handleRefresh = async () => {
-    await loadData();
-    addToast('Data refreshed', 'success');
+    try {
+      await loadData();
+      addToast('Data refreshed', 'success');
+    } catch (err) {
+      addToast('Refresh failed: ' + (err.message || 'Unknown error'), 'error');
+    }
   };
 
   const fiscalYears = ['2020', '2021', '2022', '2023', '2024', '2025', '2026'];
@@ -419,7 +423,7 @@ export default function SpendingAnalyticsPage() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: '0 0 2rem 0' }}>
                 Top 10 Agencies by Spending
               </h2>
-              <HorizontalBarChart data={agencies} title="" />
+              {agencies.length > 0 ? <HorizontalBarChart data={agencies} title="" /> : <p style={{ color: 'var(--text3)', textAlign: 'center', padding: '2rem', fontSize: 13 }}>No agency spending data available for this fiscal year. Try a different year or refresh.</p>}
             </div>
 
             {/* Top NAICS */}
@@ -442,6 +446,7 @@ export default function SpendingAnalyticsPage() {
                   gap: 12,
                 }}
               >
+                {naicsCodes.length === 0 && <p style={{ color: 'var(--text3)', textAlign: 'center', padding: '2rem', fontSize: 13, gridColumn: '1 / -1' }}>No NAICS spending data available.</p>}
                 {naicsCodes.slice(0, 10).map((naics, idx) => (
                   <div
                     key={idx}
@@ -490,7 +495,7 @@ export default function SpendingAnalyticsPage() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: '0 0 2rem 0' }}>
                 5-Year Spending Trends
               </h2>
-              <AreaChart data={trends} />
+              {trends.length > 0 ? <AreaChart data={trends} /> : <p style={{ color: 'var(--text3)', textAlign: 'center', padding: '2rem', fontSize: 13 }}>No trend data available. Try refreshing.</p>}
             </div>
 
             {/* Set-Aside Distribution */}
@@ -505,7 +510,7 @@ export default function SpendingAnalyticsPage() {
               <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', margin: '0 0 2rem 0' }}>
                 Set-Aside Distribution
               </h2>
-              <SetAsideChart data={setAsideData} />
+              {setAsideData && setAsideData.length > 0 ? <SetAsideChart data={setAsideData} /> : <p style={{ color: 'var(--text3)', textAlign: 'center', padding: '2rem', fontSize: 13 }}>No set-aside data available.</p>}
             </div>
           </>
         )}
