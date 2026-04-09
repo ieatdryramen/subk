@@ -694,6 +694,266 @@ const initDb = async () => {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS two_fa_backup_codes JSONB;
   `);
 
+  // FEATURE 2: Database tables for USASpending, Capture, Forecast, and AI Proposals
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS spending_cache (
+      id SERIAL PRIMARY KEY,
+      cache_key VARCHAR(500) UNIQUE NOT NULL,
+      data JSONB NOT NULL,
+      fetched_at TIMESTAMP DEFAULT NOW(),
+      expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '24 hours'
+    );
+
+    CREATE TABLE IF NOT EXISTS capture_items (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      user_id INTEGER REFERENCES users(id),
+      opportunity_id INTEGER REFERENCES opportunities(id),
+      title VARCHAR(500) NOT NULL,
+      phase VARCHAR(50) DEFAULT 'lead',
+      pwin INTEGER DEFAULT 10,
+      gate_criteria JSONB DEFAULT '[]',
+      milestones JSONB DEFAULT '[]',
+      notes TEXT,
+      go_no_go VARCHAR(20),
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_capture_items_org ON capture_items(org_id);
+    CREATE INDEX IF NOT EXISTS idx_capture_items_phase ON capture_items(phase);
+
+    CREATE TABLE IF NOT EXISTS forecast_opportunities (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      title VARCHAR(500),
+      agency VARCHAR(300),
+      naics_code VARCHAR(20),
+      estimated_value_min NUMERIC,
+      estimated_value_max NUMERIC,
+      estimated_timeline VARCHAR(100),
+      source VARCHAR(100),
+      source_url TEXT,
+      description TEXT,
+      status VARCHAR(50) DEFAULT 'forecast',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_forecast_org ON forecast_opportunities(org_id);
+
+    CREATE TABLE IF NOT EXISTS past_performance_narratives (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      user_id INTEGER REFERENCES users(id),
+      title VARCHAR(500),
+      content TEXT,
+      opportunity_id INTEGER,
+      metadata JSONB DEFAULT '{}',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_ppn_org ON past_performance_narratives(org_id);
+
+    -- FEATURE 8: Labor Rate Benchmarking
+    CREATE TABLE IF NOT EXISTS rate_benchmarks (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      category VARCHAR(200),
+      rate NUMERIC,
+      region VARCHAR(100),
+      experience_level VARCHAR(50),
+      source VARCHAR(200),
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_rate_benchmarks_org ON rate_benchmarks(org_id);
+
+    -- FEATURE 10: Compliance Readiness Checker
+    CREATE TABLE IF NOT EXISTS compliance_items (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      requirement_key VARCHAR(200),
+      category VARCHAR(100),
+      status VARCHAR(50) DEFAULT 'pending',
+      expiration_date DATE,
+      notes TEXT,
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_compliance_items_org ON compliance_items(org_id);
+
+    -- FEATURE 13: FOIA Request Center
+    CREATE TABLE IF NOT EXISTS foia_requests (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      user_id INTEGER REFERENCES users(id),
+      title VARCHAR(500),
+      agency VARCHAR(300),
+      template_type VARCHAR(100),
+      request_text TEXT,
+      status VARCHAR(50) DEFAULT 'draft',
+      tracking_number VARCHAR(200),
+      submitted_date DATE,
+      response_date DATE,
+      documents JSONB DEFAULT '[]',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_foia_requests_org ON foia_requests(org_id);
+    CREATE INDEX IF NOT EXISTS idx_foia_requests_user ON foia_requests(user_id);
+
+    -- FEATURE 14: Subcontracting Plan Builder
+    CREATE TABLE IF NOT EXISTS subcon_plans (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id),
+      title VARCHAR(500),
+      contract_value NUMERIC,
+      sb_goal_pct NUMERIC DEFAULT 23,
+      sdb_goal_pct NUMERIC DEFAULT 5,
+      wosb_goal_pct NUMERIC DEFAULT 5,
+      hubzone_goal_pct NUMERIC DEFAULT 3,
+      sdvosb_goal_pct NUMERIC DEFAULT 3,
+      identified_subs JSONB DEFAULT '[]',
+      actuals JSONB DEFAULT '{}',
+      plan_text TEXT,
+      status VARCHAR(50) DEFAULT 'draft',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_subcon_plans_org ON subcon_plans(org_id);
+
+    -- FEATURE 15: GovCon Event Calendar
+    CREATE TABLE IF NOT EXISTS govcon_events (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      title VARCHAR(500) NOT NULL,
+      event_type VARCHAR(100),
+      agency VARCHAR(300),
+      location VARCHAR(500),
+      start_date DATE,
+      end_date DATE,
+      url TEXT,
+      description TEXT,
+      rsvp_status VARCHAR(50) DEFAULT 'none',
+      notes TEXT,
+      is_global BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_govcon_events_org ON govcon_events(org_id);
+    CREATE INDEX IF NOT EXISTS idx_govcon_events_start_date ON govcon_events(start_date);
+
+    -- FEATURE 16: Document Collaboration (versioning and comments)
+    CREATE TABLE IF NOT EXISTS doc_comments (
+      id SERIAL PRIMARY KEY,
+      proposal_id INTEGER REFERENCES proposals(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      section VARCHAR(200),
+      content TEXT,
+      resolved BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_doc_comments_proposal ON doc_comments(proposal_id);
+
+    CREATE TABLE IF NOT EXISTS doc_versions (
+      id SERIAL PRIMARY KEY,
+      proposal_id INTEGER REFERENCES proposals(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      version_number INTEGER,
+      snapshot JSONB,
+      change_summary TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_doc_versions_proposal ON doc_versions(proposal_id);
+
+    -- FEATURE 17: Automated Market Research Reports
+    CREATE TABLE IF NOT EXISTS market_research_reports (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      title VARCHAR(500),
+      naics VARCHAR(20),
+      agency VARCHAR(300),
+      content TEXT,
+      data_snapshot JSONB,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_market_research_org ON market_research_reports(org_id);
+
+    -- FEATURE 18: Contract Vehicle Tracker
+    CREATE TABLE IF NOT EXISTS contract_vehicles (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(500),
+      vehicle_type VARCHAR(100),
+      contract_number VARCHAR(200),
+      agency VARCHAR(300),
+      ceiling_value NUMERIC,
+      current_value NUMERIC,
+      start_date DATE,
+      end_date DATE,
+      option_years INTEGER DEFAULT 0,
+      naics_codes JSONB DEFAULT '[]',
+      status VARCHAR(50) DEFAULT 'active',
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_contract_vehicles_org ON contract_vehicles(org_id);
+    CREATE INDEX IF NOT EXISTS idx_contract_vehicles_status ON contract_vehicles(status);
+
+    -- FEATURE 19: Government Contact Database
+    CREATE TABLE IF NOT EXISTS gov_contacts (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      name VARCHAR(300) NOT NULL,
+      title VARCHAR(300),
+      agency VARCHAR(300),
+      office VARCHAR(300),
+      email VARCHAR(300),
+      phone VARCHAR(50),
+      linkedin VARCHAR(500),
+      notes TEXT,
+      last_interaction DATE,
+      interaction_count INTEGER DEFAULT 0,
+      tags JSONB DEFAULT '[]',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_gov_contacts_org ON gov_contacts(org_id);
+    CREATE INDEX IF NOT EXISTS idx_gov_contacts_agency ON gov_contacts(agency);
+
+    -- FEATURE 20: Bid/No-Bid Decision Tool
+    CREATE TABLE IF NOT EXISTS bid_decisions (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      opportunity_id INTEGER REFERENCES opportunities(id) ON DELETE SET NULL,
+      title VARCHAR(500),
+      criteria JSONB DEFAULT '{}',
+      total_score NUMERIC,
+      recommendation VARCHAR(50),
+      decision VARCHAR(50),
+      decision_date DATE,
+      rationale TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_bid_decisions_org ON bid_decisions(org_id);
+    CREATE INDEX IF NOT EXISTS idx_bid_decisions_user ON bid_decisions(user_id);
+
+    -- FEATURE 21: Revenue Forecasting
+    CREATE TABLE IF NOT EXISTS revenue_entries (
+      id SERIAL PRIMARY KEY,
+      org_id INTEGER REFERENCES organizations(id) ON DELETE CASCADE,
+      title VARCHAR(500),
+      amount NUMERIC,
+      month DATE,
+      source VARCHAR(100),
+      is_actual BOOLEAN DEFAULT false,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_revenue_entries_org ON revenue_entries(org_id);
+    CREATE INDEX IF NOT EXISTS idx_revenue_entries_month ON revenue_entries(month);
+  `);
+
   // Clean up expired refresh tokens and old login history on startup
   await pool.query(`DELETE FROM refresh_tokens WHERE expires_at < NOW()`);
   await pool.query(`DELETE FROM login_history WHERE created_at < NOW() - INTERVAL '90 days'`).catch(() => {});

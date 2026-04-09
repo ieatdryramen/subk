@@ -606,4 +606,89 @@ router.post('/refresh', auth, async (req, res) => {
   }
 });
 
+// FEATURE 9: Calculate Pwin (probability of win) for an opportunity
+router.get('/:id/pwin', auth, async (req, res) => {
+  try {
+    const oppId = parseInt(req.params.id, 10);
+
+    // Get opportunity
+    const oppR = await pool.query(
+      `SELECT o.*, c.phase FROM opportunities o
+       LEFT JOIN capture_items c ON c.opportunity_id = o.id
+       WHERE o.id=$1`,
+      [oppId]
+    );
+    if (oppR.rows.length === 0) return res.status(404).json({ error: 'Opportunity not found' });
+    const opp = oppR.rows[0];
+
+    // Get user org and sub profile
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    const subR = await pool.query(
+      'SELECT * FROM sub_profiles WHERE org_id=$1',
+      [orgId]
+    );
+    const subProfile = subR.rows[0];
+
+    // Get past performance count for org
+    const ppR = await pool.query(
+      'SELECT COUNT(*) as count FROM past_performance WHERE user_id=$1',
+      [req.userId]
+    );
+    const ppCount = parseInt(ppR.rows[0]?.count || 0, 10);
+
+    // Get teaming partners count
+    const teamingR = await pool.query(
+      `SELECT COUNT(DISTINCT from_user_id) as count FROM teaming_requests
+       WHERE to_user_id=$1 AND status='accepted'`,
+      [req.userId]
+    );
+    const teamingCount = parseInt(teamingR.rows[0]?.count || 0, 10);
+
+    // Calculate Pwin
+    const factors = [];
+    let pwin = 0;
+
+    // Base from fit_score (0-100 mapped to 5-30%)
+    const fitBase = opp.fit_score ? Math.min(30, Math.max(5, (opp.fit_score / 100) * 30)) : 5;
+    pwin += fitBase;
+    factors.push({ name: 'Fit Score', score: Math.round(fitBase), description: `Org capabilities match: ${opp.fit_score || 0}%` });
+
+    // +15% if past performance exists
+    if (ppCount > 0) {
+      pwin += 15;
+      factors.push({ name: 'Past Performance', score: 15, description: `${ppCount} relevant past performance(s)` });
+    }
+
+    // +10% if capture item in advanced phase
+    if (opp.phase && ['Capture', 'Proposal', 'Submit'].includes(opp.phase)) {
+      pwin += 10;
+      factors.push({ name: 'Capture Phase', score: 10, description: `In ${opp.phase} phase` });
+    }
+
+    // +10% if set-aside matches profile
+    if (opp.set_aside && subProfile?.set_aside_prefs) {
+      const prefs = subProfile.set_aside_prefs.split(',').map(s => s.trim());
+      if (prefs.some(p => opp.set_aside.includes(p))) {
+        pwin += 10;
+        factors.push({ name: 'Set-Aside Match', score: 10, description: `Matches ${opp.set_aside}` });
+      }
+    }
+
+    // +5% if teaming partners identified
+    if (teamingCount > 0) {
+      pwin += 5;
+      factors.push({ name: 'Teaming Partners', score: 5, description: `${teamingCount} partner(s) identified` });
+    }
+
+    // Cap at 95%
+    pwin = Math.min(95, Math.max(5, pwin));
+
+    res.json({ pwin: Math.round(pwin), factors });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

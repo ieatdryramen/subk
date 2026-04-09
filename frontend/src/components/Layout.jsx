@@ -12,8 +12,22 @@ const navSections = [
       { to: '/dashboard', label: 'Dashboard', icon: '▦' },
       { to: '/opportunity-board', label: 'Opp Board', icon: '📋' },
       { to: '/opportunities', label: 'Opportunities', icon: '🔍' },
+      { to: '/forecast', label: 'Forecast Pipeline', icon: '🔮' },
+      { to: '/award-history', label: 'Award History', icon: '🏆' },
+      { to: '/spending-analytics', label: 'Spending Analytics', icon: '💰' },
       { to: '/competitive', label: 'Comp Intel', icon: '🏢' },
       { to: '/pipeline', label: 'Pipeline', icon: '▤' },
+      { to: '/rate-benchmarks', label: 'Rate Benchmarks', icon: '📈' },
+      { to: '/foia-center', label: 'FOIA Center', icon: '📂' },
+      { to: '/market-research', label: 'Market Research', icon: '🔬' },
+    ],
+  },
+  {
+    label: 'CAPTURE',
+    items: [
+      { to: '/capture', label: 'Capture Manager', icon: '🎯' },
+      { to: '/bid-decision', label: 'Bid/No-Bid', icon: '⚖️' },
+      { to: '/revenue-forecast', label: 'Revenue Forecast', icon: '📉' },
     ],
   },
   {
@@ -23,6 +37,7 @@ const navSections = [
       { to: '/teaming', label: 'Teaming Inbox', icon: '🤝' },
       { to: '/primes', label: 'Prime Tracker', icon: '🏢' },
       { to: '/proposals', label: 'Proposals', icon: '📑' },
+      { to: '/subcon-plan', label: 'SubCon Plan Builder', icon: '📝' },
     ],
   },
   {
@@ -32,6 +47,8 @@ const navSections = [
       { to: '/lists', label: 'Lead Lists', icon: '◉' },
       { to: '/templates', label: 'Templates', icon: '◧' },
       { to: '/reports', label: 'Reports', icon: '📊' },
+      { to: '/gov-contacts', label: 'Gov Contacts', icon: '👤' },
+      { to: '/events', label: 'GovCon Events', icon: '📅' },
     ],
   },
   {
@@ -40,6 +57,8 @@ const navSections = [
       { to: '/profile', label: 'Company Profile', icon: '◈' },
       { to: '/sub-profile', label: 'Sub Profile', icon: '📋' },
       { to: '/coach', label: 'AI Coach', icon: '🤖' },
+      { to: '/compliance', label: 'Compliance Center', icon: '✅' },
+      { to: '/contract-vehicles', label: 'Contract Vehicles', icon: '📄' },
       { to: '/team', label: 'Team & Integrations', icon: '◎' },
       { to: '/billing', label: 'Billing', icon: '◇' },
       { to: '/cardscan', label: 'Card Scanner', icon: '📇' },

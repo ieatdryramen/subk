@@ -102,6 +102,27 @@ app.use('/api/seed', require('./routes/seed'));
 app.use('/api/search', require('./routes/search'));
 app.use('/api/proposals', auditMiddleware('proposal'), require('./routes/proposals'));
 app.use('/api/competitive', auditMiddleware('competitive_intel'), require('./routes/competitive'));
+app.use('/api/awards', require('./routes/awards'));
+app.use('/api/spending', require('./routes/spending'));
+app.use('/api/forecast', require('./routes/forecast'));
+app.use('/api/capture', require('./routes/capture'));
+
+// BATCH 2: Differentiators
+app.use('/api/rate-benchmarks', require('./routes/rate-benchmarks'));
+app.use('/api/compliance', require('./routes/compliance'));
+app.use('/api/partner-match', require('./routes/partner-match'));
+app.use('/api/narratives', aiLimiter, require('./routes/narratives'));
+app.use('/api/foia', require('./routes/foia'));
+app.use('/api/subcon-plan', aiLimiter, require('./routes/subcon-plan'));
+
+// BATCH 3: Nice-to-Have Features
+app.use('/api/events', require('./routes/events'));
+app.use('/api/doc-collab', require('./routes/doc-collab'));
+app.use('/api/market-research', aiLimiter, require('./routes/market-research'));
+app.use('/api/contract-vehicles', require('./routes/contract-vehicles'));
+app.use('/api/gov-contacts', require('./routes/gov-contacts'));
+app.use('/api/bid-decision', require('./routes/bid-decision'));
+app.use('/api/revenue-forecast', require('./routes/revenue-forecast'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', version: '3.30.0', app: 'SumX CRM', uptime: process.uptime() }));
 

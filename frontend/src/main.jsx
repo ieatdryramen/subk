@@ -38,6 +38,26 @@ import PublicProfilePage from './pages/PublicProfilePage';
 import ProposalTrackerPage from './pages/ProposalTrackerPage';
 import CompetitiveIntelPage from './pages/CompetitiveIntelPage';
 
+// Batch 1: Critical Gaps
+import ForecastPipelinePage from './pages/ForecastPipelinePage';
+import AwardHistoryPage from './pages/AwardHistoryPage';
+import SpendingAnalyticsPage from './pages/SpendingAnalyticsPage';
+import CaptureManagerPage from './pages/CaptureManagerPage';
+
+// Batch 2: Differentiators
+import RateBenchmarksPage from './pages/RateBenchmarksPage';
+import ComplianceCenterPage from './pages/ComplianceCenterPage';
+import FOIACenterPage from './pages/FOIACenterPage';
+import SubConPlanPage from './pages/SubConPlanPage';
+
+// Batch 3: Nice-to-Haves
+import GovConEventsPage from './pages/GovConEventsPage';
+import MarketResearchPage from './pages/MarketResearchPage';
+import ContractVehiclesPage from './pages/ContractVehiclesPage';
+import GovContactsPage from './pages/GovContactsPage';
+import BidDecisionPage from './pages/BidDecisionPage';
+import RevenueForecastPage from './pages/RevenueForecastPage';
+
 const Protected = ({ children, skipOnboarding }) => {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -71,6 +91,24 @@ const App = () => (
         <Route path="/opp-board" element={<Navigate to="/opportunity-board" replace />} />
         <Route path="/proposals" element={<Protected><ProposalTrackerPage /></Protected>} />
         <Route path="/competitive" element={<Protected><CompetitiveIntelPage /></Protected>} />
+        <Route path="/forecast" element={<Protected><ForecastPipelinePage /></Protected>} />
+        <Route path="/award-history" element={<Protected><AwardHistoryPage /></Protected>} />
+        <Route path="/spending-analytics" element={<Protected><SpendingAnalyticsPage /></Protected>} />
+        <Route path="/capture" element={<Protected><CaptureManagerPage /></Protected>} />
+
+        {/* Batch 2: Differentiators */}
+        <Route path="/rate-benchmarks" element={<Protected><RateBenchmarksPage /></Protected>} />
+        <Route path="/compliance" element={<Protected><ComplianceCenterPage /></Protected>} />
+        <Route path="/foia-center" element={<Protected><FOIACenterPage /></Protected>} />
+        <Route path="/subcon-plan" element={<Protected><SubConPlanPage /></Protected>} />
+
+        {/* Batch 3: Nice-to-Haves */}
+        <Route path="/events" element={<Protected><GovConEventsPage /></Protected>} />
+        <Route path="/market-research" element={<Protected><MarketResearchPage /></Protected>} />
+        <Route path="/contract-vehicles" element={<Protected><ContractVehiclesPage /></Protected>} />
+        <Route path="/gov-contacts" element={<Protected><GovContactsPage /></Protected>} />
+        <Route path="/bid-decision" element={<Protected><BidDecisionPage /></Protected>} />
+        <Route path="/revenue-forecast" element={<Protected><RevenueForecastPage /></Protected>} />
 
         {/* BD / Sales / Outreach */}
         <Route path="/lists" element={<Protected><LeadListsPage /></Protected>} />

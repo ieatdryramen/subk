@@ -238,8 +238,188 @@ const NewProposalModal = ({ visible, onClose, onSave, opportunities, loading }) 
   );
 };
 
+// AI Generation Modal
+const AIGenerationModal = ({ visible, onClose, onGenerate, proposal, loading }) => {
+  const [selectedSection, setSelectedSection] = useState('Executive Summary');
+  const [generatedDraft, setGeneratedDraft] = useState('');
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!selectedSection) {
+      alert('Please select a section');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await onGenerate(proposal.id, selectedSection);
+      setGeneratedDraft(res || '');
+    } catch (err) {
+      // Error handled by parent
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSaveSection = () => {
+    if (generatedDraft.trim()) {
+      onClose();
+      setGeneratedDraft('');
+      setSelectedSection('Executive Summary');
+    }
+  };
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 999,
+        }}
+      />
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '2rem',
+          zIndex: 1000,
+          maxWidth: 700,
+          width: '90%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+        }}
+      >
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text)' }}>
+          Generate Section with AI
+        </h2>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+            Section to Generate
+          </label>
+          <select
+            value={selectedSection}
+            onChange={e => {
+              setSelectedSection(e.target.value);
+              setGeneratedDraft('');
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              background: 'var(--bg2)',
+              color: 'var(--text)',
+              fontSize: 14,
+            }}
+          >
+            <option>Executive Summary</option>
+            <option>Technical Approach</option>
+            <option>Management Approach</option>
+            <option>Past Performance</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              Generated Draft
+            </label>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--radius)',
+                border: 'none',
+                background: 'var(--accent)',
+                color: '#FFFFFF',
+                cursor: generating ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                opacity: generating ? 0.6 : 1,
+              }}
+            >
+              {generating ? '⟳ Generating...' : '✨ Generate'}
+            </button>
+          </div>
+          <textarea
+            value={generatedDraft}
+            onChange={e => setGeneratedDraft(e.target.value)}
+            placeholder={generating ? 'Generating your section draft...' : 'Generated content will appear here'}
+            style={{
+              width: '100%',
+              padding: '12px',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              background: 'var(--bg2)',
+              color: 'var(--text)',
+              fontSize: 13,
+              minHeight: 200,
+              fontFamily: 'Plus Jakarta Sans',
+              resize: 'vertical',
+            }}
+            disabled={generating}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--border)',
+              background: 'transparent',
+              color: 'var(--text2)',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => e.target.style.background = 'var(--bg3)'}
+            onMouseLeave={e => e.target.style.background = 'transparent'}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSaveSection}
+            disabled={!generatedDraft.trim()}
+            style={{
+              padding: '10px 20px',
+              borderRadius: 'var(--radius)',
+              border: 'none',
+              background: generatedDraft.trim() ? 'var(--success)' : 'var(--border)',
+              color: '#FFFFFF',
+              cursor: generatedDraft.trim() ? 'pointer' : 'not-allowed',
+              fontSize: 14,
+              fontWeight: 600,
+              opacity: generatedDraft.trim() ? 1 : 0.5,
+            }}
+          >
+            Save to Proposal
+          </button>
+        </div>
+      </div>
+    </>
+  );
+};
+
 // Proposal Card Component
-const ProposalCard = ({ proposal, opportunities, onEdit, onExpand, expanded }) => {
+const ProposalCard = ({ proposal, opportunities, onEdit, onExpand, expanded, onGenerateDraft }) => {
   const opp = opportunities.find(o => o.id === proposal.opportunity_id);
   const countdown = daysUntil(proposal.deadline);
   const status = proposal.status || 'drafting';
@@ -249,160 +429,196 @@ const ProposalCard = ({ proposal, opportunities, onEdit, onExpand, expanded }) =
   const totalSections = (proposal.sections || []).length;
   const progressPct = totalSections > 0 ? (completedSections / totalSections) * 100 : 0;
 
+  const [showAIModal, setShowAIModal] = useState(false);
+
   return (
-    <div
-      onClick={() => onExpand(proposal.id)}
-      style={{
-        background: 'var(--bg2)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-lg)', padding: '1.5rem',
-        cursor: 'pointer', transition: 'all 0.2s',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = 'var(--accent)';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(20,184,166,0.1)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 6 }}>
-            {proposal.title}
-          </h3>
-          {opp && (
-            <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
-              Linked to: {opp.title}
-            </div>
-          )}
-        </div>
-        <span style={{
-          padding: '4px 12px', borderRadius: 20,
-          fontSize: 12, fontWeight: 600,
-          background: colors.bg, color: colors.text,
-          whiteSpace: 'nowrap', marginLeft: 12,
-        }}>
-          {status.replace(/_/g, ' ')}
-        </span>
-      </div>
-
-      {countdown && (
-        <div style={{ fontSize: 12, color: countdown.color, fontWeight: 500, marginBottom: 12 }}>
-          Deadline: {countdown.text}
-        </div>
-      )}
-
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Progress
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
-            {completedSections} / {totalSections} sections
+    <>
+      <div
+        onClick={() => onExpand(proposal.id)}
+        style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg)', padding: '1.5rem',
+          cursor: 'pointer', transition: 'all 0.2s',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(20,184,166,0.1)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0, marginBottom: 6 }}>
+              {proposal.title}
+            </h3>
+            {opp && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 8 }}>
+                Linked to: {opp.title}
+              </div>
+            )}
+          </div>
+          <span style={{
+            padding: '4px 12px', borderRadius: 20,
+            fontSize: 12, fontWeight: 600,
+            background: colors.bg, color: colors.text,
+            whiteSpace: 'nowrap', marginLeft: 12,
+          }}>
+            {status.replace(/_/g, ' ')}
           </span>
         </div>
-        <div style={{
-          height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden',
-        }}>
+
+        {countdown && (
+          <div style={{ fontSize: 12, color: countdown.color, fontWeight: 500, marginBottom: 12 }}>
+            Deadline: {countdown.text}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', fontWeight: 600 }}>
+              Progress
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
+              {completedSections} / {totalSections} sections
+            </span>
+          </div>
           <div style={{
-            height: '100%', background: 'var(--accent)',
-            width: `${progressPct}%`, transition: 'width 0.3s',
-          }} />
+            height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', background: 'var(--accent)',
+              width: `${progressPct}%`, transition: 'width 0.3s',
+            }} />
+          </div>
         </div>
+
+        {proposal.team_members && proposal.team_members.length > 0 && (
+          <div style={{ display: 'flex', gap: -8, marginBottom: 12 }}>
+            {proposal.team_members.slice(0, 5).map((member, i) => {
+              const memberName = typeof member === 'object' && member !== null ? (member.name || member.full_name || '?') : String(member || '?');
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    background: 'var(--accent-bg)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
+                    border: '2px solid var(--bg2)', marginLeft: i > 0 ? -8 : 0,
+                    zIndex: 5 - i, title: memberName,
+                  }}
+                >
+                  {initials(member)}
+                </div>
+              );
+            })}
+            {proposal.team_members.length > 5 && (
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'var(--bg3)', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 600, color: 'var(--text3)',
+                border: '2px solid var(--bg2)', marginLeft: -8,
+              }}>
+                +{proposal.team_members.length - 5}
+              </div>
+            )}
+          </div>
+        )}
+
+        {proposal.estimated_value > 0 && (
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: 'var(--accent2)',
+            paddingTop: 12, borderTop: '1px solid var(--border)',
+          }}>
+            ${(proposal.estimated_value / 1000000).toFixed(1)}M
+          </div>
+        )}
+
+        {expanded && (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
+              Sections
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              {(proposal.sections || []).map((section, idx) => (
+                <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={section.status === 'complete'}
+                    onChange={(e) => {
+                      const newSections = [...(proposal.sections || [])];
+                      newSections[idx] = {
+                        ...section,
+                        status: e.target.checked ? 'complete' : 'in_progress',
+                      };
+                      onEdit(proposal.id, { sections: newSections });
+                    }}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+                      {section.name}
+                    </div>
+                    {section.assignee && (
+                      <div style={{ fontSize: 11, color: 'var(--text3)' }}>
+                        Assigned to: {section.assignee}
+                      </div>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                setShowAIModal(true);
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius)',
+                border: '1px solid var(--accent-bg)',
+                background: 'var(--accent-bg)',
+                color: 'var(--accent2)',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+                marginBottom: 12,
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => e.target.style.opacity = '0.9'}
+              onMouseLeave={e => e.target.style.opacity = '1'}
+            >
+              ✨ Generate Draft with AI
+            </button>
+
+            {proposal.notes && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
+                  Notes
+                </div>
+                <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text2)' }}>
+                  {proposal.notes}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {proposal.team_members && proposal.team_members.length > 0 && (
-        <div style={{ display: 'flex', gap: -8, marginBottom: 12 }}>
-          {proposal.team_members.slice(0, 5).map((member, i) => {
-            const memberName = typeof member === 'object' && member !== null ? (member.name || member.full_name || '?') : String(member || '?');
-            return (
-              <div
-                key={i}
-                style={{
-                  width: 32, height: 32, borderRadius: '50%',
-                  background: 'var(--accent-bg)', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 600, color: 'var(--accent2)',
-                  border: '2px solid var(--bg2)', marginLeft: i > 0 ? -8 : 0,
-                  zIndex: 5 - i, title: memberName,
-                }}
-              >
-                {initials(member)}
-              </div>
-            );
-          })}
-          {proposal.team_members.length > 5 && (
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              background: 'var(--bg3)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, fontWeight: 600, color: 'var(--text3)',
-              border: '2px solid var(--bg2)', marginLeft: -8,
-            }}>
-              +{proposal.team_members.length - 5}
-            </div>
-          )}
-        </div>
-      )}
-
-      {proposal.estimated_value > 0 && (
-        <div style={{
-          fontSize: 13, fontWeight: 600, color: 'var(--accent2)',
-          paddingTop: 12, borderTop: '1px solid var(--border)',
-        }}>
-          ${(proposal.estimated_value / 1000000).toFixed(1)}M
-        </div>
-      )}
-
-      {expanded && (
-        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>
-            Sections
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {(proposal.sections || []).map((section, idx) => (
-              <label key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={section.status === 'complete'}
-                  onChange={(e) => {
-                    const newSections = [...(proposal.sections || [])];
-                    newSections[idx] = {
-                      ...section,
-                      status: e.target.checked ? 'complete' : 'in_progress',
-                    };
-                    onEdit(proposal.id, { sections: newSections });
-                  }}
-                  style={{ width: 16, height: 16, cursor: 'pointer' }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-                    {section.name}
-                  </div>
-                  {section.assignee && (
-                    <div style={{ fontSize: 11, color: 'var(--text3)' }}>
-                      Assigned to: {section.assignee}
-                    </div>
-                  )}
-                </div>
-              </label>
-            ))}
-          </div>
-
-          {proposal.notes && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 8 }}>
-                Notes
-              </div>
-              <div style={{ padding: '10px 12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text2)' }}>
-                {proposal.notes}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+      <AIGenerationModal
+        visible={showAIModal}
+        onClose={() => setShowAIModal(false)}
+        proposal={proposal}
+        onGenerate={onGenerateDraft}
+        loading={false}
+      />
+    </>
   );
 };
 
@@ -450,6 +666,36 @@ export default function ProposalTrackerPage() {
       addToast('Proposal updated', 'success');
     } catch (err) {
       addToast('Failed to update proposal', 'error');
+    }
+  };
+
+  const handleGenerateDraft = async (proposalId, section) => {
+    try {
+      const res = await api.post(`/proposals/${proposalId}/generate-draft`, {
+        section,
+      });
+      const draft = res.data.content || res.data.draft || '';
+
+      // Automatically save generated section
+      const proposal = proposals.find(p => p.id === proposalId);
+      if (proposal) {
+        const newSections = [...(proposal.sections || [])];
+        const sectionIdx = newSections.findIndex(s => s.name === section);
+        if (sectionIdx >= 0) {
+          newSections[sectionIdx] = {
+            ...newSections[sectionIdx],
+            content: draft,
+            status: 'in_progress',
+          };
+          await handleEditProposal(proposalId, { sections: newSections });
+        }
+      }
+
+      addToast('Draft generated and saved', 'success');
+      return draft;
+    } catch (err) {
+      addToast('Failed to generate draft', 'error');
+      throw err;
     }
   };
 
@@ -568,6 +814,7 @@ export default function ProposalTrackerPage() {
                 onEdit={handleEditProposal}
                 onExpand={(id) => setExpandedProposal(expandedProposal === id ? null : id)}
                 expanded={expandedProposal === proposal.id}
+                onGenerateDraft={handleGenerateDraft}
               />
             ))}
           </div>
