@@ -88,6 +88,20 @@ api.interceptors.response.use(
       window.location.href = '/login';
     }
 
+    // If 403 CSRF error, try to get a fresh token and retry once
+    if (err.response?.status === 403 && !originalRequest._csrfRetry &&
+        (err.response?.data?.error || '').toLowerCase().includes('csrf')) {
+      originalRequest._csrfRetry = true;
+      try {
+        const csrfRes = await api.get('/auth/csrf-token');
+        if (csrfRes.data?.csrfToken) {
+          setCsrfToken(csrfRes.data.csrfToken);
+          originalRequest.headers['X-CSRF-Token'] = csrfRes.data.csrfToken;
+          return api(originalRequest);
+        }
+      } catch {}
+    }
+
     // Capture API errors for monitoring (non-401s, non-cancellations)
     if (err.response?.status !== 401 && !axios.isCancel(err)) {
       const errorInfo = {

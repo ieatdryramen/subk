@@ -26,7 +26,7 @@ function csrfProtection(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
 
   // Skip routes that don't need CSRF (webhooks, auth login/register/refresh)
-  const skipPaths = ['/api/billing/webhook', '/api/auth/login', '/api/auth/register', '/api/auth/refresh', '/api/auth/logout'];
+  const skipPaths = ['/api/billing/webhook', '/api/auth/login', '/api/auth/register', '/api/auth/refresh', '/api/auth/logout', '/api/auth/complete-onboarding'];
   if (skipPaths.some(p => req.path.startsWith(p))) return next();
 
   const token = req.headers['x-csrf-token'];
