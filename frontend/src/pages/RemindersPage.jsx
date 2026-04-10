@@ -682,7 +682,7 @@ export default function RemindersPage() {
               </span>
             </div>
             <div style={{ color: 'var(--text2)', fontSize: 14, marginBottom: '1.5rem' }}>
-              {data.overdue.length > 0 ? `${data.overdue.length} overdue · ${data.due.length} due today` : `${data.due.length} due today`}
+              {overdueFiltered.length > 0 ? `${overdueFiltered.length} overdue · ${dueFiltered.length} due today` : `${dueFiltered.length} due today`}
             </div>
 
             {goalData && (

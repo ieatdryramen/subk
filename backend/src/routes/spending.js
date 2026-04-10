@@ -13,14 +13,22 @@ router.get('/by-agency', auth, async (req, res) => {
     const { fiscalYear, limit = 20 } = req.query;
     const fy = parseInt(fiscalYear) || new Date().getFullYear();
 
-    const results = await usaspending.getSpendingByAgency({
+    const raw = await usaspending.getSpendingByAgency({
       fiscalYear: fy,
       limit: parseInt(limit),
     });
 
+    // Normalize field names for frontend consumption
+    const results = (raw.results || []).map(r => ({
+      name: r.name || r.agency_name || r.description || 'Unknown',
+      amount: r.aggregated_amount || r.total_obligations || r.amount || 0,
+      count: r.transaction_count || r.count || 0,
+    }));
+
     res.json({
       success: true,
-      data: results,
+      agencies: results,
+      total: raw.total || results.length,
     });
   } catch (err) {
     console.error('GET /spending/by-agency error:', err);
@@ -37,15 +45,24 @@ router.get('/by-naics', auth, async (req, res) => {
     const { fiscalYear, naics, limit = 20 } = req.query;
     const fy = parseInt(fiscalYear) || new Date().getFullYear();
 
-    const results = await usaspending.getSpendingByNaics({
+    const raw = await usaspending.getSpendingByNaics({
       fiscalYear: fy,
       naics: naics || null,
       limit: parseInt(limit),
     });
 
+    // Normalize field names for frontend consumption
+    const results = (raw.results || []).map(r => ({
+      code: r.code || r.naics_code || '',
+      name: r.name || r.description || 'Unknown',
+      amount: r.aggregated_amount || r.total_obligations || r.amount || 0,
+      count: r.transaction_count || r.count || 0,
+    }));
+
     res.json({
       success: true,
-      data: results,
+      naics: results,
+      total: raw.total || results.length,
     });
   } catch (err) {
     console.error('GET /spending/by-naics error:', err);
@@ -67,9 +84,10 @@ router.get('/trends', auth, async (req, res) => {
       years: parseInt(years),
     });
 
+    // Normalize — trends is already an array of { year, amount } from the service
     res.json({
       success: true,
-      data: results,
+      trends: Array.isArray(results) ? results : [],
     });
   } catch (err) {
     console.error('GET /spending/trends error:', err);

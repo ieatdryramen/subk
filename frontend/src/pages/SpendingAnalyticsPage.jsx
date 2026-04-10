@@ -246,9 +246,9 @@ export default function SpendingAnalyticsPage() {
         api.get('/spending/trends'),
       ]);
 
-      const agencyData = agencyRes.data?.data?.results || agencyRes.data?.agencies || [];
-      const naicsData = naicsRes.data?.data?.results || naicsRes.data?.naics || [];
-      const trendData = trendsRes.data?.data?.results || trendsRes.data?.data || trendsRes.data?.trends || [];
+      const agencyData = agencyRes.data?.agencies || agencyRes.data?.data?.results || [];
+      const naicsData = naicsRes.data?.naics || naicsRes.data?.data?.results || [];
+      const trendData = trendsRes.data?.trends || trendsRes.data?.data || [];
 
       setAgencies(agencyData);
       setNaicsCodes(naicsData);

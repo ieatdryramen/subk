@@ -113,10 +113,15 @@ export default function ForecastPipelinePage() {
     try {
       setScanning(true);
       const res = await api.post('/forecast/scan');
-      setForecasts(res.data?.data || res.data?.forecasts || []);
-      addToast('Scan complete - new opportunities found', 'success');
+      const newForecasts = res.data?.data || res.data?.forecasts || [];
+      if (newForecasts.length > 0) {
+        setForecasts(prev => [...newForecasts, ...prev]);
+        addToast(`Scan complete — ${newForecasts.length} new opportunities found`, 'success');
+      } else {
+        addToast('Scan complete — no new opportunities found. Try adding NAICS codes to your profile.', 'info');
+      }
     } catch (err) {
-      addToast('Scan failed', 'error');
+      addToast('Scan failed: ' + (err.response?.data?.error || err.message), 'error');
     } finally {
       setScanning(false);
     }

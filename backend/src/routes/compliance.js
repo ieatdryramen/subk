@@ -101,6 +101,40 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// Create a single compliance item (without deleting existing)
+router.post('/item', auth, async (req, res) => {
+  try {
+    const { key, category, name, description, status, expiration_date, notes } = req.body;
+    const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+    const orgId = userR.rows[0]?.org_id;
+
+    // Upsert: if item with this key already exists, update it; otherwise insert
+    const existing = await pool.query(
+      'SELECT id FROM compliance_items WHERE org_id=$1 AND requirement_key=$2',
+      [orgId, key]
+    );
+
+    let result;
+    if (existing.rows.length > 0) {
+      result = await pool.query(
+        `UPDATE compliance_items SET status=$1, expiration_date=$2, notes=$3, updated_at=NOW()
+         WHERE id=$4 RETURNING *`,
+        [status || 'pending', expiration_date || null, notes || null, existing.rows[0].id]
+      );
+    } else {
+      result = await pool.query(
+        `INSERT INTO compliance_items (org_id, requirement_key, category, status, expiration_date, notes)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [orgId, key, category, status || 'pending', expiration_date || null, notes || null]
+      );
+    }
+
+    res.status(201).json({ success: true, item: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update a specific compliance item
 router.put('/:id', auth, async (req, res) => {
   try {

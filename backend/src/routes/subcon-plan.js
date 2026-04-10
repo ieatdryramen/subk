@@ -30,10 +30,13 @@ router.post('/', auth, async (req, res) => {
     const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
     const orgId = userR.rows[0]?.org_id;
 
+    const val = parseFloat(contract_value) || 0;
+    if (val < 0) return res.status(400).json({ error: 'Contract value cannot be negative' });
+
     const r = await pool.query(
       `INSERT INTO subcon_plans (org_id, title, contract_value, status)
        VALUES ($1, $2, $3, 'draft') RETURNING *`,
-      [orgId, title, contract_value || 0]
+      [orgId, title, Math.abs(val)]
     );
 
     res.status(201).json({ plan: r.rows[0] });

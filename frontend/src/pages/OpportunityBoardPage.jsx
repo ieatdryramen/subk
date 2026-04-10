@@ -131,31 +131,60 @@ const OpportunityBoardPage = () => {
   }
 
   if (viewMode === 'list') {
+    const formatValue = (v) => v ? `$${(v / 1000).toFixed(0)}K` : '—';
+    const statusBadge = (s) => {
+      const colors = { new: 'var(--text3)', pursuing: 'var(--accent2)', submitted: 'var(--warning)', won: 'var(--success)', lost: 'var(--danger)' };
+      const bgs = { new: 'var(--bg3)', pursuing: 'var(--accent-bg)', submitted: 'var(--warning-bg)', won: 'var(--success-bg)', lost: 'var(--danger-bg)' };
+      return { color: colors[s] || 'var(--text3)', background: bgs[s] || 'var(--bg3)' };
+    };
     return (
       <Layout>
-        <div style={{ padding: '2rem' }}>
+        <div style={{ padding: '2rem', paddingTop: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Opportunities</h1>
-            <button
-              onClick={() => setViewMode('board')}
-              style={{
-                padding: '8px 16px',
-                background: 'var(--accent)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius)',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Opportunities — List View</h1>
+            <button onClick={() => setViewMode('board')} style={{ padding: '8px 16px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
               📋 Board View
             </button>
           </div>
-          <p style={{ color: 'var(--text2)' }}>Switch back to board view for kanban-style filtering.</p>
-          <a href="/opportunities" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>
-            Go to full opportunities list
-          </a>
+          <div style={{ marginBottom: '1rem' }}>
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search opportunities..." style={{ padding: '9px 14px', width: 300, border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13 }} />
+          </div>
+          {filteredOpps.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)' }}>No opportunities found</div>
+          ) : (
+            <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    {['Title', 'Agency', 'Status', 'Est. Value', 'Fit Score', 'Type', 'Created'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOpps.map(opp => {
+                    const badge = statusBadge(opp.status);
+                    return (
+                      <tr key={opp.id} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => setSelectedOpp(opp)}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg3)'} onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <td style={{ padding: '10px 14px', fontWeight: 500, color: 'var(--text)' }}>{opp.title || '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text2)' }}>{opp.agency || '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, ...badge }}>{statusColumns[opp.status] || opp.status}</span>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text2)' }}>{formatValue(opp.est_value || opp.value_max)}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          {opp.fit_score != null ? <span style={{ fontWeight: 600, color: opp.fit_score >= 70 ? 'var(--success)' : opp.fit_score >= 40 ? 'var(--warning)' : 'var(--text3)' }}>{opp.fit_score}</span> : '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text3)', fontSize: 12 }}>{opp.type || '—'}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text3)', fontSize: 12 }}>{opp.created_at ? new Date(opp.created_at).toLocaleDateString() : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Layout>
     );

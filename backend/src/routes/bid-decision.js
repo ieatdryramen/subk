@@ -298,9 +298,9 @@ function calculateWeightedScore(criteria) {
  * >70% = Bid, 50-70% = Consider, <50% = No-Bid
  */
 function getRecommendation(score) {
-  if (score > 70) return 'Bid';
-  if (score >= 50) return 'Consider';
-  return 'No-Bid';
+  if (score > 70) return 'bid';
+  if (score >= 50) return 'consider';
+  return 'no_bid';
 }
 
 module.exports = router;

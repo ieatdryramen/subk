@@ -383,17 +383,36 @@ export default function RevenueForecastPage() {
     }
   };
 
-  // Generate monthly data
-  const monthlyData = [];
-  const today = new Date();
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
-    monthlyData.push({
-      label: date.toLocaleDateString('en-US', { month: 'short' }),
-      date: date,
-      value: Math.random() * 500000, // Mock data
+  // Generate monthly data from actual pipeline
+  const monthlyData = (() => {
+    const today = new Date();
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      months.push({
+        label: date.toLocaleDateString('en-US', { month: 'short' }),
+        date,
+        value: 0,
+      });
+    }
+    // Distribute weighted pipeline across months based on expected close dates
+    const allItems = [
+      ...(data?.captures || []).map(c => ({ value: Number(c.estimated_value) || 0, pwin: Number(c.pwin) || 30, date: c.expected_rfp_date || c.created_at })),
+      ...(data?.opportunities || []).map(o => ({ value: Number(o.value_max) || Number(o.est_value) || 0, pwin: Number(o.fit_score) || 30, date: o.expected_rfq_date || o.created_at })),
+      ...(data?.proposals || []).map(p => ({ value: Number(p.value) || 0, pwin: Number(p.pwin) || 50, date: p.due_date || p.created_at })),
+    ];
+    allItems.forEach(item => {
+      const weighted = Math.round(item.value * (item.pwin / 100));
+      const itemDate = item.date ? new Date(item.date) : today;
+      const monthIdx = (itemDate.getFullYear() - today.getFullYear()) * 12 + (itemDate.getMonth() - today.getMonth());
+      if (monthIdx >= 0 && monthIdx < 12) {
+        months[monthIdx].value += weighted;
+      } else if (monthIdx < 0) {
+        months[0].value += weighted; // Past items count toward current month
+      }
     });
-  }
+    return months;
+  })();
 
   if (!data || !scenarios) {
     return (

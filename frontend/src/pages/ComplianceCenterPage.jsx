@@ -74,17 +74,15 @@ export default function ComplianceCenterPage() {
         // Existing item — update by ID
         await api.put(`/compliance/${itemOrKey}`, { status: newStatus });
       } else {
-        // New item — create it first with the template data
-        await api.post('/compliance', {
-          items: [{
-            key: template.key,
-            category: template.category,
-            name: template.name,
-            description: template.description,
-            status: newStatus,
-            expiration_date: null,
-            notes: '',
-          }],
+        // New item — create individually (without wiping existing items)
+        await api.post('/compliance/item', {
+          key: template.key,
+          category: template.category,
+          name: template.name,
+          description: template.description,
+          status: newStatus,
+          expiration_date: null,
+          notes: '',
         });
       }
       addToast('Status updated', 'success');

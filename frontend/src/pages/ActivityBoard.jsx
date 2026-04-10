@@ -63,6 +63,7 @@ const ActivityHeatmap = ({ activities }) => {
   });
 
   const dates = Object.entries(dayMap).map(([date, count]) => ({ date, count }));
+  const totalActivity = dates.reduce((sum, d) => sum + d.count, 0);
   const maxCount = Math.max(...dates.map(d => d.count), 1);
 
   const cellSize = 12;
@@ -77,28 +78,38 @@ const ActivityHeatmap = ({ activities }) => {
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '1rem' }}>
         📊 Activity Intensity (Last 30 Days)
       </div>
-      <svg width="100%" viewBox={`0 0 ${w + 40} ${h + 20}`} style={{ minHeight: 120 }}>
-        {dates.map((d, i) => {
-          const row = Math.floor(i / cols);
-          const col = i % cols;
-          const x = col * (cellSize + gap);
-          const y = row * (cellSize + gap);
-          const intensity = d.count === 0 ? 0 : d.count / maxCount;
-          const color = intensity === 0 ? 'var(--bg3)' : `rgba(var(--accent-rgb, 59, 130, 246), ${Math.max(0.2, intensity)})`;
+      {totalActivity === 0 ? (
+        <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text3)' }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>No activity recorded yet</div>
+          <div style={{ fontSize: 12 }}>Complete touches, log calls, or send emails to build your activity heatmap</div>
+        </div>
+      ) : (
+        <>
+          <svg width="100%" viewBox={`0 0 ${w + 40} ${h + 20}`} style={{ minHeight: 120 }}>
+            {dates.map((d, i) => {
+              const row = Math.floor(i / cols);
+              const col = i % cols;
+              const x = col * (cellSize + gap);
+              const y = row * (cellSize + gap);
+              const intensity = d.count === 0 ? 0 : d.count / maxCount;
+              const color = intensity === 0 ? 'var(--bg3)' : `rgba(var(--accent-rgb, 59, 130, 246), ${Math.max(0.2, intensity)})`;
 
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={cellSize} height={cellSize} rx={2} fill={color} stroke="var(--border)" strokeWidth="0.5" />
-              {d.count > 0 && (
-                <title>{d.date}: {d.count} activities</title>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: '0.75rem' }}>
-        Darker = more activity
-      </div>
+              return (
+                <g key={i}>
+                  <rect x={x} y={y} width={cellSize} height={cellSize} rx={2} fill={color} stroke="var(--border)" strokeWidth="0.5" />
+                  {d.count > 0 && (
+                    <title>{d.date}: {d.count} activities</title>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
+          <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: '0.75rem' }}>
+            Darker = more activity
+          </div>
+        </>
+      )}
     </div>
   );
 };
@@ -629,7 +640,13 @@ export default function ActivityBoard() {
           ))}
         </div>
 
-        {teamMembers.length > 0 && (
+        {teamMembers.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text3)' }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>👥</div>
+            <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4, color: 'var(--text2)' }}>No team members yet</div>
+            <div style={{ fontSize: 13 }}>Invite team members from Settings to see their activity here</div>
+          </div>
+        ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
             {teamMembers.map(m => (
               <div key={m.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem' }}>
@@ -659,3 +676,5 @@ export default function ActivityBoard() {
     </Layout>
   );
 }
+
+
