@@ -76,7 +76,7 @@ export default function SubConPlanPage() {
       setShowNewForm(false);
       loadData();
     } catch (err) {
-      addToast(err.message, 'error');
+      addToast(err.response?.data?.error || err.message, 'error');
     }
   };
 

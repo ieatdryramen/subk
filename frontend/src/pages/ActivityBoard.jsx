@@ -276,7 +276,7 @@ const ActivityTimeline = ({ activities, loading }) => {
                         <span style={{ fontSize: 18 }}>{ActivityIcon({ type: a.type })}</span>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
-                            {a.title}
+                            {a.title || `${(a.type || 'activity').charAt(0).toUpperCase() + (a.type || 'activity').slice(1)} activity`}
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 2 }}>
                             by {a.full_name || 'Someone'}

@@ -661,7 +661,9 @@ export default function Dashboard() {
       .then(r => setOnboarding(r.data))
       .catch(() => {});
 
-    api.get('/sequence/due/today').then(r => setDueCount((r.data?.total || 0))).catch(() => {});
+    api.get('/sequence/due/today').then(r => {
+      setDueCount(r.data?.total || (r.data?.due?.length || 0) + (r.data?.overdue?.length || 0));
+    }).catch(() => {});
     api.get('/lists').then(r => setLists(r.data || [])).catch(() => {});
     api.get('/billing/status').then(r => setBilling(r.data)).catch(() => {});
     api.get('/opportunities/recent?limit=5').then(r => {
@@ -767,7 +769,7 @@ export default function Dashboard() {
           </div>
           <div style={{ color: 'var(--text2)', fontSize: 14 }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            {dueCount > 0 && <span style={{ color: 'var(--warning)', marginLeft: 12 }}>· {dueCount} touches due</span>}
+            {dueCount > 0 && <span style={{ color: 'var(--warning)', marginLeft: 12 }}>· {dueCount} touches due today</span>}
           </div>
         </div>
 
@@ -799,7 +801,7 @@ export default function Dashboard() {
             padding: '12px 16px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
             <div style={{ fontSize: 13, color: 'var(--warning)' }}>
-              🎯 {dueCount} touch{dueCount !== 1 ? 'es' : ''} due today — keep the momentum going
+              🎯 {dueCount} touch{dueCount !== 1 ? 'es' : ''} scheduled for today — keep the momentum going
             </div>
             <button onClick={() => navigate('/reminders')}
               style={{ padding: '6px 14px', background: 'var(--warning)', color: 'var(--text)', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer' }}>

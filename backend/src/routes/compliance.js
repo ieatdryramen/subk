@@ -91,7 +91,7 @@ router.post('/', auth, async (req, res) => {
       await pool.query(
         `INSERT INTO compliance_items (org_id, requirement_key, category, status, expiration_date, notes)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [orgId, item.requirement_key, item.category, item.status || 'pending', item.expiration_date || null, item.notes || null]
+        [orgId, item.key || item.requirement_key, item.category, item.status || 'pending', item.expiration_date || null, item.notes || null]
       );
     }
 

@@ -530,6 +530,12 @@ export default function PrimesPage() {
 
   const displayPrimes = tab === 'results' ? searchResults : filteredPrimes;
 
+  // Helper to normalize outreach_status to a valid kanban stage key
+  const getKanbanStage = (prime) => {
+    const status = prime.outreach_status || 'not_contacted';
+    return KANBAN_STAGES.some(s => s.key === status) ? status : 'not_contacted';
+  };
+
   // Calculate stats
   const stats = {
     total: filteredPrimes.length,
@@ -756,10 +762,10 @@ export default function PrimesPage() {
                 {KANBAN_STAGES.map(stage => (
                   <div key={stage.key} style={s.kanbanCol} onDragOver={handleDragOver} onDrop={() => handleDropOnStage(stage.key)}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: stage.color, marginBottom: 12 }}>
-                      {stage.label} ({displayPrimes.filter(p => (p.outreach_status || 'not_contacted') === stage.key).length})
+                      {stage.label} ({displayPrimes.filter(p => getKanbanStage(p) === stage.key).length})
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {displayPrimes.filter(p => (p.outreach_status || 'not_contacted') === stage.key).map(prime => (
+                      {displayPrimes.filter(p => getKanbanStage(p) === stage.key).map(prime => (
                         <div key={prime.id}
                           draggable onDragStart={() => handleDragStart(prime)}
                           onClick={() => setExpanded(prime.id)}

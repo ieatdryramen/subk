@@ -275,6 +275,19 @@ const LeadDetailPanel = ({ lead, onClose, showToast, onLeadUpdated }) => {
             )}
           </div>
 
+          {/* Status Badges */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Status</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ padding: '4px 10px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500, background: lead.status === 'done' ? 'rgba(34,197,94,0.12)' : 'var(--bg3)', color: lead.status === 'done' ? 'var(--success)' : 'var(--text3)' }}>
+                Enrichment: {lead.status === 'done' ? 'Complete' : lead.status || 'Pending'}
+              </span>
+              <span style={{ padding: '4px 10px', borderRadius: 'var(--radius)', fontSize: 12, fontWeight: 500, background: 'rgba(8,165,191,0.12)', color: 'var(--accent2)' }}>
+                Outreach: {(lead.sequence_stage || lead.stage || 'not_started').replace(/_/g, ' ')}
+              </span>
+            </div>
+          </div>
+
           {/* Quick Actions */}
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 10 }}>Quick Actions</div>

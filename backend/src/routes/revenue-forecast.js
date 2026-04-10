@@ -43,11 +43,23 @@ router.get('/', auth, async (req, res) => {
       [orgId]
     );
 
-    // Calculate weighted pipeline
+    // Calculate weighted pipeline from all sources
     let weightedPipeline = 0;
     const captures = captureR.rows || [];
     captures.forEach((item) => {
       weightedPipeline += parseFloat(item.weighted_value || 0);
+    });
+    // Also include opportunities (weighted by fit_score as pwin proxy)
+    (oppR.rows || []).forEach((opp) => {
+      const val = parseFloat(opp.value_max) || 0;
+      const pwin = parseFloat(opp.fit_score || 30) / 100;
+      weightedPipeline += val * pwin;
+    });
+    // Also include proposals (weighted by status)
+    (propR.rows || []).forEach((prop) => {
+      const val = parseFloat(prop.estimated_value) || 0;
+      const statusWeight = prop.status === 'submitted' ? 0.5 : prop.status === 'won' ? 1.0 : prop.status === 'draft' ? 0.2 : 0.3;
+      weightedPipeline += val * statusWeight;
     });
 
     // Get revenue entries

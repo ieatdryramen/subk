@@ -143,6 +143,10 @@ const App = () => (
         <Route path="/calendar" element={<Navigate to="/events" replace />} />
         <Route path="/relationships" element={<Navigate to="/gov-contacts" replace />} />
         <Route path="/settings" element={<Navigate to="/profile" replace />} />
+        <Route path="/spending" element={<Navigate to="/spending-analytics" replace />} />
+        <Route path="/foia" element={<Navigate to="/foia-center" replace />} />
+        <Route path="/activity-board" element={<Navigate to="/activity" replace />} />
+        <Route path="/bd-calendar" element={<Navigate to="/reminders" replace />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

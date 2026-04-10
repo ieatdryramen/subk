@@ -19,11 +19,32 @@ router.get('/by-agency', auth, async (req, res) => {
     });
 
     // Normalize field names for frontend consumption
-    const results = (raw.results || []).map(r => ({
+    let results = (raw.results || []).map(r => ({
       name: r.name || r.agency_name || r.description || 'Unknown',
-      amount: r.aggregated_amount || r.total_obligations || r.amount || 0,
-      count: r.transaction_count || r.count || 0,
+      amount: parseFloat(r.aggregated_amount || r.total_obligations || r.amount || 0),
+      count: parseInt(r.transaction_count || r.count || 0),
     }));
+
+    // If external API returned empty, try to derive from local opportunities data
+    if (results.length === 0) {
+      try {
+        const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+        const orgId = userR.rows[0]?.org_id;
+        const oppR = await pool.query(
+          `SELECT agency, COUNT(*) as count, COALESCE(SUM(value_max), 0) as total
+           FROM opportunities WHERE org_id=$1 AND agency IS NOT NULL
+           GROUP BY agency ORDER BY total DESC LIMIT 20`,
+          [orgId]
+        );
+        results = (oppR.rows || []).map(r => ({
+          name: r.agency || 'Unknown',
+          amount: parseFloat(r.total) || 0,
+          count: parseInt(r.count) || 0,
+        }));
+      } catch (e) {
+        console.warn('Fallback agency query failed:', e.message);
+      }
+    }
 
     res.json({
       success: true,
@@ -52,12 +73,34 @@ router.get('/by-naics', auth, async (req, res) => {
     });
 
     // Normalize field names for frontend consumption
-    const results = (raw.results || []).map(r => ({
+    let results = (raw.results || []).map(r => ({
       code: r.code || r.naics_code || '',
       name: r.name || r.description || 'Unknown',
-      amount: r.aggregated_amount || r.total_obligations || r.amount || 0,
-      count: r.transaction_count || r.count || 0,
+      amount: parseFloat(r.aggregated_amount || r.total_obligations || r.amount || 0),
+      count: parseInt(r.transaction_count || r.count || 0),
     }));
+
+    // If external API returned empty, try to derive from local opportunities data
+    if (results.length === 0) {
+      try {
+        const userR = await pool.query('SELECT org_id FROM users WHERE id=$1', [req.userId]);
+        const orgId = userR.rows[0]?.org_id;
+        const oppR = await pool.query(
+          `SELECT naics_code, COUNT(*) as count, COALESCE(SUM(value_max), 0) as total
+           FROM opportunities WHERE org_id=$1 AND naics_code IS NOT NULL AND naics_code != ''
+           GROUP BY naics_code ORDER BY total DESC LIMIT 20`,
+          [orgId]
+        );
+        results = (oppR.rows || []).map(r => ({
+          code: r.naics_code || '',
+          name: r.naics_code || 'Unknown',
+          amount: parseFloat(r.total) || 0,
+          count: parseInt(r.count) || 0,
+        }));
+      } catch (e) {
+        console.warn('Fallback NAICS query failed:', e.message);
+      }
+    }
 
     res.json({
       success: true,

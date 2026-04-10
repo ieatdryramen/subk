@@ -202,6 +202,21 @@ export default function ForecastPipelinePage() {
           </button>
         </div>
 
+        {/* Scanning indicator */}
+        {scanning && (
+          <div style={{
+            background: 'var(--accent-bg, rgba(8,165,191,0.08))', border: '1px solid var(--accent)',
+            borderRadius: 'var(--radius-lg)', padding: '12px 16px', marginBottom: '1rem',
+            display: 'flex', alignItems: 'center', gap: 12, animation: 'pulse 1.5s infinite',
+          }}>
+            <div style={{ width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 500 }}>
+              Scanning SAM.gov, GovWin, and budget forecasts for your NAICS codes...
+            </div>
+          </div>
+        )}
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } } @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }`}</style>
+
         {/* Stats Row */}
         <div
           style={{
